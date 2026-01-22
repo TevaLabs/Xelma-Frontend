@@ -131,7 +131,7 @@ export function ChatSidebar() {
     if (!inputValue.trim()) return;
 
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       username: "You",
       content: inputValue.trim(),
       timestamp: new Date(),
