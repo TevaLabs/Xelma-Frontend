@@ -7,7 +7,6 @@ function App() {
     <>
       <Header />
 
-      {/* Outer Container with your exact specs */}
       <div
         className="fixed bottom-6 right-6 bg-white shadow-2xl z-50 flex flex-col items-center"
         style={{
