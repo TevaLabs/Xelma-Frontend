@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { ThemeProvider } from './components/ThemeProvider'
 import "./App.css";
 import Header from "./components/Header";
 import Leaderboard from "./components/Leaderboard";
@@ -6,7 +7,7 @@ import RouteProgressBar from "./components/RouteProgressBar";
 
 function App() {
   return (
-    <>
+    <ThemeProvider>
       <RouteProgressBar />
       <Header />
       <main className="pt-24 lg:pt-32 px-4 lg:px-14 min-h-screen bg-[#FAFAFA]">
@@ -38,7 +39,7 @@ function App() {
           />
         </Routes>
       </main>
-    </>
+    </ThemeProvider>
   );
 }
 
