@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["file:///home/frankhood/Drips/Xelma-Frontend/app/page.tsx"],"sourcesContent":["import { LearnSection } from \"@/components/LearnSection\"\n\nexport default function Page() {\n  return (\n    <main className=\"min-h-screen bg-gray-50 p-6\">\n      <div className=\"max-w-sm\">\n        <LearnSection />\n      </div>\n    </main>\n  )\n}\n"],"names":[],"mappings":";;;;;;;;;;;;AAEe,SAAS;IACtB,qBACE,8OAAC;QAAK,WAAU;kBACd,cAAA,8OAAC;YAAI,WAAU;sBACb,cAAA,8OAAC;;;;;;;;;;;;;;;AAIT"}}]
+}

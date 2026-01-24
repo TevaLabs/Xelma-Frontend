@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///home/frankhood/Drips/Xelma-Frontend/app/layout.tsx"],"sourcesContent":["import type { Metadata } from \"next\"\nimport { LearnSection } from \"@/components/LearnSection\"\nimport \"@/index.css\"\n\nexport const metadata: Metadata = {\n  title: \"Xelma - Learn Crypto\",\n  description: \"Learn about cryptocurrency fundamentals\",\n}\n\nexport default function RootLayout({\n  children,\n}: {\n  children: React.ReactNode\n}) {\n  return (\n    <html lang=\"en\">\n      <body className=\"bg-gray-50\">\n        {children}\n      </body>\n    </html>\n  )\n}\n"],"names":[],"mappings":";;;;;;;;;;;;;;AAIO,MAAM,WAAqB;IAChC,OAAO;IACP,aAAa;AACf;AAEe,SAAS,WAAW,EACjC,QAAQ,EAGT;IACC,qBACE,8OAAC;QAAK,MAAK;kBACT,cAAA,8OAAC;YAAK,WAAU;sBACb;;;;;;;;;;;AAIT"}},
+    {"offset": {"line": 43, "column": 0}, "map": {"version":3,"sources":["file:///home/frankhood/Drips/Xelma-Frontend/node_modules/next/src/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime.ts"],"sourcesContent":["module.exports = (\n  require('../../module.compiled') as typeof import('../../module.compiled')\n).vendored['react-rsc']!.ReactJsxDevRuntime\n"],"names":["module","exports","require","vendored","ReactJsxDevRuntime"],"mappings":"AAAAA,OAAOC,OAAO,GACZC,QAAQ,4HACRC,QAAQ,CAAC,YAAY,CAAEC,kBAAkB","ignoreList":[0]}}]
+}
