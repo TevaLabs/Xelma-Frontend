@@ -1,0 +1,480 @@
+.prediction-card {
+  background: white;
+  border-radius: 12px;
+  padding: 32px 28px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-width: 500px;
+  margin: 0 auto;
+  transition: all 0.3s ease;
+  margin: 140px 20px 40px;
+}
+
+.dark .prediction-card {
+  background: #1f2937;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.prediction-card--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Title */
+.prediction-card__title {
+  font-family: "DM Sans", sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 32px;
+  color: #292d32;
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.dark .prediction-card__title {
+  color: #f3f4f6;
+}
+
+/* Connecting / loading state */
+.prediction-card__connecting {
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  color: #6b7280;
+  margin: -16px 0 20px;
+  text-align: center;
+}
+
+.dark .prediction-card__connecting {
+  color: #9ca3af;
+}
+
+/* Buttons Section */
+.prediction-card__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.prediction-card__button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  border-radius: 12px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 24px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f5f5f5;
+  color: #292d32;
+}
+
+.dark .prediction-card__button {
+  background: #374151;
+  color: #f3f4f6;
+}
+
+/* UP button: green (bg-green-500, hover:bg-green-600) */
+.prediction-card__button--up {
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.5rem;
+  border-color: transparent;
+  background: #22c55e; /* green-500 */
+  color: white;
+  font-weight: 700;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.prediction-card__button--up:hover:not(:disabled) {
+  background: #16a34a; /* green-600 */
+}
+
+.dark .prediction-card__button--up {
+  background: #22c55e;
+  color: white;
+}
+
+.dark .prediction-card__button--up:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+/* DOWN button: pink (bg-pink-500, hover:bg-pink-600) */
+.prediction-card__button--down {
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.5rem;
+  border-color: transparent;
+  background: #ec4899; /* pink-500 */
+  color: white;
+  font-weight: 700;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.prediction-card__button--down:hover:not(:disabled) {
+  background: #db2777; /* pink-600 */
+}
+
+.dark .prediction-card__button--down {
+  background: #ec4899;
+  color: white;
+}
+
+.dark .prediction-card__button--down:hover:not(:disabled) {
+  background: #db2777;
+}
+
+.prediction-card__button--active {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.prediction-card__button--up.prediction-card__button--active {
+  background: #16a34a;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+}
+
+.dark .prediction-card__button--up.prediction-card__button--active {
+  background: #16a34a;
+}
+
+.prediction-card__button--down.prediction-card__button--active {
+  background: #db2777;
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.35);
+}
+
+.dark .prediction-card__button--down.prediction-card__button--active {
+  background: #db2777;
+}
+
+.prediction-card__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.prediction-card__button-arrow {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.prediction-card__button-text {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Stake Section */
+.prediction-card__stake-section {
+  margin-bottom: 24px;
+}
+
+.prediction-card__label {
+  display: block;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dark .prediction-card__label {
+  color: #9ca3af;
+}
+
+.prediction-card__input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.prediction-card__input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 16px;
+  color: #292d32;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.dark .prediction-card__input {
+  background: #374151;
+  border-color: #4b5563;
+  color: #f3f4f6;
+}
+
+.prediction-card__input:focus {
+  outline: none;
+  border-color: #2c4bfd;
+  box-shadow: 0 0 0 3px rgba(44, 75, 253, 0.1);
+}
+
+.prediction-card__input:disabled {
+  background: #f5f5f5;
+  color: #9b9b9b;
+  cursor: not-allowed;
+}
+
+.dark .prediction-card__input:disabled {
+  background: #1f2937;
+  color: #6b7280;
+}
+
+.prediction-card__input--error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
+.prediction-card__input--error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+.dark .prediction-card__input--error {
+  border-color: #ef4444;
+}
+
+.prediction-card__exact-price-error {
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px;
+  color: #dc2626;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.dark .prediction-card__exact-price-error {
+  color: #fca5a5;
+}
+
+.prediction-card__fill-button {
+  padding: 12px 24px;
+  background: #2c4bfd;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.prediction-card__fill-button:hover:not(:disabled) {
+  background: #1e3fd4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(44, 75, 253, 0.3);
+}
+
+.prediction-card__fill-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.prediction-card__fill-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Toggle Section — switch appearance */
+.prediction-card__toggle-section {
+  margin-bottom: 24px;
+}
+
+.prediction-card__toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Hide native checkbox, use custom switch track */
+.prediction-card__toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  appearance: none;
+}
+
+.prediction-card__toggle-input:focus-visible + .prediction-card__toggle-switch {
+  box-shadow: 0 0 0 3px rgba(44, 75, 253, 0.35);
+}
+
+/* Switch track (pill) */
+.prediction-card__toggle-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+  background: #d1d5db;
+  border-radius: 9999px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dark .prediction-card__toggle-switch {
+  background: #4b5563;
+}
+
+.prediction-card__toggle-input:checked + .prediction-card__toggle-switch {
+  background: #2c4bfd;
+}
+
+.dark .prediction-card__toggle-input:checked + .prediction-card__toggle-switch {
+  background: #3b82f6;
+}
+
+/* Switch thumb */
+.prediction-card__toggle-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.prediction-card__toggle-input:checked + .prediction-card__toggle-switch::after {
+  transform: translateX(20px);
+}
+
+.prediction-card__toggle-input:disabled + .prediction-card__toggle-switch {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prediction-card__toggle-label {
+  font-family: "DM Sans", sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #292d32;
+  cursor: pointer;
+}
+
+.dark .prediction-card__toggle-label {
+  color: #f3f4f6;
+}
+
+/* Exact Price Section */
+.prediction-card__exact-price-section {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid #e5e7eb;
+  animation: slideDown 0.3s ease;
+}
+
+.dark .prediction-card__exact-price-section {
+  background: #111827;
+  border-color: #4b5563;
+}
+
+.prediction-card__legend-hint {
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.dark .prediction-card__legend-hint {
+  color: #9ca3af;
+}
+
+.prediction-card__exact-price-section .prediction-card__label {
+  margin-bottom: 10px;
+}
+
+.prediction-card__exact-price-section .prediction-card__input {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+/* Disabled Message */
+.prediction-card__disabled-message {
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+.dark .prediction-card__disabled-message {
+  background: #78350f;
+  border-color: #f59e0b;
+}
+
+.prediction-card__disabled-message p {
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  color: #78350f;
+  margin: 0;
+}
+
+.dark .prediction-card__disabled-message p {
+  color: #fcd34d;
+}
+
+/* Animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .prediction-card {
+    padding: 20px 16px;
+  }
+
+  .prediction-card__title {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+
+  .prediction-card__buttons {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .prediction-card__button {
+    padding: 20px 12px;
+    font-size: 16px;
+    gap: 6px;
+  }
+
+  .prediction-card__button-arrow {
+    font-size: 28px;
+  }
+
+  .prediction-card__input-group {
+    flex-direction: column;
+  }
+
+  .prediction-card__fill-button {
+    width: 100%;
+  }
+}

@@ -42,6 +42,12 @@
   color: var(--color-text-muted);
 }
 
+/* Dashboard grid: prediction card in center column without standalone margin */
+.dashboard__center .prediction-card {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 /* Mobile Styles */
 @media (max-width: 768px) {
   .main-content {
