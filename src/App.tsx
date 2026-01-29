@@ -4,6 +4,8 @@ import "./App.css";
 import Header from "./components/Header";
 import Leaderboard from "./components/Leaderboard";
 import RouteProgressBar from "./components/RouteProgressBar";
+import PredictionCard from "./components/PredictionCard";
+import { Toaster } from "sonner";
 import Dashboard from "./pages/Dashboard";
 
 function App() {
@@ -33,6 +35,7 @@ function App() {
           />
         </Routes>
       </main>
+      <Toaster richColors position="top-center" />
     </ThemeProvider>
   );
 }
