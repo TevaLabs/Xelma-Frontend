@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import Avatar from "../assets/avatar.svg";
+import { useMemo } from 'react';
+import Avatar from '../assets/avatar.svg';
 
 interface LeaderboardUser {
   id: string;
