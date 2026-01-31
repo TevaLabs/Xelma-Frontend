@@ -116,12 +116,7 @@ function SendIcon() {
   );
 }
 
-interface ChatSidebarProps {
-  /** When true, sidebar starts below news ribbon; when false, below header only */
-  showNewsRibbon?: boolean;
-}
-
-export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
+export function ChatSidebar() {
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [inputValue, setInputValue] = useState("");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -165,13 +160,13 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     <>
       {/* Mobile Overlay */}
       <div
-        className={`md:hidden fixed inset-0 bg-black/50 z-50 transition-opacity duration-300 ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
+        className={`md:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
         onClick={() => setIsMobileOpen(false)}
       />
 
       {/* Mobile Toggle Button */}
       <button
-        className="md:hidden fixed left-4 bottom-4 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-60 shadow-lg shadow-[#2C4BFD]/30 transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40"
+        className="md:hidden fixed left-4 bottom-4 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-50 shadow-lg shadow-[#2C4BFD]/30 transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40"
         onClick={toggleMobile}
         aria-label="Toggle chat sidebar"
       >
@@ -203,15 +198,41 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         </svg>
       </button>
 
-      {/* Sidebar */}
+      {/* Chat Container - Bottom Sheet on Mobile, Sidebar on Desktop */}
       <aside
-        className={`chat-sidebar fixed left-0 w-80 flex flex-col z-40 transition-all duration-300 ease-in-out border-r
-        bg-white dark:bg-[#1f2937] border-gray-100 dark:border-gray-800
-        ${showNewsRibbon ? "top-[128px] lg:top-[176px] h-[calc(100vh-128px)] lg:h-[calc(100vh-176px)]" : "top-[80px] lg:top-[112px] h-[calc(100vh-80px)] lg:h-[calc(100vh-112px)]"}
-        md:translate-x-0 ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`
+          chat-sidebar
+          fixed 
+          flex flex-col 
+          z-50
+          transition-transform duration-300 ease-in-out
+          border-gray-100 dark:border-gray-800
+          bg-white dark:bg-[#1f2937]
+          
+          md:hidden
+          left-0 right-0 bottom-0
+          h-[65vh]
+          rounded-t-3xl
+          border-t border-l border-r
+          ${isMobileOpen ? "translate-y-0" : "translate-y-full"}
+          
+          md:block
+          md:left-0 md:right-auto md:bottom-auto
+          md:top-[80px] lg:md:top-[112px]
+          md:w-80 
+          md:h-[calc(100vh-80px)] lg:md:h-[calc(100vh-112px)]
+          md:rounded-none
+          md:border-r
+          md:translate-y-0
+        `}
       >
+        {/* Drag Handle (Mobile Only) */}
+        <div className="md:hidden flex justify-center pt-3 pb-2">
+          <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+        </div>
+
         {/* Header */}
-        <header className="flex items-center justify-between p-4 m-2.5 rounded-lg bg-white dark:bg-[#1f2937] dark:text-white">
+        <header className="flex items-center justify-between p-4 mx-2.5 mt-2 rounded-lg bg-white dark:bg-[#1f2937] dark:text-white">
           <div className="flex items-center gap-2.5">
             <ChatIcon />
             <h2 className="font-['DM_Sans'] font-semibold text-xl text-[#292D32] dark:text-gray-100">
@@ -233,7 +254,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               key={message.id}
               className="flex items-start gap-2.5 p-2.5 bg-white dark:bg-[#1f2937] rounded-xl dark:text-gray-200"
             >
-              <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#E0E7FF] to-[#2C4BFD] shrink-0 flex items-center justify-center text-white font-semibold text-sm">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#E0E7FF] to-[#2C4BFD] shrink-0 flex items-center justify-center text-white font-semibold text-sm">
                 {getInitials(message.username)}
               </div>
               <div className="flex-1 min-w-0">
@@ -245,7 +266,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
                     {formatTimestamp(message.timestamp)}
                   </span>
                 </div>
-                <p className="font-['DM_Sans'] font-normal text-sm text-[#4D4D4D] dark:text-gray-300 text-wrap wrap-break-word">
+                <p className="font-['DM_Sans'] font-normal text-sm text-[#4D4D4D] dark:text-gray-300 break-words">
                   {message.content}
                 </p>
               </div>
