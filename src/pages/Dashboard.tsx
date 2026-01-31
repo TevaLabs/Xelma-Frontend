@@ -1,6 +1,7 @@
 import { ChatSidebar } from "../components/ChatSidebar";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
+import RoundTimer from "../components/RoundTimer";
 import type { PredictionData } from "../components/PredictionControls";
 
 const Dashboard = () => {
@@ -23,19 +24,14 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Right: Price chart and placeholder */}
+          {/* Right: Price chart and Round Timer */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             {/* Price Chart */}
             <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
               <PriceChart height={280} />
             </div>
 
-            <div className="mt-5 p-4 bg-black/5 rounded-lg text-center">
-              <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">
-                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                142 Playing Now
-              </p>
-            </div>
+            <RoundTimer />
           </div>
         </div>
       </div>
