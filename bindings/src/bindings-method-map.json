@@ -1,0 +1,24 @@
+{
+  "methods": {
+    "start_round": {
+      "inputs": [
+        { "name": "round_id", "type": "u64" },
+        { "name": "starts_at", "type": "u64" },
+        { "name": "ends_at", "type": "u64" }
+      ]
+    },
+    "submit_prediction": {
+      "inputs": [
+        { "name": "round_id", "type": "u64" },
+        { "name": "direction", "type": "u32" },
+        { "name": "stake", "type": "i128" }
+      ]
+    },
+    "resolve_round": {
+      "inputs": [
+        { "name": "round_id", "type": "u64" },
+        { "name": "outcome", "type": "u32" }
+      ]
+    }
+  }
+}

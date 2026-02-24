@@ -1,0 +1,9 @@
+{
+  "name": "bindings",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "abi:parity": "node src/check-abi-parity.mjs"
+  }
+}

@@ -31,3 +31,7 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Run contract-bindings ABI parity check
+        working-directory: bindings
+        run: npm run abi:parity
