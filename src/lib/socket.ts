@@ -64,6 +64,7 @@ type SocketEventCallback = (payload: unknown) => void;
 // Backward-compatible API used by NotificationsBell/tests.
 export const appSocket = {
   joinChannel(channel: string, payload?: unknown) {
+    socketService.connect();
     socket.emit(channel, payload);
   },
   leaveChannel(channel: string, payload?: unknown) {
@@ -77,4 +78,3 @@ export const appSocket = {
     return () => socket.off(event, callback);
   },
 };
-
