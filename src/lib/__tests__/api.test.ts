@@ -120,7 +120,7 @@ describe('apiFetch', () => {
         vi.mocked(fetch).mockResolvedValue(
             jsonRes(400, { message: 'bad email', code: 'VALIDATE', details: { f: 'email' } }),
         );
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err).toBeInstanceOf(ApiError);
         expect(err.status).toBe(400);
         expect(err.message).toBe('bad email');
@@ -130,25 +130,25 @@ describe('apiFetch', () => {
 
     it('falls back to generic message when JSON body lacks message field', async () => {
         vi.mocked(fetch).mockResolvedValue(jsonRes(400, { error: 'something' }));
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err.message).toBe('Request failed (400)');
     });
 
     it('uses short non-JSON text as message', async () => {
         vi.mocked(fetch).mockResolvedValue(textRes(400, 'Bad input'));
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err.message).toBe('Bad input');
     });
 
     it('truncates long non-JSON text to prevent UI leakage', async () => {
         vi.mocked(fetch).mockResolvedValue(textRes(400, 'x'.repeat(101)));
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err.message).toBe('Request failed (400)');
     });
 
     it('throws ApiError(401) and clears auth', async () => {
         vi.mocked(fetch).mockResolvedValue(jsonRes(401, {}));
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err.status).toBe(401);
         expect(err.code).toBe('UNAUTHORIZED');
         expect(mockClearAuth).toHaveBeenCalledOnce();
@@ -156,14 +156,14 @@ describe('apiFetch', () => {
 
     it('throws ApiError on 500', async () => {
         vi.mocked(fetch).mockResolvedValue(jsonRes(500, { message: 'boom' }));
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err.status).toBe(500);
         expect(err.message).toBe('boom');
     });
 
     it('normalizes network errors to NETWORK_ERROR', async () => {
         vi.mocked(fetch).mockRejectedValue(new TypeError('Failed to fetch'));
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err).toBeInstanceOf(ApiError);
         expect(err.status).toBe(0);
         expect(err.code).toBe('NETWORK_ERROR');
@@ -171,7 +171,7 @@ describe('apiFetch', () => {
 
     it('normalizes AbortError to TIMEOUT', async () => {
         vi.mocked(fetch).mockRejectedValue(new DOMException('aborted', 'AbortError'));
-        const err: ApiError = await apiFetch('/api/x').catch((e) => e);
+        const err = await apiFetch('/api/x').catch((e) => e) as ApiError;
         expect(err).toBeInstanceOf(ApiError);
         expect(err.status).toBe(0);
         expect(err.code).toBe('TIMEOUT');
