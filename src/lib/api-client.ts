@@ -2,7 +2,20 @@ import type { Guide, Tip } from '../types/education';
 import type { NotificationItem } from '../types/notification';
 import { apiFetch } from './api';
 
-export { ApiError } from './api';
+export { ApiError, getErrorMessage } from './api';
+
+/**
+ * Unwrap a list from either a raw array or an envelope object.
+ * Searches the provided keys in order, returning the first array found.
+ */
+export function unwrapList<T>(response: T[] | Record<string, unknown>, ...keys: string[]): T[] {
+    if (Array.isArray(response)) return response;
+    for (const key of keys) {
+        const value = response[key];
+        if (Array.isArray(value)) return value as T[];
+    }
+    return [];
+}
 
 export const educationApi = {
     getGuides: () => apiFetch<Guide[]>('/api/education/guides'),
@@ -48,19 +61,7 @@ type UserPredictionsResponse =
     };
 
 function normalizeUserPredictions(response: UserPredictionsResponse): UserPrediction[] {
-    if (Array.isArray(response)) {
-        return response;
-    }
-
-    if (Array.isArray(response.predictions)) {
-        return response.predictions;
-    }
-
-    if (Array.isArray(response.data)) {
-        return response.data;
-    }
-
-    return [];
+    return unwrapList<UserPrediction>(response as UserPrediction[] | Record<string, unknown>, 'predictions', 'data');
 }
 
 export const predictionsApi = {
@@ -115,17 +116,19 @@ function toPricePoint(value: unknown): PricePoint | null {
 }
 
 function normalizePriceResponse(response: PriceResponse): PricePoint[] {
-    if (Array.isArray(response)) {
-        return response.map(toPricePoint).filter((point): point is PricePoint => point !== null);
+    const list = unwrapList<PricePoint>(response as PricePoint[] | Record<string, unknown>, 'prices', 'data', 'history');
+
+    if (list.length > 0) {
+        return list.map(toPricePoint).filter((point): point is PricePoint => point !== null);
     }
 
-    const history = response.prices ?? response.data ?? response.history;
-    if (Array.isArray(history)) {
-        return history.map(toPricePoint).filter((point): point is PricePoint => point !== null);
+    // Single-object fallback (e.g. { price, timestamp })
+    if (!Array.isArray(response)) {
+        const singlePoint = toPricePoint(response);
+        return singlePoint ? [singlePoint] : [];
     }
 
-    const singlePoint = toPricePoint(response);
-    return singlePoint ? [singlePoint] : [];
+    return [];
 }
 
 export const priceApi = {
@@ -151,10 +154,7 @@ export interface LeaderboardEntry {
 type LeaderboardResponse = LeaderboardEntry[] | { data?: LeaderboardEntry[]; leaderboard?: LeaderboardEntry[] };
 
 function normalizeLeaderboard(response: LeaderboardResponse): LeaderboardEntry[] {
-    if (Array.isArray(response)) return response;
-    if (Array.isArray(response.data)) return response.data;
-    if (Array.isArray(response.leaderboard)) return response.leaderboard;
-    return [];
+    return unwrapList<LeaderboardEntry>(response as LeaderboardEntry[] | Record<string, unknown>, 'data', 'leaderboard');
 }
 
 export const leaderboardApi = {

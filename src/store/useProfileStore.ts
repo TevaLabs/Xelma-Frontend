@@ -5,6 +5,7 @@ import {
   updateProfile,
   type ProfileSettingsValues,
 } from '../lib/profileApi';
+import { getErrorMessage } from '../lib/api';
 
 const LOCAL_CACHE_KEY = 'profile_settings_cache_v1';
 
@@ -53,7 +54,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
     }
 
     try {
-      const data = await fetchProfile(jwt);
+      const data = await fetchProfile();
       writeLocalCache(data);
       set({ profile: data, isLoading: false, error: null });
     } catch (err) {
@@ -61,7 +62,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       set({
         profile: cached,
         isLoading: false,
-        error: err instanceof Error ? err.message : 'Failed to load profile',
+        error: getErrorMessage(err),
       });
     }
   },
@@ -76,7 +77,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
     }
 
     try {
-      const saved = await updateProfile(jwt, data);
+      const saved = await updateProfile(data);
       writeLocalCache(saved);
       set({ profile: saved, error: null });
       return true;
@@ -84,7 +85,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       writeLocalCache(data);
       set({
         profile: data,
-        error: err instanceof Error ? err.message : 'Failed to save profile',
+        error: getErrorMessage(err),
       });
       return false;
     }

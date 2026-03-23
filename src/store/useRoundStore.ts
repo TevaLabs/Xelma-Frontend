@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { roundsApi, type Round } from '../lib/api-client';
+import { getErrorMessage } from '../lib/api';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -82,7 +83,7 @@ export const useRoundStore = create<RoundStore>((set) => ({
         activeRound: null,
         isRoundActive: false,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch active round',
+        error: getErrorMessage(error),
       });
     }
   },

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { educationApi } from "../lib/api-client";
+import { getErrorMessage } from "../lib/api";
 import type { Guide, Tip } from "../types/education";
 import { GuideCard } from "../components/education/GuideCard";
 import { TipCard } from "../components/education/TipCard";
@@ -41,7 +42,7 @@ const LearnPage = () => {
                 setError("Unable to load education content. Please check your connection.");
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "An unexpected error occurred");
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
