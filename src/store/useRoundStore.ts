@@ -79,11 +79,12 @@ export const useRoundStore = create<RoundStore>((set) => ({
       const activeRound = await roundsApi.getActive();
       set({ activeRound, isRoundActive: !!activeRound, isLoading: false });
     } catch (error) {
+      const normalized = normalizeApiError(error, 'Failed to fetch active round');
       set({
         activeRound: null,
         isRoundActive: false,
         isLoading: false,
-        error: getErrorMessage(error),
+error: getErrorMessage(error),
       });
     }
   },

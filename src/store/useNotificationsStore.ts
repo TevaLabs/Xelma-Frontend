@@ -30,7 +30,7 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
       const res = await notificationsApi.getUnreadCount();
       set({ unread: res.unread });
     } catch (rawErr) {
-      set({ errorCount: getErrorMessage(rawErr) });
+set({ errorCount: getErrorMessage(rawErr) });
     } finally {
       set({ loadingCount: false });
     }
@@ -49,7 +49,7 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
         return { list: merged };
       });
     } catch (rawErr) {
-      set({ errorList: getErrorMessage(rawErr) });
+set({ errorList: getErrorMessage(rawErr) });
     } finally {
       set({ loadingList: false });
     }

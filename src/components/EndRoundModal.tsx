@@ -14,11 +14,16 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
   const { isWin, amount, tip } = result;
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onClose}>
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/90 backdrop-blur-md animate-fade-in z-40" />
-        
-        <Dialog.Content className="fixed inset-0 z-50 flex items-center justify-center p-4 focus:outline-none">
+
+        <Dialog.Content className="fixed inset-0 z-50 flex items-center justify-center p-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent">
           <div className="w-full max-w-md animate-scale-in">
             <div className={`relative overflow-hidden rounded-2xl border ${
               isWin ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'
@@ -30,9 +35,12 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
               </div>
 
               <div className="relative pt-12 px-8 pb-8 text-center">
-                <div className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-6 border-4 border-white ${
-                  isWin ? 'bg-emerald-400 text-white' : 'bg-rose-400 text-white'
-                }`}>
+                <div
+                  className={`mx-auto w-24 h-24 rounded-full flex items-center justify-center text-5xl mb-6 border-4 border-white ${
+                    isWin ? 'bg-emerald-400 text-white' : 'bg-rose-400 text-white'
+                  }`}
+                  aria-hidden
+                >
                   {isWin ? '📈' : '📉'}
                 </div>
 
@@ -43,7 +51,7 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
                 </Dialog.Title>
                 
                 <Dialog.Description className={`text-lg font-medium mb-8 ${
-                  isWin ? 'text-emerald-700/80' : 'text-rose-700/80'
+                  isWin ? 'text-emerald-800 dark:text-emerald-900' : 'text-rose-800 dark:text-rose-900'
                 }`}>
                   {isWin ? 'You made all the right moves.' : 'The market moved against you.'}
                 </Dialog.Description>
@@ -65,9 +73,12 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
                     : 'bg-rose-100/50 border-rose-200'
                 }`}>
                   <div className="flex gap-4">
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                      isWin ? 'bg-emerald-200 text-emerald-700' : 'bg-rose-200 text-rose-700'
-                    }`}>
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        isWin ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'
+                      }`}
+                      aria-hidden
+                    >
                       💡
                     </div>
                     <div>
@@ -86,11 +97,14 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
                 </div>
 
                 <Dialog.Close asChild>
-                  <button className={`w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all outline-none focus:ring-4 ${
-                    isWin 
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white focus:ring-emerald-200' 
-                      : 'bg-rose-600 hover:bg-rose-500 text-white focus:ring-rose-200'
-                  }`}>
+                  <button
+                    type="button"
+                    className={`w-full py-4 rounded-xl font-bold text-lg active:scale-95 transition-all outline-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 ${
+                      isWin
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white focus-visible:ring-emerald-300 focus-visible:ring-offset-emerald-50'
+                        : 'bg-rose-600 hover:bg-rose-500 text-white focus-visible:ring-rose-300 focus-visible:ring-offset-rose-50'
+                    }`}
+                  >
                     Continue to Next Round
                   </button>
                 </Dialog.Close>

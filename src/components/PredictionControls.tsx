@@ -15,7 +15,10 @@ export interface PredictionData {
 export interface PredictionControlsProps {
   isWalletConnected?: boolean;
   isRoundActive?: boolean;
+  /** Wallet/session connecting (e.g. Freighter flow). */
   isConnecting?: boolean;
+  /** Prediction submit in flight (distinct from wallet connecting). */
+  isSubmittingPrediction?: boolean;
   onPrediction?: (prediction: PredictionData) => void;
 }
 
@@ -37,6 +40,7 @@ export function PredictionControls({
   isWalletConnected = false,
   isRoundActive = true,
   isConnecting = false,
+  isSubmittingPrediction = false,
   onPrediction,
 }: PredictionControlsProps) {
   const [stake, setStake] = useState("");
@@ -46,7 +50,8 @@ export function PredictionControls({
   const [selectedDirection, setSelectedDirection] = useState<"UP" | "DOWN" | null>(null);
   const [touchedExactPrice, setTouchedExactPrice] = useState(false);
 
-  const isDisabled = !isWalletConnected || !isRoundActive || isConnecting;
+  const isDisabled =
+    !isWalletConnected || !isRoundActive || isConnecting || isSubmittingPrediction;
 
   const validateExactPriceField = useCallback(() => {
     if (!isLegend) return;
@@ -108,7 +113,12 @@ export function PredictionControls({
 
       {isConnecting && (
         <p className="prediction-card__connecting" role="status">
-          Connecting...
+          Connecting wallet...
+        </p>
+      )}
+      {isSubmittingPrediction && !isConnecting && (
+        <p className="prediction-card__connecting" role="status">
+          Submitting prediction...
         </p>
       )}
 
@@ -222,7 +232,7 @@ export function PredictionControls({
         </div>
       )}
 
-      {isDisabled && !isConnecting && (
+      {isDisabled && !isConnecting && !isSubmittingPrediction && (
         <div className="prediction-card__disabled-message">
           {!isWalletConnected && <p>Connect your wallet to make predictions</p>}
           {isWalletConnected && !isRoundActive && <p>This round is not active</p>}

@@ -64,6 +64,13 @@ function normalizeUserPredictions(response: UserPredictionsResponse): UserPredic
     return unwrapList<UserPrediction>(response as UserPrediction[] | Record<string, unknown>, 'predictions', 'data');
 }
 
+function normalizeUserPredictions(response: UserPredictionsResponse): UserPrediction[] {
+    return normalizeArrayResponse<UserPrediction>(
+        response as UserPrediction[] | Record<string, unknown>,
+        ['predictions', 'data']
+    );
+}
+
 export const predictionsApi = {
     getUserHistory: async (userId: string) => {
         const response = await apiFetch<UserPredictionsResponse>(`/api/predictions/user/${encodeURIComponent(userId)}`);
@@ -154,7 +161,7 @@ export interface LeaderboardEntry {
 type LeaderboardResponse = LeaderboardEntry[] | { data?: LeaderboardEntry[]; leaderboard?: LeaderboardEntry[] };
 
 function normalizeLeaderboard(response: LeaderboardResponse): LeaderboardEntry[] {
-    return unwrapList<LeaderboardEntry>(response as LeaderboardEntry[] | Record<string, unknown>, 'data', 'leaderboard');
+return unwrapList<LeaderboardEntry>(response as LeaderboardEntry[] | Record<string, unknown>, 'data', 'leaderboard');
 }
 
 export const leaderboardApi = {

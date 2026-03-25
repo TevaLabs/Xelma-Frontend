@@ -5,6 +5,7 @@ interface PredictionCardProps {
   isWalletConnected?: boolean;
   isRoundActive?: boolean;
   isConnecting?: boolean;
+  isSubmittingPrediction?: boolean;
   onPrediction?: (prediction: PredictionData) => void;
 }
 
@@ -12,10 +13,12 @@ const PredictionCard = ({
   isWalletConnected = false,
   isRoundActive = true,
   isConnecting = false,
+  isSubmittingPrediction = false,
   onPrediction,
 }: PredictionCardProps) => {
 
-  const isDisabled = !isWalletConnected || !isRoundActive || isConnecting;
+  const isDisabled =
+    !isWalletConnected || !isRoundActive || isConnecting || isSubmittingPrediction;
 
   return (
     <div
@@ -26,6 +29,7 @@ const PredictionCard = ({
         isWalletConnected={isWalletConnected}
         isRoundActive={isRoundActive}
         isConnecting={isConnecting}
+        isSubmittingPrediction={isSubmittingPrediction}
         onPrediction={onPrediction}
       />
 

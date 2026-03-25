@@ -7,19 +7,21 @@ export interface ApiErrorShape {
   message: string;
   status: number;
   code?: string;
-  details?: Record<string, unknown>;
+details?: Record<string, unknown>;
 }
 
 export class ApiError extends Error {
   status: number;
   code?: string;
-  details?: Record<string, unknown>;
+details?: Record<string, unknown>;
+  endpoint?: string;
 
-  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>) {
+  constructor(message: string, status: number, code?: string, details?: Record<string, unknown>, endpoint?: string) {
     super(message);
     this.status = status;
     this.code = code;
     this.details = details;
+this.endpoint = endpoint;
     this.name = 'ApiError';
   }
 
@@ -51,7 +53,7 @@ interface ApiFetchOptions extends RequestInit {
 
 export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {}): Promise<T> {
   const { jwt, clearAuth } = useAuthStore.getState();
-  const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options;
+const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options;
   const start = Date.now();
 
   const headers: Record<string, string> = {
@@ -64,7 +66,7 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   // Respect caller-supplied signal by forwarding abort
   if (fetchOptions.signal) {
@@ -85,9 +87,9 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
       console.warn(`[API] ${fetchOptions.method ?? 'GET'} ${endpoint} → FAILED (${duration}ms)`);
     }
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new ApiError('Request timed out', 0, 'TIMEOUT');
+      throw new ApiError('Request timed out', 0, 'TIMEOUT', undefined, endpoint);
     }
-    throw new ApiError('Network error', 0, 'NETWORK_ERROR');
+    throw new ApiError('Network error', 0, 'NETWORK_ERROR', undefined, endpoint);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -99,7 +101,7 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
       console.warn(`[API] ${fetchOptions.method ?? 'GET'} ${endpoint} → 401 (${duration}ms)`);
     }
     clearAuth();
-    throw new ApiError('Unauthorized: session expired', 401, 'UNAUTHORIZED');
+    throw new ApiError('Unauthorized: session expired', 401, 'UNAUTHORIZED', undefined, endpoint);
   }
 
   if (!response.ok) {
@@ -138,7 +140,12 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
       response.status,
       code,
       details,
+      endpoint,
     );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json() as Promise<T>;

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useAuthStore } from './useAuthStore';
+import { normalizeApiError } from '../lib/api';
 import {
   fetchProfile,
   updateProfile,
@@ -58,11 +59,12 @@ export const useProfileStore = create<ProfileState>((set) => ({
       writeLocalCache(data);
       set({ profile: data, isLoading: false, error: null });
     } catch (err) {
+      const normalized = normalizeApiError(err, 'Failed to load profile');
       const cached = readLocalCache();
       set({
         profile: cached,
         isLoading: false,
-        error: getErrorMessage(err),
+error: getErrorMessage(err),
       });
     }
   },
@@ -82,10 +84,11 @@ export const useProfileStore = create<ProfileState>((set) => ({
       set({ profile: saved, error: null });
       return true;
     } catch (err) {
+      const normalized = normalizeApiError(err, 'Failed to save profile');
       writeLocalCache(data);
       set({
         profile: data,
-        error: getErrorMessage(err),
+error: getErrorMessage(err),
       });
       return false;
     }

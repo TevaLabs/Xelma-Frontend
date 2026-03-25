@@ -26,7 +26,8 @@ const LearnPage = () => {
             if (guidesResult.status === 'fulfilled') {
                 setGuides(guidesResult.value);
             } else {
-                console.error("Failed to fetch guides:", guidesResult.reason);
+                const err = normalizeApiError(guidesResult.reason, "Failed to fetch guides");
+                console.debug("Failed to fetch guides", { message: err.message, status: err.status, code: err.code });
                 // We only set a general error if both or critical one fails, 
                 // but requirement says "one failure does not block the other"
             }
@@ -34,7 +35,8 @@ const LearnPage = () => {
             if (tipResult.status === 'fulfilled') {
                 setTip(tipResult.value);
             } else {
-                console.error("Failed to fetch tip:", tipResult.reason);
+                const err = normalizeApiError(tipResult.reason, "Failed to fetch tip");
+                console.debug("Failed to fetch tip", { message: err.message, status: err.status, code: err.code });
             }
 
             // If both failed, show error
@@ -42,7 +44,7 @@ const LearnPage = () => {
                 setError("Unable to load education content. Please check your connection.");
             }
         } catch (err) {
-            setError(getErrorMessage(err));
+setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -72,12 +74,12 @@ const LearnPage = () => {
         <div className="container mx-auto px-4 py-8 lg:py-12 max-w-7xl animate-in fade-in duration-700">
             <header className="mb-12 text-center">
                 <div className="inline-flex items-center justify-center p-3 mb-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-[#2C4BFD]">
-                    <GraduationCap size={32} />
+                    <GraduationCap size={32} aria-hidden />
                 </div>
                 <h1 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tight">
                     Xelma Academy
                 </h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                <p className="text-lg text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
                     Master the art of prediction. Learn strategies, understand the Stellar ecosystem, and level up your trading game.
                 </p>
             </header>
@@ -85,10 +87,12 @@ const LearnPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Main Content: Guides */}
                 <div className="lg:col-span-8 space-y-8">
-                    <section>
+                    <section aria-labelledby="learn-guides-heading">
                         <div className="flex items-center gap-3 mb-8">
-                            <BookMarked className="text-[#2C4BFD]" size={24} />
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Expert Guides</h2>
+                            <BookMarked className="text-[#2C4BFD] shrink-0" size={24} aria-hidden />
+                            <h2 id="learn-guides-heading" className="text-2xl font-bold text-gray-900 dark:text-white">
+                                Expert Guides
+                            </h2>
                         </div>
 
                         {guides.length > 0 ? (
@@ -109,11 +113,13 @@ const LearnPage = () => {
                 </div>
 
                 {/* Sidebar: Tip of the day */}
-                <aside className="lg:col-span-4">
+                <aside className="lg:col-span-4" aria-label="Tips and community">
                     <div className="sticky top-32 space-y-6">
-                        <section>
+                        <section aria-labelledby="learn-tip-heading">
                             <div className="flex items-center gap-3 mb-6">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Quick Alpha</h2>
+                                <h2 id="learn-tip-heading" className="text-xl font-bold text-gray-900 dark:text-white">
+                                    Quick Alpha
+                                </h2>
                             </div>
 
                             {tip ? (
@@ -130,11 +136,14 @@ const LearnPage = () => {
 
                         {/* Additional info box */}
                         <div className="p-6 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-                            <h3 className="font-bold mb-2">Want to contribute?</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                            <h3 className="font-bold mb-2 text-gray-900 dark:text-white">Want to contribute?</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                                 Are you an expert in Stellar or prediction markets? Share your knowledge with the community.
                             </p>
-                            <button className="w-full py-2 px-4 rounded-xl text-sm font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                            <button
+                                type="button"
+                                className="w-full py-2 px-4 rounded-xl text-sm font-bold border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+                            >
                                 Apply as Educator
                             </button>
                         </div>

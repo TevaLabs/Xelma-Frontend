@@ -36,7 +36,9 @@ describe('Notifications', () => {
     const mockedApi = vi.mocked(api.notificationsApi);
     mockedApi.getUnreadCount.mockResolvedValue({ unread: 3 });
     render(<NotificationsBell />);
-    await waitFor(() => expect(screen.getByLabelText('Open notifications')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /open notifications/i })).toBeTruthy(),
+    );
     expect(screen.getByText('3')).toBeTruthy();
   });
 
@@ -52,7 +54,7 @@ describe('Notifications', () => {
     await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
 
     // open panel
-    fireEvent.click(screen.getByLabelText('Open notifications'));
+    fireEvent.click(screen.getByRole('button', { name: /open notifications/i }));
 
     await waitFor(() => expect(screen.getByText('Notifications')).toBeTruthy());
     expect(screen.getByText('Round Update')).toBeTruthy();
@@ -64,9 +66,11 @@ describe('Notifications', () => {
     mockedApi.getNotifications.mockResolvedValue([]);
 
     render(<NotificationsBell />);
-    await waitFor(() => expect(screen.getByLabelText('Open notifications')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /open notifications/i })).toBeTruthy(),
+    );
 
-    fireEvent.click(screen.getByLabelText('Open notifications'));
+    fireEvent.click(screen.getByRole('button', { name: /open notifications/i }));
 
     await waitFor(() => expect(screen.getByText('No notifications')).toBeTruthy());
   });
@@ -77,7 +81,9 @@ describe('Notifications', () => {
     mockedApi.getNotifications.mockResolvedValue([]);
 
     render(<NotificationsBell />);
-    await waitFor(() => expect(screen.getByLabelText('Open notifications')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /open notifications/i })).toBeTruthy(),
+    );
 
     // trigger incoming notification
     const payload = { id: 'r1', title: 'Live Event', message: 'An event happened', createdAt: new Date().toISOString() };
@@ -89,7 +95,7 @@ describe('Notifications', () => {
     await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
 
     // open panel and it should include the live notification
-    fireEvent.click(screen.getByLabelText('Open notifications'));
+    fireEvent.click(screen.getByRole('button', { name: /open notifications/i }));
     await waitFor(() => expect(screen.getByText('Live Event')).toBeTruthy());
   });
 
@@ -103,11 +109,11 @@ describe('Notifications', () => {
 
     render(<NotificationsBell />);
     await waitFor(() => expect(screen.getByText('1')).toBeTruthy());
-    fireEvent.click(screen.getByLabelText('Open notifications'));
+    fireEvent.click(screen.getByRole('button', { name: /open notifications/i }));
 
     await waitFor(() => expect(screen.getByText('To Read')).toBeTruthy());
     // click mark-as-read button
-    const markButton = screen.getByLabelText('Mark as read');
+    const markButton = screen.getByRole('button', { name: /mark notification/i });
     fireEvent.click(markButton);
 
     // badge should disappear

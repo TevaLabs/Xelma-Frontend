@@ -22,6 +22,7 @@ function App() {
         <NewsRibbon onClose={() => setShowNewsRibbon(false)} />
       )}
       <main
+        id="main-content"
         className={`px-4 lg:px-14 min-h-screen bg-[#FAFAFA] dark:bg-gray-900 transition-[padding] ${showNewsRibbon ? "pt-32 lg:pt-44" : "pt-24 lg:pt-32"
           }`}
       >

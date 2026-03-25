@@ -5,7 +5,7 @@ import PredictionCard from "../components/PredictionCard";
 import type { PredictionData } from "../components/PredictionControls";
 import { useRoundStore } from "../store/useRoundStore";
 import PredictionHistory from "../components/PredictionHistory";
-import { useWalletStore } from "../store/useWalletStore";
+import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
 import { predictionsApi, ApiError } from "../lib/api-client";
 
 interface DashboardProps {
@@ -14,7 +14,11 @@ interface DashboardProps {
 
 const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
-  const publicKey = useWalletStore((state) => state.publicKey);
+  const isWalletConnected = useWalletStore(selectIsWalletConnected);
+  const isWalletConnecting = useWalletStore(
+    (s) => s.status === "connecting" || s.status === "checking"
+  );
+  const publicKey = useWalletStore((s) => s.publicKey);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const timeoutRef = useRef<number | null>(null);
@@ -98,9 +102,10 @@ const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
           {/* Center: Prediction controls (Issue: core prediction area) */}
           <div className="dashboard__center lg:col-span-1 flex flex-col gap-6">
             <PredictionCard
-              isWalletConnected={true}
+              isWalletConnected={isWalletConnected}
               isRoundActive={isRoundActive}
-              isConnecting={isSubmitting}
+              isConnecting={isWalletConnecting}
+              isSubmittingPrediction={isSubmitting}
               onPrediction={handlePrediction}
             />
           </div>
