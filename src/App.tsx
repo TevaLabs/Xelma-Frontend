@@ -12,6 +12,7 @@ const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const LearnPage = lazy(() => import('./pages/Learn'));
 const Connect = lazy(() => import('./pages/Connect'));
 const Profile = lazy(() => import('./pages/Profile'));
+const Tournament = lazy(() => import('./pages/Tournament'));
 
 function App() {
   return (
