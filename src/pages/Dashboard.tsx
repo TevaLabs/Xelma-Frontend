@@ -9,6 +9,7 @@ import { useRoundStore } from "../store/useRoundStore";
 import type { Round } from "../lib/api-client";
 import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
 import { Link } from "react-router-dom";
+import EmptyState from '../components/EmptyState';
 
 
 const Dashboard = () => {
@@ -92,24 +93,28 @@ const Dashboard = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="dashboard__center lg:col-span-1 flex flex-col gap-6">
-            <PredictionCard
-              isWalletConnected={isWalletConnected}
-              isRoundActive={isRoundActive}
-              isConnecting={isWalletConnecting}
-              isSubmittingPrediction={isBetModalOpen}
-              onPrediction={handlePrediction}
-            />
-          </div>
-
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
-              <PriceChart height={280} />
+        { !isRoundActive ? (
+          <EmptyState onRefresh={() => { const { fetchActiveRound } = useRoundStore.getState(); void fetchActiveRound(); }} />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="dashboard__center lg:col-span-1 flex flex-col gap-6">
+              <PredictionCard
+                isWalletConnected={isWalletConnected}
+                isRoundActive={isRoundActive}
+                isConnecting={isWalletConnecting}
+                isSubmittingPrediction={isBetModalOpen}
+                onPrediction={handlePrediction}
+              />
             </div>
-            <PredictionHistory userId={publicKey} />
+
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              <div className="min-h-[350px] bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
+                <PriceChart height={280} />
+              </div>
+              <PredictionHistory userId={publicKey} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <BetModal
