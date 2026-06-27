@@ -1,0 +1,46 @@
+{
+  "name": "Xelma — Stellar Prediction Market",
+  "short_name": "Xelma",
+  "description": "Collective market intelligence on Stellar. Read the market. Prove your call.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0F1A",
+  "theme_color": "#0A0F1A",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    {
+      "src": "/branding/concept-a/xelma-logo-concept-a-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/branding/concept-a/xelma-logo-concept-a-256.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/branding/concept-a/xelma-logo-concept-a-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "/branding/concept-a/xelma-logo-concept-a-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/branding/concept-a/xelma-logo-concept-a-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/branding/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "screenshots": [],
+  "lang": "en-US"
+}
