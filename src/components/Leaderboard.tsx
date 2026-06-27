@@ -8,19 +8,23 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
 import { formatVXLM } from '../lib/utils';
 
-// ---------------------------------------------------------------------------
-// Types & constants
-// ---------------------------------------------------------------------------
-
 const FILTER_OPTIONS = ['all', 'daily', 'weekly', 'monthly'] as const;
 type FilterOption = typeof FILTER_OPTIONS[number];
 
+const VALID_MODES = ['UP_DOWN', 'PRECISION'] as const;
+type LeaderboardMode = typeof VALID_MODES[number];
+
 const FILTER_PARAM = 'filter';
-const ROW_HEIGHT = 80; // px – fixed height for every virtualised row
+const ROW_HEIGHT = 80;
 const OVERSCAN = 5;
 
 function isValidFilter(value: string | null): value is FilterOption {
   return FILTER_OPTIONS.includes(value as FilterOption);
+}
+
+function parseMode(raw: string | null): LeaderboardMode {
+  const upper = (raw ?? '').toUpperCase() as LeaderboardMode;
+  return VALID_MODES.includes(upper) ? upper : 'UP_DOWN';
 }
 
 interface LeaderboardUser {
@@ -38,17 +42,14 @@ function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser
   return { id, name, avatar, xlm };
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 const Leaderboard = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode = parseMode(searchParams.get('mode'));
+
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── #203: URL query param for filter ──────────────────────────────────────
-  const [searchParams, setSearchParams] = useSearchParams();
   const rawFilter = searchParams.get(FILTER_PARAM);
   const activeFilter: FilterOption = isValidFilter(rawFilter) ? rawFilter : 'all';
 
@@ -66,31 +67,40 @@ const Leaderboard = () => {
     [setSearchParams]
   );
 
-  // ── Data fetch ─────────────────────────────────────────────────────────────
+  const setMode = useCallback(
+    (next: LeaderboardMode) => {
+      setSearchParams(
+        (prev) => {
+          const updated = new URLSearchParams(prev);
+          updated.set('mode', next);
+          return updated;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await leaderboardApi.getLeaderboard('UP_DOWN');
+      const data = await leaderboardApi.getLeaderboard(mode);
       const mapped = (Array.isArray(data) ? data : []).map(mapEntryToUser);
       setUsers(mapped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
       setUsers([]);
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     void fetchLeaderboard();
   }, [fetchLeaderboard]);
 
-  // ── Wallet ─────────────────────────────────────────────────────────────────
   const walletPublicKey = useWalletStore((s) => s.publicKey);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
 
-  // ── Sorting & derived data ─────────────────────────────────────────────────
   const sortedUsers = useMemo(() => [...users].sort((a, b) => b.xlm - a.xlm), [users]);
 
   const currentUser = useMemo(() => {
@@ -110,7 +120,6 @@ const Leaderboard = () => {
   const restUsers = sortedUsers.slice(3);
   const [rank1, rank2, rank3] = topThree;
 
-  // ── #202: Virtualizer setup ────────────────────────────────────────────────
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -119,10 +128,6 @@ const Leaderboard = () => {
     estimateSize: () => ROW_HEIGHT,
     overscan: OVERSCAN,
   });
-
-  // ---------------------------------------------------------------------------
-  // Loading / error states
-  // ---------------------------------------------------------------------------
 
   const containerWrapper = (children: React.ReactNode) => (
     <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
@@ -148,10 +153,6 @@ const Leaderboard = () => {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-
   return (
     <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" />
@@ -163,7 +164,27 @@ const Leaderboard = () => {
           Leaderboard
         </h1>
 
-        {/* ── #203: Filter tabs ── */}
+        {/* ── Mode filter (UP_DOWN / PRECISION) ── */}
+        <div className="flex gap-2 mb-4 justify-center" role="group" aria-label="Leaderboard mode filter">
+          {VALID_MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              aria-pressed={mode === m}
+              className={clsx(
+                'px-4 py-2 rounded-full text-sm font-semibold transition-colors',
+                mode === m
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                  : 'text-gray-400 border border-white/10 hover:bg-white/5'
+              )}
+            >
+              {m === 'UP_DOWN' ? 'UP/DOWN' : 'PRECISION'}
+            </button>
+          ))}
+        </div>
+
+        {/* ── #203: Time range filter ── */}
         <div
           role="tablist"
           aria-label="Time range filter"
@@ -188,7 +209,7 @@ const Leaderboard = () => {
           ))}
         </div>
 
-        {/* ── Sticky current-user summary (#202 preserved) ── */}
+        {/* ── Sticky current-user summary ── */}
         {isWalletConnected && (
           <div
             className={clsx(
