@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import PageSkeleton from './components/PageSkeleton';
 import Landing from './pages/Landing';
 import RouteFallback from './components/RouteFallback';
+import RouteProgressBar from './components/RouteProgressBar';
 import LazyBoundary from './components/LazyBoundary';
 import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
@@ -20,6 +21,7 @@ const Pools = lazy(() => import('./pages/Pools'));
 function App() {
   return (
     <div className="min-h-screen bg-[#0A0F1A] font-sans text-[#F3F4F6]">
+      <RouteProgressBar />
       <OfflineBanner />
       <Navbar />
       <ErrorBoundary>
