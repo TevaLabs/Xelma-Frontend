@@ -120,7 +120,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           <div className="flex items-center justify-between border-t border-white/10 pt-4">
             <dt className="text-sm text-gray-400 text-amber-200">Pending Winnings</dt>
             <dd className="font-mono text-sm font-bold text-amber-300">
-              {pendingWinnings.toLocaleString()} vXLM
+              {formatVXLM(pendingWinnings)}
             </dd>
           </div>
         )}
