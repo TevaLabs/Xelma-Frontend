@@ -5,6 +5,25 @@ const EXACT_PRICE_MIN = 0.0001;
 const EXACT_PRICE_MAX = 10.0;
 const EXACT_PRICE_DECIMAL_PLACES = 4;
 
+function parseBalance(balance: string | null | undefined): number {
+  if (!balance) return 0;
+  const numericPart = balance.replace(' XLM', '');
+  return parseFloat(numericPart) || 0;
+}
+
+function validateStake(value: string, walletBalance: string | null | undefined): string | null {
+  if (!value.trim()) return 'Enter a stake amount';
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return 'Stake must be greater than 0';
+  
+  const availableBalance = parseBalance(walletBalance);
+  if (amount > availableBalance) {
+    return `Stake exceeds available balance (${walletBalance || '0.00 XLM'})`;
+  }
+  
+  return null;
+}
+
 export interface PredictionData {
   direction: "UP" | "DOWN";
   stake: string;
@@ -20,6 +39,7 @@ export interface PredictionControlsProps {
   /** Prediction submit in flight (distinct from wallet connecting). */
   isSubmittingPrediction?: boolean;
   onPrediction?: (prediction: PredictionData) => void;
+  walletBalance?: string | null;
 }
 
 function validateExactPrice(value: string): string | null {
@@ -42,6 +62,7 @@ export function PredictionControls({
   isConnecting = false,
   isSubmittingPrediction = false,
   onPrediction,
+  walletBalance,
 }: PredictionControlsProps) {
   const [stake, setStake] = useState("");
   const [isLegend, setIsLegend] = useState(false);
@@ -49,6 +70,7 @@ export function PredictionControls({
   const [exactPriceError, setExactPriceError] = useState<string | null>(null);
   const [selectedDirection, setSelectedDirection] = useState<"UP" | "DOWN" | null>(null);
   const [touchedExactPrice, setTouchedExactPrice] = useState(false);
+  const [stakeError, setStakeError] = useState<string | null>(null);
 
   const isDisabled =
     !isWalletConnected || !isRoundActive || isConnecting || isSubmittingPrediction;
@@ -71,12 +93,24 @@ export function PredictionControls({
     }
   };
 
+  const handleStakeChange = (value: string) => {
+    setStake(value);
+    const error = validateStake(value, walletBalance);
+    setStakeError(error);
+  };
+
   const handleFillClick = () => {
     setStake("1000");
   };
 
   const handlePrediction = (direction: "UP" | "DOWN") => {
     if (isDisabled || !stake) return;
+
+    const stakeValidationError = validateStake(stake, walletBalance);
+    if (stakeValidationError) {
+      setStakeError(stakeValidationError);
+      return;
+    }
 
     if (isLegend) {
       setTouchedExactPrice(true);
@@ -99,13 +133,14 @@ export function PredictionControls({
       setStake("");
       setExactPrice("");
       setExactPriceError(null);
+      setStakeError(null);
       setIsLegend(false);
       setSelectedDirection(null);
       setTouchedExactPrice(false);
     }, 500);
   };
 
-  const canSubmit = Boolean(stake) && (!isLegend || (exactPrice && !exactPriceError));
+  const canSubmit = Boolean(stake) && !stakeError && (!isLegend || (exactPrice && !exactPriceError));
 
   return (
     <>
@@ -161,7 +196,7 @@ export function PredictionControls({
             className="prediction-card__input"
             placeholder="Enter amount"
             value={stake}
-            onChange={(e) => setStake(e.target.value)}
+            onChange={(e) => handleStakeChange(e.target.value)}
             disabled={isDisabled}
             min="0"
             step="0.01"
@@ -176,6 +211,11 @@ export function PredictionControls({
             Fill
           </button>
         </div>
+        {stakeError && (
+          <p className="prediction-card__exact-price-error" role="alert">
+            {stakeError}
+          </p>
+        )}
       </div>
 
       <div className="prediction-card__toggle-section">

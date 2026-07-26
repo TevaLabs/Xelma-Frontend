@@ -4,6 +4,9 @@ import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useRoundStore, selectActiveChatChannelId } from "../store/useRoundStore";
 import EmptyState from "./EmptyState";
+import { MODAL_OVERLAY, TRANSITION, TRANSFORM_TRANSITION } from "../utils/motion";
+
+const MAX_MESSAGE_LENGTH = 500;
 
 interface Message {
   id: string;
@@ -215,7 +218,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   }, [channelId]);
 
   const handleSendMessage = () => {
-    if (!inputValue.trim() || !isConnected) return;
+    if (!inputValue.trim() || !isConnected || inputValue.length > MAX_MESSAGE_LENGTH) return;
 
     // Emit chat:send to the server instead of pushing to local state.
     // The server will broadcast chat:message back to all clients in the
@@ -243,13 +246,13 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     <>
       {/* Mobile Overlay */}
       <div
-        className={`md:hidden fixed inset-0 bg-black/50 z-50 transition-opacity duration-300 ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
+        className={`md:hidden fixed inset-0 bg-black/50 z-50 ${MODAL_OVERLAY} ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
         onClick={() => setIsMobileOpen(false)}
       />
 
       {/* Mobile Toggle Button */}
       <button
-        className="md:hidden fixed right-4 bottom-24 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-70 shadow-lg shadow-[#2C4BFD]/30 transition-transform duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40"
+        className={`md:hidden fixed right-4 bottom-24 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-70 shadow-lg shadow-[#2C4BFD]/30 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40 ${TRANSFORM_TRANSITION}`}
         onClick={toggleMobile}
         aria-label="Toggle chat sidebar"
       >
@@ -283,7 +286,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
       {/* Sidebar / Bottom Sheet */}
       <aside
-        className={`chat-sidebar fixed flex flex-col z-60 transition-transform duration-300 border-r
+        className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
         bg-white dark:bg-[#1f2937] border-gray-100 dark:border-gray-800
         
         /* Desktop: Side Drawer */
@@ -360,6 +363,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
             <textarea
               ref={textareaRef}
               rows={1}
+              maxLength={MAX_MESSAGE_LENGTH}
               className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-[#292D32] dark:text-gray-200 placeholder-[#9B9B9B] resize-none overflow-y-auto py-2 min-h-[36px] max-h-[120px] ${
                 !isConnected ? 'opacity-50' : ''
               }`}
@@ -371,15 +375,27 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               aria-label="Message input"
             />
             <button
-              className={`flex items-center justify-center min-w-[36px] w-9 h-9 p-0 bg-[#2C4BFD] border-none rounded-lg cursor-pointer transition-all duration-200 hover:opacity-90 hover:scale-105 shrink-0 ${
-                !isConnected ? 'opacity-50 cursor-not-allowed' : ''
+              className={`flex items-center justify-center min-w-[36px] w-9 h-9 p-0 bg-[#2C4BFD] border-none rounded-lg cursor-pointer hover:opacity-90 hover:scale-105 shrink-0 ${TRANSITION} ${
+                !isConnected || inputValue.length > MAX_MESSAGE_LENGTH ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              disabled={!isConnected}
+              disabled={!isConnected || inputValue.length > MAX_MESSAGE_LENGTH}
               onClick={handleSendMessage}
               aria-label="Send message"
             >
               <SendIcon />
             </button>
+          </div>
+          <div className="flex items-center justify-between mt-1.5 px-1">
+            {inputValue.length > MAX_MESSAGE_LENGTH && (
+              <span className="text-xs text-red-500 dark:text-red-400">
+                Message too long (max {MAX_MESSAGE_LENGTH} characters)
+              </span>
+            )}
+            <span className={`text-xs ml-auto ${
+              inputValue.length > MAX_MESSAGE_LENGTH ? 'text-red-500 dark:text-red-400' : 'text-[#9B9B9B] dark:text-gray-400'
+            }`}>
+              {inputValue.length}/{MAX_MESSAGE_LENGTH}
+            </span>
           </div>
         </div>
       </aside>

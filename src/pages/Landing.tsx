@@ -1,20 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import HowItWorks from '../components/HowItWorks';
 import ModeCards from '../components/ModeCards';
-import { mockLandingStats } from '../data/mockData';
+import { useNetworkStats } from '../hooks/useNetworkStats';
 
 function useCountUp(target: number, durationMs = 1800) {
   const [value, setValue] = useState(0);
+  // Track the last displayed value so re-targeting (mock -> live stats) animates
+  // smoothly from where it is rather than snapping back to zero.
+  const latestRef = useRef(0);
 
   useEffect(() => {
     let frame = 0;
+    const startValue = latestRef.current;
     const start = performance.now();
 
     const tick = (now: number) => {
       const progress = Math.min((now - start) / durationMs, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.floor(target * eased));
+      const next = Math.floor(startValue + (target - startValue) * eased);
+      latestRef.current = next;
+      setValue(next);
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
 
@@ -34,9 +40,10 @@ function formatStat(value: number, type: 'rounds' | 'vxlm' | 'players') {
 }
 
 export default function Landing() {
-  const rounds = useCountUp(mockLandingStats.totalRounds);
-  const vxlm = useCountUp(mockLandingStats.vXlmDistributed);
-  const players = useCountUp(mockLandingStats.activePlayers);
+  const { stats, isStale } = useNetworkStats();
+  const rounds = useCountUp(stats.totalRounds);
+  const vxlm = useCountUp(stats.vXlmDistributed);
+  const players = useCountUp(stats.activePlayers);
 
   return (
     <div className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
@@ -74,7 +81,21 @@ export default function Landing() {
             New accounts start with 1,000 practice vXLM on Stellar testnet.
           </p>
 
-          <div className="mx-auto mt-16 grid max-w-3xl gap-4 sm:grid-cols-3">
+          {/* Reserved-height row so the badge never shifts the layout on load. */}
+          <div className="mx-auto mt-12 flex h-6 max-w-3xl items-center justify-center">
+            {isStale && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200"
+                role="status"
+                title="Live metrics are temporarily unavailable. Showing the latest known figures."
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                Showing cached metrics
+              </span>
+            )}
+          </div>
+
+          <div className="mx-auto mt-4 grid max-w-3xl gap-4 sm:grid-cols-3">
             <div className="glass-card rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">

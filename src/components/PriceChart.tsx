@@ -8,8 +8,10 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { priceApi, type PricePoint } from "../lib/api-client";
+import { mergePricePoints } from "./PriceChart.helpers";
 import { socketService } from "../lib/socket";
 import { LoadingState, ErrorState } from "./ui/StatusStates";
+import { PanelHeader } from "./ui/PanelHeader";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { ConnectionStatus } from "./ConnectionStatus";
 
@@ -54,18 +56,6 @@ function extractPricePoints(payload: unknown): PricePoint[] {
   if (nested) return extractPricePoints(nested);
   const point = toPricePoint(event);
   return point ? [point] : [];
-}
-
-function mergePricePoints(existing: PricePoint[], incoming: PricePoint[]): PricePoint[] {
-  if (incoming.length === 0) return existing;
-
-  const merged = new Map<number, PricePoint>();
-  for (const point of existing) merged.set(point.time, point);
-  for (const point of incoming) merged.set(point.time, point);
-
-  return Array.from(merged.values())
-    .sort((a, b) => a.time - b.time)
-    .slice(-500);
 }
 
 function buildPriceLabels(points: PricePoint[]): number[] {
@@ -321,14 +311,16 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
       }
 
       socketUpdateTimeoutRef.current = window.setTimeout(() => {
-        setData((previous) => {
-          const merged = mergePricePoints(previous, pendingDataRef.current);
-          pendingDataRef.current = [];
-          return merged;
-        });
+        const pending = pendingDataRef.current;
+        pendingDataRef.current = [];
+        socketUpdateTimeoutRef.current = null;
+
+        const merged = mergePricePoints(dataRef.current, pending);
+        if (merged === dataRef.current) return;
+
+        setData(merged);
         setLoadError(null);
         setLastUpdatedAt(new Date());
-        socketUpdateTimeoutRef.current = null;
       }, 50); // 50ms throttle - batch rapid updates
     });
 
@@ -345,31 +337,27 @@ const PriceChart = ({ height = 300 }: PriceChartProps) => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-2">
-        <div className="flex items-center gap-2">
+      <PanelHeader
+        className="mb-4 px-2"
+        icon={
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ background: "linear-gradient(135deg, #1e3a5f, #0a1929)" }}
           >
             <span className="text-white text-xs font-bold">XLM</span>
           </div>
-          <div>
-            <span className="font-bold text-[#292D32] dark:text-white text-lg">XLM/USD</span>
-            <span className={`ml-2 text-xs ${isConnected ? 'text-green-500' : 'text-gray-400'} dark:text-gray-500`}>
-              {isConnected ? 'LIVE' : 'OFFLINE'}
+        }
+        title="XLM/USD"
+        status={isConnected ? { label: "LIVE", variant: "success" } : { label: "OFFLINE", variant: "default" }}
+        action={
+          <>
+            {!isConnected && <ConnectionStatus className="mr-4" />}
+            <span className={`text-sm font-semibold tabular-nums ${isPositive ? "text-green-500" : "text-red-500"}`}>
+              {isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%
             </span>
-          </div>
-        </div>
-        
-        {/* Connection status when live updates are unavailable */}
-        {!isConnected && (
-          <ConnectionStatus className="mr-4" />
-        )}
-        <p className={`text-sm font-semibold tabular-nums ${isPositive ? "text-green-500" : "text-red-500"}`}>
-          {isPositive ? "+" : ""}{priceChangePercent.toFixed(2)}%
-        </p>
-      </div>
+          </>
+        }
+      />
 
       {/* Chart area wrapper with padded border — azul marino */}
       <div className="relative w-full flex-1 rounded-2xl border-[3px] border-[#1e3a5f]" style={{ minHeight: height, background: "linear-gradient(180deg, #1e3a5f 0%, #13274F 50%, #0a1929 100%)" }}>

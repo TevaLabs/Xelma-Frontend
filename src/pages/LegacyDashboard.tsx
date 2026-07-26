@@ -28,6 +28,7 @@ const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
     (s) => s.status === "connecting" || s.status === "checking"
   );
   const publicKey = useWalletStore((s) => s.publicKey);
+  const balance = useWalletStore((s) => s.balance);
   const resolvedRound = useRoundStore((state) => state.resolvedRound);
   const dismissResolvedRound = useRoundStore((state) => state.dismissResolvedRound);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -176,6 +177,7 @@ const Dashboard = ({ showNewsRibbon = true }: DashboardProps) => {
               isConnecting={isWalletConnecting}
               isSubmittingPrediction={isSubmitting}
               onPrediction={handlePrediction}
+              walletBalance={balance}
             />
           </div>
 

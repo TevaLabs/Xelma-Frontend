@@ -1,71 +1,60 @@
 # Contributing to Xelma Frontend
 
-Thanks for contributing to Xelma — a trustless, dual-mode prediction market on Stellar.
+Thanks for contributing to Xelma — a trustless, dual-mode prediction market on Stellar. This guide is the starting point for local setup, app architecture, and pull request expectations.
 
-This document captures the **single, adopted app-shell pattern** for the frontend, decided under [issue #188](https://github.com/TevaLabs/Xelma-Frontend/issues/188). Make sure new pages and components fit it before opening a PR.
-
----
-
-## App shell pattern (the only one)
-
-We follow the **dark-terminal shell** in `src/App.tsx`. Every routed page renders inside it. There is **no other shared layout component** — please do not introduce one without first opening an issue.
-
-### What's in the shell (top → bottom)
-
-1. **`<OfflineBanner />`** — fixed-top red banner shown only when the realtime socket drops.
-2. **`<Navbar />`** — sticky, dark (`bg-[#0A0F1A]/90 backdrop-blur-xl`) top bar with logo, primary nav links, wallet connect, mobile drawer.
-3. **`<Routes>`** (wrapped in `<LazyBoundary>` + `<Suspense>`) — the active page.
-4. **`<Footer />`** — global session footer with Stellar branding, GitHub/learn links, and a decorative network badge. Rendered for every route **except `/`** (Landing renders its own Footer inside its bespoke hero).
-5. **`<Toaster />`** — `sonner` toast portal at `top-center`, dark theme.
-
-Source of truth: see [`src/App.tsx`](./src/App.tsx).
-
-### Required page conventions
-
-- Pages must render **outside** the shell container using the dark utility classes that already exist:
-  - Use the `xelma-grid-bg min-h-screen` wrapper for the fintech grid background.
-  - Center content with `mx-auto max-w-{6xl|7xl}` and horizontal padding `px-4 sm:px-6 lg:px-8` (matches Navbar/Footer).
-  - Use the dark palette tokens defined in [`src/index.css`](./src/index.css) (`--color-xelma-bg`, `--color-xelma-blue`, `--color-xelma-teal`, etc). Tailwind arbitrary values like `bg-[#0A0F1A]`, `text-[#F3F4F6]`, `border-[#BEC7FE]/10` are also fine.
-- Pages render their own header/title — do **not** add another `<header>`. The only `<header>` in the document is the one inside `Navbar`.
-- Reuse shared widgets instead of reimplementing: `<Footer />`, `<OfflineBanner />`, `<RouteFallback />`, `<LazyBoundary />`, `<ConnectThroughWallet>` (`WalletConnect`), educational components, etc.
-
-### What is **not** part of the shell (do not re-add)
-
-These components existed at some point and were removed because they were never wired into the routed tree and caused architectural confusion. Pull requests that re-introduce them will be rejected:
-
-| Removed component | Why it's gone |
-| --- | --- |
-| `src/components/layout/GameShell.tsx` | Light-bg (`#FAFAFA`) + `lg:px-14` model that conflicted with the dark-terminal pages. |
-| `src/components/Header.tsx` | Duplicate of `Navbar.tsx` and tied to the unused `next-themes` provider. |
-| `src/components/HeroSection.tsx` | Duplicated the bespoke Landing hero in `src/pages/Landing.tsx`. |
-| `src/components/RouteProgressBar.tsx` | Fixed-top `z-50` clashed with `<OfflineBanner />` and provided no signal that `<LazyBoundary>` + per-page loading states don't already give. |
-| `src/components/ThemeProvider.tsx` + `src/contexts/ThemeContext.tsx` | Never mounted; only the two above depended on `next-themes`, which has now been removed from `package.json`, `pnpm-lock.yaml`, and `package-lock.json`. |
-
-If you genuinely need a page-level layout primitive (e.g. a centered auth card), put it in the page file itself — do not create a global "shell" component. The dark-terminal shell in `App.tsx` is the single source of truth.
-
----
-
-## Local development
+## Local setup
 
 ```bash
-pnpm install          # primary install — regenerates pnpm-lock.yaml
-npm install           # ALSO run this — CI uses `npm ci`, which reads package-lock.json
-pnpm dev              # run Vite dev server
-pnpm test:unit        # run vitest
+pnpm install          # primary package manager; updates pnpm-lock.yaml
+npm install           # keep package-lock.json in sync because CI uses npm ci
+pnpm dev              # start the Vite dev server
+pnpm test:unit        # run the Vitest unit suite
 pnpm lint             # run ESLint
-pnpm build            # tsc + vite build (CI equivalent)
+pnpm build            # run TypeScript build plus Vite production build
 ```
 
-> **Heads-up:** CI (`.github/workflows/ci.yml`) runs `npm ci`, which reads **`package-lock.json`**, not `pnpm-lock.yaml`. When you bump or remove a dependency, run **both** `pnpm install` and `npm install` so the two lockfiles stay in sync. A half-refreshed lockfile will break CI with a phantom-dependency error.
+> CI runs `npm ci`, then the project checks from `package-lock.json`. If you change dependencies, refresh both `pnpm-lock.yaml` and `package-lock.json` before opening a PR.
 
-## Pull requests
+## Environment variables
 
-- Reference the issue you are closing (e.g. `Closes #188`).
-- Keep changes scoped — one concern per PR.
-- Run `npm run lint && npm run build && npm run test:unit` locally before pushing (this is what CI runs).
-- Confirm that no dead imports are left behind (the project enforces this; see the table above).
-- Prefer the existing dark-terminal styles; do not introduce new theme files without discussion.
+Create a local `.env` file when you need non-default services. Vite only exposes variables prefixed with `VITE_`.
 
-## Questions?
+| Variable | Required? | Default / notes |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | Required for integrated backend testing | Backend/API origin. Falls back to `VITE_API_URL`, then `http://localhost:3000`. |
+| `VITE_API_URL` | Optional legacy alias | Used only when `VITE_API_BASE_URL` is not set. |
+| `VITE_STELLAR_RPC_URL` | Optional for testnet defaults | Defaults to `https://soroban-testnet.stellar.org`. |
+| `VITE_XELMA_CONTRACT_ID` | Optional for current testnet contract | Defaults to the checked-in testnet contract id in `src/lib/xelma-contract.ts`. |
+| `VITE_STELLAR_NETWORK` | Optional display/config hint | Defaults to `TESTNET` where consumed. |
+| `VITE_STELLAR_NETWORK_PASSPHRASE` | Optional for testnet defaults | Defaults to Stellar Test SDF Network passphrase. |
 
-Open a GitHub discussion or mention `@maintainers` in your PR — happy to help shape changes that fit the architecture.
+Do not commit private keys, wallet secrets, production tokens, or personal RPC credentials.
+
+## Frontend architecture
+
+The app has a dual-dashboard model plus a standalone landing page:
+
+- `/` renders the bespoke public landing experience.
+- `/dashboard` renders the current terminal dashboard used for the primary connected prediction flow.
+- `/play` renders the legacy play dashboard kept available while terminal-dashboard work continues.
+
+All routed pages are composed under the dark terminal shell in `src/App.tsx`: `<OfflineBanner />`, `<Navbar />`, lazy routes, `<Footer />` (except the landing route), and `<Toaster />`. Avoid adding a second global shell or duplicate header. Prefer existing dark palette utilities and shared components.
+
+## Before opening a PR
+
+- [ ] Link the GitHub issue the PR addresses. Use `Closes #123` when appropriate.
+- [ ] Keep the PR focused on one concern.
+- [ ] Run `pnpm lint` and fix reported issues.
+- [ ] Run `pnpm test:unit` for unit coverage.
+- [ ] Run `pnpm build` for the TypeScript/Vite production build.
+- [ ] Include screenshots or a short screen recording for visible UI changes.
+- [ ] Mention any env vars, migrations, or manual QA steps reviewers need.
+
+## Finding work
+
+Start with the repository issue tracker:
+
+- [Open frontend issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen)
+- [Open enhancement issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
+
+If an issue is stale or underspecified, comment with your proposed approach before investing in a large change.

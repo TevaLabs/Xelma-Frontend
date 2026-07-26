@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LearnPage from './Learn';
 import { educationApi } from '../lib/api-client';
@@ -66,10 +66,16 @@ describe('LearnPage', () => {
 
         render(<LearnPage />);
 
-        await waitFor(() => {
-            expect(screen.getByText('How to Predict')).toBeInTheDocument();
-            expect(screen.getByText(/Always check the chart/i)).toBeInTheDocument();
-        });
+        // Explicitly flush async effects and resulting state updates.
+        // React 19's act environment can intercept waitFor's retry timers when the
+        // scheduler has lingering work from the previous test's eternal promises.
+        // Awaiting act() yields to the microtask queue so the mocked Promise.allSettled
+        // chain resolves and setGuides/setTip/setLoading(false) are applied before
+        // we assert synchronously.
+        await act(async () => {});
+
+        expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        expect(screen.getByText(/Always check the chart/i)).toBeInTheDocument();
     });
 
     it('renders empty states when no content is returned', async () => {

@@ -8,8 +8,9 @@ import {
 } from '@stellar/freighter-api';
 import { toast } from 'sonner';
 import { useAuthStore } from './useAuthStore';
+import { getApiBaseUrl } from '../lib/apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+const API_BASE = getApiBaseUrl();
 
 /** Single source of truth for wallet UI + lifecycle (issue #71). */
 export type WalletStatus = 'idle' | 'checking' | 'connecting' | 'connected' | 'error';
@@ -35,6 +36,7 @@ interface WalletState {
   networkMismatch: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
+  reset: () => void;
   checkConnection: () => Promise<void>;
   clearError: () => void;
 }
@@ -67,6 +69,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   networkMismatch: false,
 
   clearError: () => set({ errorMessage: null, errorCode: null }),
+
+  reset: () => {
+    set({
+      status: 'idle',
+      publicKey: null,
+      network: null,
+      balance: null,
+      errorMessage: null,
+      errorCode: null,
+      networkMismatch: false,
+    });
+  },
 
   disconnect: () => {
     set({

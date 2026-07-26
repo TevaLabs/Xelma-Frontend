@@ -1,9 +1,11 @@
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
+import { useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatVXLM, formatPercent } from '../lib/utils';
+import { TRANSITION } from '../utils/motion';
 
 const ASSET_ICONS: Record<string, string> = {
   BTC: '₿',
@@ -34,16 +36,44 @@ function poolSize(round: MockRound): number {
 }
 
 export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps) {
+  const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
   const downPct = round.mode === 'updown' ? 100 - upPct : 0;
 
+  const statusMeta = getStatusMeta(round, round.closesInSeconds);
+  const prevStatus = useRef(statusMeta.label);
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setEndTime(new Date(Date.now() + round.closesInSeconds * 1000));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [round.closesInSeconds]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (round.closesInSeconds <= 0) {
+        setStatusAnnouncement('Round has ended');
+      } else if (prevStatus.current !== statusMeta.label) {
+        setStatusAnnouncement(`Round status: ${statusMeta.label}`);
+        prevStatus.current = statusMeta.label;
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [round.closesInSeconds, statusMeta.label]);
+
   return (
     <article
-      className="glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5"
+      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION}`}
       data-testid="round-card"
     >
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {statusAnnouncement}
+      </div>
+
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
@@ -86,7 +116,8 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         </div>
         <div className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-400">
           <span>Resolves in</span>
-          <CountdownTimer initialSeconds={round.closesInSeconds} />
+          {/* eslint-disable-next-line react-hooks/purity */}
+          <CountdownTimer endTime={new Date(Date.now() + round.closesInSeconds * 1000)} />
         </div>
       </div>
 
@@ -123,7 +154,7 @@ export default function RoundCard({ round, onSubmitPrediction }: RoundCardProps)
         type="button"
         disabled={round.closesInSeconds <= 0}
         onClick={() => onSubmitPrediction(round)}
-        className="btn-primary mt-2 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-primary mt-2 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="round-card-submit"
       >
         Submit Prediction

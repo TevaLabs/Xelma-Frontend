@@ -7,7 +7,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
+import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 
 interface NavLinkItem {
   label: string;
@@ -28,6 +30,24 @@ function truncateAddress(key: string): string {
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }
 
+const NETWORK = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase();
+
+function NetworkBadge() {
+  const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${
+        isMainnet
+          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+          : 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+      }`}
+      aria-label={`Stellar network: ${NETWORK}`}
+    >
+      {isMainnet ? 'Mainnet' : 'Testnet'}
+    </span>
+  );
+}
+
 export default function Navbar() {
   const location = useLocation();
   const isConnected = useWalletStore(selectIsWalletConnected);
@@ -40,21 +60,19 @@ export default function Navbar() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  const closeMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
   useEffect(() => {
     void checkConnection();
   }, [checkConnection]);
 
-  // Handle escape key to close mobile menu
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isMobileMenuOpen]);
+  useFocusTrap(drawerRef, {
+    active: isMobileMenuOpen,
+    onEscape: closeMenu,
+    restoreFocusRef: menuButtonRef,
+  });
 
   // Handle click outside to close mobile menu
   useEffect(() => {
@@ -78,8 +96,6 @@ export default function Navbar() {
       document.body.style.overflow = '';
     };
   }, [isMobileMenuOpen]);
-
-  const closeMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
   return (
     <>
@@ -128,10 +144,11 @@ export default function Navbar() {
           {/* Desktop Wallet & Mobile Menu Toggle */}
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-3 md:flex">
+              <NetworkBadge />
               {isConnected && publicKey ? (
                 <>
                   <span className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
-                    {balance ?? '…'}
+                    {balance ? `${balance} vXLM` : '… vXLM'}
                   </span>
                   <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-xs text-gray-300">
                     {truncateAddress(publicKey)}
@@ -151,6 +168,7 @@ export default function Navbar() {
 
             {/* Mobile Menu Button */}
             <button
+              ref={menuButtonRef}
               type="button"
               className="md:hidden rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
               onClick={() => setIsMobileMenuOpen(true)}
@@ -168,7 +186,7 @@ export default function Navbar() {
         <div className="fixed inset-0 z-[100] flex md:hidden">
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+            className={`fixed inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} 
             onClick={closeMenu}
             aria-hidden="true"
           />
@@ -176,7 +194,7 @@ export default function Navbar() {
           {/* Drawer */}
           <div 
             ref={drawerRef}
-            className="relative ml-auto flex h-full w-full max-w-[280px] flex-col overflow-y-auto bg-[#0A0F1A] border-l border-[#BEC7FE]/10 p-6 shadow-2xl animate-in slide-in-from-right duration-200"
+            className={`relative ml-auto flex h-full w-full max-w-[280px] flex-col overflow-y-auto bg-[#0A0F1A] border-l border-[#BEC7FE]/10 p-6 shadow-2xl ${PANEL_SLIDE_RIGHT}`}
             role="dialog"
             aria-modal="true"
             aria-label="Mobile navigation menu"
@@ -191,6 +209,10 @@ export default function Navbar() {
               >
                 <X className="h-6 w-6" />
               </button>
+            </div>
+
+            <div className="mb-4">
+              <NetworkBadge />
             </div>
 
             <nav className="flex flex-col gap-4">
@@ -229,7 +251,7 @@ export default function Navbar() {
                   <div className="flex items-center justify-between px-2">
                     <span className="text-sm text-gray-400">Balance</span>
                     <span className="text-sm font-semibold text-cyan-200">
-                      {balance ?? '…'}
+                      {balance ? `${balance} vXLM` : '… vXLM'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between px-2">

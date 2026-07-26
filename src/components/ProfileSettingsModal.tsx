@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useProfileStore } from "../store/useProfileStore";
 import type { ProfileSettingsValues } from "../lib/profileApi";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { MODAL_OVERLAY, MODAL_CONTENT } from "../utils/motion";
 
 type Props = {
   onClose: () => void;
@@ -182,7 +183,7 @@ function ProfileSettingsForm({
   return (
     <div className="fixed inset-0 z-[9999]" onMouseDown={handleBackdropMouseDown}>
       {/* overlay */}
-      <div className="absolute inset-0 bg-black/50" aria-hidden />
+      <div className={`absolute inset-0 bg-black/50 ${MODAL_OVERLAY}`} aria-hidden />
 
       {/* centered modal */}
       <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
@@ -198,7 +199,8 @@ function ProfileSettingsForm({
             "rounded-2xl bg-white dark:bg-gray-900",
             "border border-gray-100 dark:border-gray-800",
             "shadow-2xl",
-            "max-h-[85vh] overflow-hidden"
+            "max-h-[85vh] overflow-hidden",
+            MODAL_CONTENT
           )}
         >
           <div className="relative px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
@@ -415,7 +417,7 @@ export default function ProfileSettingsModal({ onClose, initialValues }: Props) 
   if (!ready || isLoading) {
     const shell = (
       <div className="fixed inset-0 z-[9999]" role="dialog" aria-modal="true" aria-busy="true" aria-label="Profile settings">
-        <div className="absolute inset-0 bg-black/50" aria-hidden />
+        <div className={`absolute inset-0 bg-black/50 ${MODAL_OVERLAY}`} aria-hidden />
         <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
           <div
             className={cx(

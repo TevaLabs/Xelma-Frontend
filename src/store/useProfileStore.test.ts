@@ -10,6 +10,7 @@ const mockAuthStore = {
 vi.mock('./useAuthStore', () => ({
   useAuthStore: {
     getState: () => mockAuthStore,
+    subscribe: vi.fn(() => () => {}),
   },
 }));
 

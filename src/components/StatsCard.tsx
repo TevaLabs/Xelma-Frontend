@@ -1,5 +1,4 @@
 // ISSUE: Replace mock stats with live API call to backend /api/stats
-// ISSUE: Add XP and rank progression system UI
 
 import { useState } from 'react';
 import type { MockUserStats } from '../types';
@@ -7,6 +6,8 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { claim_winnings } from '../lib/xelma-contract';
 import { toast } from 'sonner';
 import { formatVXLM } from '../lib/utils';
+import RankProgressBar from './RankProgressBar';
+import PanelHeader from './PanelHeader';
 
 interface StatsCardProps {
   stats: MockUserStats;
@@ -50,8 +51,30 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   // Loading state
   if (isLoading) {
     return (
-      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
-        <p className="text-white">Loading...</p>
+      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title" aria-busy="true">
+        <h2 id="your-stats-title" className="text-lg font-bold text-white animate-pulse">
+          Your Record
+        </h2>
+        <span className="sr-only">Loading user statistics...</span>
+        <div className="mt-5 space-y-4">
+          <div className="flex items-center justify-between animate-pulse">
+            <div className="h-4 w-24 rounded bg-white/10" />
+            <div className="h-5 w-20 rounded bg-white/10" />
+          </div>
+          <div className="flex items-center justify-between animate-pulse">
+            <div className="h-4 w-28 rounded bg-white/10" />
+            <div className="h-5 w-16 rounded bg-white/10" />
+          </div>
+          <div className="flex items-center justify-between animate-pulse">
+            <div className="h-4 w-32 rounded bg-white/10" />
+            <div className="h-5 w-12 rounded bg-white/10" />
+          </div>
+          <div className="border-t border-white/10 pt-4 space-y-2 animate-pulse">
+            <div className="h-3 w-16 rounded bg-white/10" />
+            <div className="h-2 w-full rounded bg-white/10" />
+          </div>
+          <div className="h-11 w-full rounded-xl bg-white/5 border border-white/5 animate-pulse mt-6" />
+        </div>
       </section>
     );
   }
@@ -76,9 +99,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
 
   return (
     <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
-      <h2 id="your-stats-title" className="text-lg font-bold text-white">
-        Your Record
-      </h2>
+      <PanelHeader title="Your Record" />
 
       <dl className="mt-5 space-y-4">
         <div className="flex items-center justify-between">
@@ -102,18 +123,8 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           </dd>
         </div>
 
-        <div className="flex items-center justify-between">
-          <dt className="text-sm text-gray-400">Rank</dt>
-          <dd>
-            <span className="rounded-full bg-[#2C4BFD]/15 px-3 py-1 text-sm font-bold text-[#BEC7FE]">
-              {stats.rank}
-            </span>
-          </dd>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-white/10 pt-4">
-          <dt className="text-sm text-gray-400">Experience</dt>
-          <dd className="font-mono text-sm text-gray-300">{stats.xp} XP</dd>
+        <div className="border-t border-white/10 pt-4">
+          <RankProgressBar xp={stats.xp} />
         </div>
         
         {pendingWinnings > 0 && (

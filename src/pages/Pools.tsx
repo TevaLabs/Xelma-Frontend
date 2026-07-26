@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { TRANSITION } from '../utils/motion';
 
 // Typed mock data
 type PoolAsset = 'BTC' | 'ETH' | 'XLM';
@@ -98,7 +99,7 @@ export default function Pools() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 animate-in fade-in duration-500">
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-white">Liquidity Pools</h1>
         <p className="mt-2 text-gray-400">
@@ -123,7 +124,7 @@ function PoolCard({ pool }: { pool: PoolStats }) {
   const downPct = pool.upDownPool.total > 0 ? 100 - upPct : 0;
 
   return (
-    <article className="glass-card rounded-2xl p-6 transition-all duration-300">
+    <article className={`glass-card rounded-2xl p-6 ${TRANSITION}`}>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-lg font-bold text-[#BEC7FE]">

@@ -87,4 +87,27 @@ describe('RecentActivity', () => {
       expect(screen.getByText('Recent Predictions')).toBeInTheDocument();
     });
   });
+
+  describe('loading and error states', () => {
+    it('renders a loading state with skeletons', () => {
+      render(<RecentActivity items={[]} isLoading={true} />);
+      expect(screen.getByRole('region', { name: /recent predictions/i })).toHaveAttribute('aria-busy', 'true');
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    });
+
+    it('renders the error message and retry button when onRetry is provided', () => {
+      const onRetry = vi.fn();
+      render(<RecentActivity items={[]} error="Failed to load predictions" onRetry={onRetry} />);
+      expect(screen.getByText('Failed to load predictions')).toBeInTheDocument();
+      const retryBtn = screen.getByRole('button', { name: /retry/i });
+      retryBtn.click();
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits retry button when no onRetry callback is provided', () => {
+      render(<RecentActivity items={[]} error="Failed to load predictions" />);
+      expect(screen.getByText('Failed to load predictions')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+    });
+  });
 });

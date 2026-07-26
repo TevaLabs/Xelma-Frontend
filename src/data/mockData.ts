@@ -1,4 +1,32 @@
-import type { MockRound, MockUserStats, RecentActivityItem } from '../types';
+import type { MockRound, MockUserStats, RankTier, RecentActivityItem } from '../types';
+
+export const RANK_TIERS: RankTier[] = [
+  { name: 'Rookie', minXp: 0, label: 'Getting Started' },
+  { name: 'Trader', minXp: 500, label: 'Active Trader' },
+  { name: 'Analyst', minXp: 1000, label: 'Market Analyst' },
+  { name: 'Strategist', minXp: 2000, label: 'Trading Strategist' },
+  { name: 'Master', minXp: 4000, label: 'Trading Master' },
+  { name: 'Legend', minXp: 8000, label: 'Trading Legend' },
+];
+
+export function getRankTiers(xp: number): {
+  current: RankTier;
+  next: RankTier | null;
+  progress: number;
+} {
+  const current = [...RANK_TIERS].reverse().find((t) => xp >= t.minXp) ?? RANK_TIERS[0];
+  const currentIndex = RANK_TIERS.indexOf(current);
+  const next = currentIndex < RANK_TIERS.length - 1 ? RANK_TIERS[currentIndex + 1] : null;
+
+  let progress = 100;
+  if (next) {
+    const range = next.minXp - current.minXp;
+    const earned = xp - current.minXp;
+    progress = Math.min((earned / range) * 100, 100);
+  }
+
+  return { current, next, progress };
+}
 
 export const mockRounds: MockRound[] = [
   {

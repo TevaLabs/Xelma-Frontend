@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { predictionsApi, type UserPrediction } from "../lib/api-client";
 import { LoadingState, ErrorState, EmptyState } from "./ui/StatusStates";
+import { PanelHeader } from "./ui/PanelHeader";
 import { formatVXLM } from "../lib/utils";
 
 interface PredictionHistoryProps {
@@ -54,9 +55,7 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
   if (!userId) {
     return (
       <section className="bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Prediction History</h3>
-        </div>
+        <PanelHeader className="mb-4" title="Prediction History" />
         <EmptyState
           title="Connect your wallet"
           message="Connect your wallet to view your prediction history."
@@ -68,17 +67,20 @@ export default function PredictionHistory({ userId }: PredictionHistoryProps) {
 
   return (
     <section className="bg-white dark:bg-gray-800 p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Prediction History</h3>
-        <button
-          type="button"
-          className="text-sm font-medium text-[#2C4BFD] hover:underline"
-          onClick={() => void loadHistory()}
-          disabled={isLoading}
-        >
-          Refresh
-        </button>
-      </div>
+      <PanelHeader
+        className="mb-4"
+        title="Prediction History"
+        action={
+          <button
+            type="button"
+            className="text-sm font-medium text-[#2C4BFD] hover:underline"
+            onClick={() => void loadHistory()}
+            disabled={isLoading}
+          >
+            Refresh
+          </button>
+        }
+      />
 
       {isLoading && (
         <LoadingState message="Loading prediction history..." variant="skeleton" skeletonLines={5} className="min-h-[200px]" />

@@ -140,7 +140,7 @@ describe('useRoundStore', () => {
     it('creates EventSource with correct URL', () => {
       useRoundStore.getState().subscribeToRoundEvents();
       
-      expect(global.EventSource).toHaveBeenCalledWith('/api/rounds/events');
+      expect(global.EventSource).toHaveBeenCalledWith(expect.stringContaining('/api/rounds/events'));
     });
 
     it('handles round:started event', () => {

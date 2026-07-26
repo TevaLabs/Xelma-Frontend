@@ -3,9 +3,63 @@ import type { RecentActivityItem } from '../types';
 
 interface RecentActivityProps {
   items: RecentActivityItem[];
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export default function RecentActivity({ items }: RecentActivityProps) {
+export default function RecentActivity({ items, isLoading, error, onRetry }: RecentActivityProps) {
+  // Loading state
+  if (isLoading) {
+    return (
+      <section className="glass-card rounded-2xl p-5" aria-labelledby="recent-activity-title" aria-busy="true">
+        <h2 id="recent-activity-title" className="text-lg font-bold text-white animate-pulse">
+          Recent Predictions
+        </h2>
+        <div className="mt-4 space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 animate-pulse"
+            >
+              <div className="space-y-2">
+                <div className="h-4 w-12 rounded bg-white/10" />
+                <div className="h-3 w-8 rounded bg-white/10" />
+              </div>
+              <div className="text-right space-y-2">
+                <div className="h-4 w-16 rounded bg-white/10" />
+                <div className="h-3.5 w-20 rounded bg-white/10" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <section className="glass-card rounded-2xl p-5" aria-labelledby="recent-activity-title">
+        <h2 id="recent-activity-title" className="text-lg font-bold text-white">
+          Recent Predictions
+        </h2>
+        <div className="mt-6 flex flex-col items-center gap-3 py-6 text-center">
+          <p className="text-sm text-red-500 mb-2">{error}</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-2 w-full rounded-xl border py-2 text-sm font-semibold text-red-200 bg-red-500/20 border-red-400/50 hover:bg-red-500/30"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="glass-card rounded-2xl p-5" aria-labelledby="recent-activity-title">
       <h2 id="recent-activity-title" className="text-lg font-bold text-white">

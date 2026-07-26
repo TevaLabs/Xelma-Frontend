@@ -1,14 +1,22 @@
 import { useState, useRef } from 'react';
 import { useStellarAddressValidation } from '../hooks/useStellarAddressValidation';
 import { type Network } from '../utils/validateStellarAddress';
-import { Loader2, CheckCircle2, XCircle, Wallet, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Wallet, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import clsx from 'clsx';
 import { toast } from 'sonner';
+import WalletConnect from '../components/WalletConnect';
+import { useWalletStore } from '../store/useWalletStore';
+import { useNavigate } from 'react-router-dom';
 
 const Connect = () => {
   const [address, setAddress] = useState('');
   const [selectedNetwork, setSelectedNetwork] = useState<Network>('TESTNET');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+
+  const { publicKey, status } = useWalletStore();
+  const isConnected = status === 'connected' && Boolean(publicKey);
 
   const {
     state,
@@ -101,16 +109,49 @@ const Connect = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Connect Stellar Address
+                Connect Wallet
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Enter a Stellar address to connect
+                Connect your Freighter wallet to get started
               </p>
             </div>
           </div>
 
-          {/* Network Selection */}
+          {/* Primary path: Freighter wallet connection (shared flow) */}
           <div className="mb-6">
+            <WalletConnect />
+            {isConnected && (
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="mt-4 w-full px-4 py-3 rounded-lg font-semibold bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20 transition-all duration-200"
+              >
+                Continue to Dashboard
+              </button>
+            )}
+          </div>
+
+          {/* Advanced path toggle: optional manual address validation */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="flex w-full items-center justify-between text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              aria-expanded={showAdvanced}
+            >
+              <span>Advanced: validate an address manually</span>
+              {showAdvanced ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {showAdvanced && (
+          <>
+          {/* Network Selection */}
+          <div className="mb-6 mt-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Network
             </label>
@@ -218,10 +259,12 @@ const Connect = () => {
             ) : (
               <>
                 <Wallet className="w-5 h-5" />
-                <span>Connect</span>
+                <span>Validate Address</span>
               </>
             )}
           </button>
+          </>
+          )}
         </div>
       </div>
     </div>

@@ -24,6 +24,12 @@ export interface MockUserStats {
   rank: string;
 }
 
+export interface RankTier {
+  name: string;
+  minXp: number;
+  label: string;
+}
+
 export interface RecentActivityItem {
   id: string;
   asset: string;
