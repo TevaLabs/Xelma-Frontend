@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw, Copy, Check, QrCode } from 'lucide-react';
 import clsx from 'clsx';
+import { toast } from 'sonner';
+import QRCode from 'qrcode';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -22,9 +24,54 @@ const WalletConnect = () => {
   } = useWalletStore();
   const { isAuthenticated } = useAuthStore();
 
+  const [copied, setCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  const copyAddress = useCallback(async () => {
+    if (!publicKey) return;
+    try {
+      await navigator.clipboard.writeText(publicKey);
+      setCopied(true);
+      toast.success('Address copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy address');
+    }
+  }, [publicKey]);
+
+  const toggleQR = useCallback(async () => {
+    if (!publicKey) return;
+    if (showQR) {
+      setShowQR(false);
+      setQrDataUrl(null);
+      return;
+    }
+    if (!qrDataUrl) {
+      try {
+        const url = await QRCode.toDataURL(publicKey, {
+          width: 200,
+          margin: 2,
+          color: { dark: '#ffffff', light: '#0a0f1a' },
+        });
+        setQrDataUrl(url);
+      } catch {
+        toast.error('Failed to generate QR code');
+        return;
+      }
+    }
+    setShowQR(true);
+  }, [publicKey, showQR, qrDataUrl]);
+
   useEffect(() => {
     void checkConnection();
   }, [checkConnection]);
+
+  useEffect(() => {
+    setCopied(false);
+    setShowQR(false);
+    setQrDataUrl(null);
+  }, [publicKey]);
 
   const shortAddress = publicKey
     ? `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`
@@ -73,6 +120,32 @@ const WalletConnect = () => {
             <span className="text-sm font-medium text-gray-800 dark:text-gray-200 tabular-nums max-w-[7rem] sm:max-w-none truncate">
               {shortAddress}
             </span>
+            <button
+              type="button"
+              onClick={copyAddress}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
+                focusRing
+              )}
+              aria-label="Copy address"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden />
+              ) : (
+                <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={toggleQR}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700',
+                focusRing
+              )}
+              aria-label={showQR ? 'Hide QR code' : 'Show QR code'}
+            >
+              <QrCode className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden />
+            </button>
             {isAuthenticated ? (
               <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-label="Signed in to server" />
             ) : (
@@ -90,6 +163,12 @@ const WalletConnect = () => {
               <LogOut className="w-4 h-4" aria-hidden />
             </button>
           </div>
+
+          {showQR && qrDataUrl && (
+            <div className="flex justify-center p-4 bg-[#0A0F1A] rounded-lg border border-white/10">
+              <img src={qrDataUrl} alt="QR code for wallet address" className="h-48 w-48" />
+            </div>
+          )}
         </div>
 
         {isPendingAuth && (

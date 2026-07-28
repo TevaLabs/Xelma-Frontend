@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   AlertCircle,
   ArrowUpRight,
@@ -9,10 +9,17 @@ import {
   RefreshCw,
   ShieldCheck,
   UserRound,
+  Wallet,
+  Copy,
+  Check,
+  QrCode,
 } from 'lucide-react';
 import ProfileSettingsModal from '../components/ProfileSettingsModal';
 import { useProfileStore } from '../store/useProfileStore';
+import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
+import { toast } from 'sonner';
+import QRCode from 'qrcode';
 
 const defaultProfile: ProfileSettingsValues = {
   avatarUrl: null,
@@ -84,6 +91,50 @@ export default function Profile() {
   const error = useProfileStore((s) => s.error);
   const loadProfile = useProfileStore((s) => s.loadProfile);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const publicKey = useWalletStore((s) => s.publicKey);
+  const balance = useWalletStore((s) => s.balance);
+  const status = useWalletStore((s) => s.status);
+  const isConnected = status === 'connected' && Boolean(publicKey);
+
+  const [copied, setCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  const copyAddress = useCallback(async () => {
+    if (!publicKey) return;
+    try {
+      await navigator.clipboard.writeText(publicKey);
+      setCopied(true);
+      toast.success('Address copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy address');
+    }
+  }, [publicKey]);
+
+  const toggleQR = useCallback(async () => {
+    if (!publicKey) return;
+    if (showQR) {
+      setShowQR(false);
+      setQrDataUrl(null);
+      return;
+    }
+    if (!qrDataUrl) {
+      try {
+        const url = await QRCode.toDataURL(publicKey, {
+          width: 200,
+          margin: 2,
+          color: { dark: '#ffffff', light: '#0a0f1a' },
+        });
+        setQrDataUrl(url);
+      } catch {
+        toast.error('Failed to generate QR code');
+        return;
+      }
+    }
+    setShowQR(true);
+  }, [publicKey, showQR, qrDataUrl]);
 
   useEffect(() => {
     void loadProfile();
@@ -254,6 +305,50 @@ export default function Profile() {
                     </div>
                   </dl>
                 </section>
+
+                {isConnected && (
+                  <section className="glass-card rounded-xl p-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2C4BFD]/15 text-[#BEC7FE]">
+                        <Wallet className="h-5 w-5" aria-hidden />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white">Wallet</h3>
+                        <p className="text-xs text-gray-500">{balance ?? '—'} vXLM</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <code className="rounded-md bg-white/5 px-2.5 py-1.5 font-mono text-xs text-gray-300">
+                        {publicKey!.slice(0, 8)}...{publicKey!.slice(-8)}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={copyAddress}
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
+                        aria-label="Copy address"
+                      >
+                        {copied ? (
+                          <Check className="h-4 w-4 text-green-400" aria-hidden />
+                        ) : (
+                          <Copy className="h-4 w-4" aria-hidden />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={toggleQR}
+                        className="inline-flex items-center justify-center rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
+                        aria-label={showQR ? 'Hide QR code' : 'Show QR code'}
+                      >
+                        <QrCode className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
+                    {showQR && qrDataUrl && (
+                      <div className="mt-4 flex justify-center rounded-lg bg-[#0A0F1A] p-4 border border-white/10">
+                        <img src={qrDataUrl} alt="QR code for wallet address" className="h-40 w-40" />
+                      </div>
+                    )}
+                  </section>
+                )}
 
                 <section className="glass-card rounded-xl p-5">
                   <div className="flex items-center gap-3">
