@@ -96,9 +96,6 @@ const RoundTimeline: React.FC = () => {
 
   const prevStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
-  // Tracks the previous render's `currentState` to detect transitions without
-  // a render-time setState.
-  const prevStateRef = useRef(currentState);
 
   useEffect(() => {
     if (prevStateRef.current !== currentState) {

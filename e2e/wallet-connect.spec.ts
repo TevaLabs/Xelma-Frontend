@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/test';
 
-const MOCK_ADDRESS = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
-
 /** Inject a fake Freighter wallet object before any app code runs. */
 function mockFreighter(page: import('@playwright/test').Page) {
   return page.addInitScript(() => {

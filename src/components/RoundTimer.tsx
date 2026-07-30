@@ -52,6 +52,9 @@ export default function RoundTimer({
 
   useEffect(() => {
     const diff = resolveTimestamp(endTime) - Date.now();
+    // Resetting the initial duration when the endTime prop changes is
+    // intentional — the setState call only runs when endTime differs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialDurationMs(diff > 0 ? diff : 1);
   }, [endTime]);
 

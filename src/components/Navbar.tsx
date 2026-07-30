@@ -5,7 +5,9 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import type { ChangeEvent } from 'react';
 import { Menu, X, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
