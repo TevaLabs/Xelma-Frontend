@@ -35,7 +35,7 @@ import SorobanInspectorPanel from '../components/SorobanInspectorPanel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
-import { mockUserStats, mockRounds } from "../data/mockData";
+import { mockUserStats, mockRounds, mockRecentActivity } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";
@@ -149,8 +149,8 @@ const DailyTip = () => {
 
 
 const Dashboard = () => {
-  const isRoundActive = useRoundStore((state) => state.isRoundActive);
-  const isLoading = useRoundStore((state) => state.isLoading);
+  const isRoundActive = import.meta.env.VITE_USE_MOCKS === 'true' ? true : useRoundStore((state) => state.isRoundActive);
+  const isLoading = import.meta.env.VITE_USE_MOCKS === 'true' ? false : useRoundStore((state) => state.isLoading);
   const sseConnection = useRoundStore((state) => state.sseConnection);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const isWalletConnecting = useWalletStore(
@@ -247,6 +247,10 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [deepLinkedRoundId, filteredRounds, prefersReducedMotion]);
 
   const fetchStats = useCallback(async () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      setStats(mockUserStats);
+      return;
+    }
     if (!isWalletConnected) {
       setStats(null);
       return;
@@ -265,6 +269,10 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected]);
 
   const fetchActivities = useCallback(async () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      setActivities(mockRecentActivity);
+      return;
+    }
     if (!isWalletConnected || !publicKey) {
       setActivities([]);
       return;
@@ -319,6 +327,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
 
 
   useEffect(() => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') return;
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
     void fetchActiveRound();
     const unsubscribe = subscribeToRoundEvents();
