@@ -445,12 +445,12 @@ describe('NotificationsPanel', () => {
   });
 
   describe('dark mode support', () => {
-    it('includes dark mode classes', () => {
+    it('includes glass terminal dark theme classes', () => {
       render(<NotificationsPanel {...defaultProps} />);
 
       const panel = screen.getByRole('dialog');
-      expect(panel).toHaveClass('bg-white', 'dark:bg-gray-900');
-      expect(panel).toHaveClass('border-gray-200', 'dark:border-gray-800');
+      expect(panel).toHaveClass('glass-card');
+      expect(panel).toHaveClass('rounded-2xl', 'text-white', 'shadow-2xl');
     });
   });
 
