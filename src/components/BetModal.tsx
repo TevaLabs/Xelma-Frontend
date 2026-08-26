@@ -6,6 +6,7 @@ import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
+import { completeOnboardingStep } from '../lib/onboarding';
 
 export interface PredictionData {
   direction: 'UP' | 'DOWN';
@@ -281,6 +282,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       });
 
       tx.succeed(result.txHash);
+      completeOnboardingStep('predict');
       if (onSuccess) {
         onSuccess(result.txHash);
       }

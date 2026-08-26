@@ -8,6 +8,7 @@ import {
   fundWithFriendbot,
 } from '../lib/friendbot';
 import { useWalletStore, selectNeedsFunding, parseXlmBalance } from '../store/useWalletStore';
+import { completeOnboardingStep } from '../lib/onboarding';
 
 /**
  * Testnet-only faucet prompt.
@@ -32,6 +33,7 @@ export default function FriendbotFundCard({ className }: { className?: string })
     setIsFunding(true);
     try {
       await fundWithFriendbot(publicKey);
+      completeOnboardingStep('fund');
       toast.success('Testnet account funded. Friendbot topped up your XLM balance.');
       await refreshBalance();
     } catch (err) {

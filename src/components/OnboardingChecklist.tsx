@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Download, Wallet, Library, TrendingUp } from 'lucide-react';
+import { Check, X, Download, Wallet, Library, TrendingUp } from 'lucide-react';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
-
-const ONBOARDING_KEY = 'xelma_onboarding_dismissed';
+import { selectIsWalletConnected, useWalletStore } from '../store/useWalletStore';
+import {
+  completeOnboardingStep,
+  ONBOARDING_DISMISSED_KEY,
+  ONBOARDING_PROGRESS_EVENT,
+  readOnboardingProgress,
+  type OnboardingStepKey,
+} from '../lib/onboarding';
 
 interface Step {
   key: string;
@@ -49,17 +55,18 @@ const STEPS: Step[] = [
   },
 ];
 
-function StepAction({ step, onDismiss }: { step: Step; onDismiss: () => void }) {
+function StepAction({ step, complete, onNavigate }: { step: Step; complete: boolean; onNavigate: () => void }) {
   const Icon = step.icon;
   const content = (
-    <div className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3.5 transition-colors hover:border-[#2C4BFD]/20 hover:bg-[#2C4BFD]/5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2C4BFD]/15 text-cyan-300">
-        <Icon className="h-4 w-4" />
+    <div className={`flex items-start gap-3 rounded-xl border p-3.5 transition-colors ${complete ? 'border-emerald-400/20 bg-emerald-400/[0.06]' : 'border-white/5 bg-white/[0.02] hover:border-[#2C4BFD]/20 hover:bg-[#2C4BFD]/5'}`}>
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${complete ? 'bg-emerald-400/15 text-emerald-300' : 'bg-[#2C4BFD]/15 text-cyan-300'}`}>
+        {complete ? <Check className="h-4 w-4" aria-hidden /> : <Icon className="h-4 w-4" aria-hidden />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white">{step.label}</p>
+        <p className={`text-sm font-semibold ${complete ? 'text-emerald-100' : 'text-white'}`}>{step.label}</p>
         <p className="mt-0.5 text-xs text-gray-400 leading-relaxed">{step.description}</p>
       </div>
+      {complete && <span className="text-xs font-semibold text-emerald-300">Done</span>}
     </div>
   );
 
@@ -69,7 +76,7 @@ function StepAction({ step, onDismiss }: { step: Step; onDismiss: () => void }) 
         href={step.link}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={onDismiss}
+        onClick={onNavigate}
       >
         {content}
       </a>
@@ -77,25 +84,49 @@ function StepAction({ step, onDismiss }: { step: Step; onDismiss: () => void }) 
   }
 
   return (
-    <Link to={step.link} onClick={onDismiss}>
+    <Link to={step.link} onClick={onNavigate}>
       {content}
     </Link>
   );
 }
 
 export default function OnboardingChecklist() {
+  const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const [visible, setVisible] = useState(() => {
     if (typeof window === 'undefined') return false;
-    const dismissed = localStorage.getItem(ONBOARDING_KEY);
+    const dismissed = localStorage.getItem(ONBOARDING_DISMISSED_KEY);
     return !dismissed;
   });
+  const [progress, setProgress] = useState(readOnboardingProgress);
+
+  useEffect(() => {
+    const syncProgress = () => setProgress(readOnboardingProgress());
+    window.addEventListener(ONBOARDING_PROGRESS_EVENT, syncProgress);
+    window.addEventListener('storage', syncProgress);
+    return () => {
+      window.removeEventListener(ONBOARDING_PROGRESS_EVENT, syncProgress);
+      window.removeEventListener('storage', syncProgress);
+    };
+  }, []);
+
+  useEffect(() => {
+    // A connected Freighter wallet proves both that Freighter is available and
+    // that the user has completed the connect milestone.
+    if (isWalletConnected) {
+      completeOnboardingStep('install');
+      completeOnboardingStep('connect');
+    }
+  }, [isWalletConnected]);
 
   const dismiss = () => {
-    localStorage.setItem(ONBOARDING_KEY, 'true');
+    localStorage.setItem(ONBOARDING_DISMISSED_KEY, 'true');
     setVisible(false);
   };
 
-  if (!visible) return null;
+  const completedCount = Object.values(progress).filter(Boolean).length;
+  const progressPercent = (completedCount / STEPS.length) * 100;
+
+  if (!visible || Object.values(progress).every(Boolean)) return null;
 
   return (
     <div
@@ -120,9 +151,19 @@ export default function OnboardingChecklist() {
           Follow these steps to get started with on-chain predictions.
         </p>
 
+        <div className="mt-5" aria-label={`${completedCount} of ${STEPS.length} onboarding steps completed`}>
+          <div className="mb-2 flex items-center justify-between text-xs text-gray-400">
+            <span>Getting started</span>
+            <span>{completedCount}/{STEPS.length} complete</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={completedCount}>
+            <div className="h-full rounded-full bg-gradient-to-r from-[#2C4BFD] to-cyan-400 transition-[width] duration-200" style={{ width: `${progressPercent}%` }} />
+          </div>
+        </div>
+
         <div className="mt-6 space-y-3">
           {STEPS.map((step) => (
-            <StepAction key={step.key} step={step} onDismiss={dismiss} />
+            <StepAction key={step.key} step={step} complete={progress[step.key as OnboardingStepKey]} onNavigate={() => setVisible(false)} />
           ))}
         </div>
 
