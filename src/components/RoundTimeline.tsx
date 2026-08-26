@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
@@ -67,11 +67,11 @@ const RoundTimeline: React.FC = () => {
     sseConnection?.status || 'disconnected'
   );
 
-  const [prevCurrentState, setPrevCurrentState] = useState(currentState);
+  const prevCurrentState = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
   useEffect(() => {
-    if (prevCurrentState !== currentState) {
+    if (prevCurrentState.current !== currentState) {
       const label =
         TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
         (currentState === 'disconnected'
@@ -82,10 +82,10 @@ const RoundTimeline: React.FC = () => {
       const timer = setTimeout(() => {
         setStateAnnouncement(`Round is now ${label}`);
       }, 0);
-      setPrevCurrentState(currentState);
+      prevCurrentState.current = currentState;
       return () => clearTimeout(timer);
     }
-  }, [currentState, prevCurrentState]);
+  }, [currentState]);
 
   return (
     <div
