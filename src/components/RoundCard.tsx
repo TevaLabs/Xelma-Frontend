@@ -1,6 +1,3 @@
-// ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
-// ISSUE: Real-time round updates via Soroban event polling
-
 import { useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
@@ -130,21 +127,43 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
 
       {round.mode === 'updown' ? (
         <div className="mt-1">
-          <div className="flex h-2 overflow-hidden rounded-full bg-gray-800">
+          <div className="flex h-3 overflow-hidden rounded-full bg-gray-800 border border-gray-700">
+            {/* UP section with diagonal stripes pattern for colorblind distinction */}
             <div
-              className="bg-[#2C4BFD] transition-all"
-              style={{ width: `${upPct}%` }}
+              className="bg-[#2C4BFD] transition-all relative overflow-hidden"
+              style={{ 
+                width: `${upPct}%`,
+                backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.3) 5px, rgba(255,255,255,0.3) 10px)'
+              }}
               title={`UP ${formatPercent(upPct / 100, 0)}`}
+              aria-label={`UP ${formatPercent(upPct / 100, 0)}`}
             />
+            {/* DOWN section with horizontal stripes pattern for colorblind distinction */}
             <div
-              className="bg-rose-500 transition-all"
-              style={{ width: `${downPct}%` }}
+              className="bg-rose-500 transition-all relative overflow-hidden"
+              style={{ 
+                width: `${downPct}%`,
+                backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(0,0,0,0.3) 4px, rgba(0,0,0,0.3) 8px)'
+              }}
               title={`DOWN ${formatPercent(downPct / 100, 0)}`}
+              aria-label={`DOWN ${formatPercent(downPct / 100, 0)}`}
             />
           </div>
-          <div className="mt-1 flex justify-between text-xs text-gray-500">
-            <span className="text-[#BEC7FE]">UP {formatPercent(upPct / 100, 0)}</span>
-            <span className="text-rose-400">DOWN {formatPercent(downPct / 100, 0)}</span>
+          <div className="mt-2 flex justify-between text-xs font-semibold">
+            <span className="text-[#BEC7FE] flex items-center gap-1.5">
+              {/* UP triangle icon */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 4L20 18H4L12 4Z" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+              UP {formatPercent(upPct / 100, 0)}
+            </span>
+            <span className="text-rose-400 flex items-center gap-1.5">
+              {/* DOWN triangle icon */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 20L4 6H20L12 20Z" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+              DOWN {formatPercent(downPct / 100, 0)}
+            </span>
           </div>
         </div>
       ) : (
