@@ -5,6 +5,8 @@ import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
 interface EndRoundModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Enables the parent-controlled round-resolution sound when the full modal is restored. */
+  playResolveSound?: boolean;
   result?: {
     isWin?: boolean;
     amount?: number;
