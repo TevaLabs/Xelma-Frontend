@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- shared status-machine module (component + hook) */
 import { Fragment, useCallback, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
 /**
@@ -220,6 +221,20 @@ export default function TxStatusTimeline({
     const displayHash = txHash ? formatTxHash(txHash) : '';
     const href = explorerUrl ?? `https://stellarexpert.org/tx/${txHash ?? ''}`;
 
+    const handleCopy = async () => {
+      if (!txHash) return;
+      if (window.isSecureContext && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(txHash);
+          toast.success('Transaction hash copied to clipboard');
+        } catch (err) {
+          toast.error('Failed to copy transaction hash');
+        }
+      } else {
+        toast.error('Clipboard access is restricted in this environment');
+      }
+    };
+
     return (
       <div role="status" className="text-center py-6">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20 text-2xl font-bold text-green-500">
@@ -230,12 +245,22 @@ export default function TxStatusTimeline({
           {successMessage ?? 'Your transaction has been successfully written on-chain.'}
         </p>
         {displayHash && (
-          <code
-            className="mx-auto mb-5 block w-fit rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 font-mono text-xs text-cyan-300"
-            title={txHash}
-          >
-            Tx: {displayHash}
-          </code>
+          <div className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
+            <code className="font-mono text-xs text-cyan-300" title={txHash}>
+              Tx: {displayHash}
+            </code>
+            <button
+              onClick={handleCopy}
+              className="rounded p-1 hover:bg-gray-800 transition-colors"
+              aria-label="Copy transaction hash"
+              title="Copy hash"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 hover:text-white">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
         )}
         <div className="space-y-3">
           {txHash && (
