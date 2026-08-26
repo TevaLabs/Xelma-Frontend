@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
-import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
 
 interface TimelineState {
   label: string;
@@ -9,7 +8,7 @@ interface TimelineState {
 }
 
 const TIMELINE_STATES: TimelineState[] = [
-  { label: 'Upcoming', key: 'upcoming' },
+  { label: 'Next Round', key: 'upcoming' },
   { label: 'Live', key: 'live' },
   { label: 'Resolving', key: 'resolving' },
   { label: 'Finished', key: 'finished' },
@@ -89,6 +88,18 @@ const RoundTimeline: React.FC = () => {
     }
   }, [currentState]);
 
+  const currentIndex = TIMELINE_STATES.findIndex((state) => state.key === currentState);
+  const isLoading = currentState === 'loading';
+  const isDisconnected = currentState === 'disconnected';
+  const currentStateLabel =
+    currentState === 'upcoming'
+      ? 'Upcoming'
+      : currentState === 'disconnected'
+        ? 'Unknown'
+        : currentState === 'loading'
+          ? 'Connecting'
+          : TIMELINE_STATES.find((state) => state.key === currentState)?.label ?? currentState;
+
   return (
     <div
       className="w-full"
@@ -99,11 +110,63 @@ const RoundTimeline: React.FC = () => {
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {stateAnnouncement}
       </div>
-      <h2 className="mb-4 text-lg font-bold text-white">Round Progress</h2>
-      <ContributorTaskPlaceholder
-        title="Rebuild Round Timeline Stepper"
-        issueHint={`Current state is "${currentState}". Restore Upcoming → Live → Resolving → Finished stepper with loading/disconnected banners. Use glass-card dark theme.`}
-      />
+      <section className="glass-card rounded-xl p-4 lg:p-6">
+        <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-white lg:text-xl">
+          <span className="status-dot status-dot-live" aria-hidden="true" />
+          Round Progress
+        </h2>
+
+        {isLoading && (
+          <p className="mb-4 rounded-lg border border-cyan-400/25 bg-cyan-400/10 p-3 text-sm text-cyan-100">
+            Connecting to live updates...
+          </p>
+        )}
+        {isDisconnected && (
+          <p className="mb-4 rounded-lg border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100">
+            Connection lost - Timeline may not update in real-time
+          </p>
+        )}
+
+        <div className="flex items-start justify-between gap-2">
+          {TIMELINE_STATES.map((state, index) => {
+            const completed = currentIndex > index;
+            const active = currentIndex === index;
+            return (
+              <div className="flex min-w-0 flex-1 flex-col items-center" key={state.key}>
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold ${
+                    active
+                      ? 'border-cyan-300 bg-cyan-300 text-slate-950'
+                      : completed
+                        ? 'border-cyan-500 bg-cyan-500 text-slate-950'
+                        : 'border-slate-600 bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {completed ? '✓' : index + 1}
+                </span>
+                <span className={`mt-2 text-center text-xs font-semibold ${active ? 'text-cyan-300' : 'text-slate-400'}`}>
+                  {state.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 border-t border-slate-700 pt-4 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400">Current State:</span>
+            <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold text-white">
+              {currentStateLabel}
+            </span>
+          </div>
+          {activeRound && (
+            <div className="mt-3 space-y-1 text-xs text-slate-400">
+              {activeRound.startsAt && <p>Starts: {new Date(activeRound.startsAt).toLocaleTimeString()}</p>}
+              {activeRound.endsAt && <p>Ends: {new Date(activeRound.endsAt).toLocaleTimeString()}</p>}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 };
