@@ -42,10 +42,10 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       tabIndex={-1}
-      className="absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg z-50"
+      className="glass-card absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl text-white shadow-2xl z-50"
     >
-      <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
-        <h2 id={titleId} className="text-lg font-medium text-gray-900 dark:text-gray-100">
+      <div className="p-4 border-b border-[#BEC7FE]/10 flex items-center justify-between gap-2">
+        <h2 id={titleId} className="text-lg font-medium text-gray-100">
           Notifications
         </h2>
         <button
@@ -53,7 +53,7 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
           ref={closeButtonRef}
           onClick={onClose}
           aria-label="Close notifications"
-          className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+          className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827]"
         >
           Close
         </button>
@@ -79,7 +79,7 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
           <EmptyState
             title="No notifications"
             message="You're all caught up! New notifications will appear here."
-            icon={<Clock className="h-12 w-12 text-gray-300 dark:text-gray-700 mb-4" />}
+            icon={<Clock className="h-12 w-12 text-gray-400 mb-4" />}
             className="p-4"
           />
         )}
@@ -88,12 +88,12 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
             {list.map((n) => (
               <div
                 key={n.id}
-                className={`p-4 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-3 ${n.read ? 'opacity-60' : ''}`}
+                className={`p-4 border-b border-[#BEC7FE]/10 flex items-start justify-between gap-3 ${n.read ? 'opacity-60' : ''}`}
               >
                 <div className="min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-gray-100">{n.title}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">{n.message}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  <div className="font-medium text-gray-100">{n.title}</div>
+                  <div className="text-sm text-gray-400">{n.message}</div>
+                  <div className="text-xs text-gray-500 mt-1">
                     {new Date(n.createdAt).toLocaleString()}
                   </div>
                 </div>
@@ -102,7 +102,7 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
                     type="button"
                     aria-label={`Mark notification “${n.title}” as read`}
                     onClick={() => markAsRead(n.id)}
-                    className="shrink-0 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+                    className="shrink-0 p-2 rounded-lg hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827]"
                   >
                     <Check className="w-4 h-4" aria-hidden />
                   </button>
