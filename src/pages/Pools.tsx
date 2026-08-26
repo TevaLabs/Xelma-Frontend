@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import ContributorTaskPlaceholder from '../components/ContributorTaskPlaceholder';
+import { TRANSITION } from '../utils/motion';
+import { AssetIcon } from '../components/icons';
 
+// Typed mock data
 type PoolAsset = 'BTC' | 'ETH' | 'XLM';
 
 interface PoolStats {
@@ -42,16 +44,14 @@ const mockPoolData: PoolStats[] = [
   },
 ];
 
-/**
- * STUBBED for contributor rebuild — mock data + loading kept.
- * Rebuild full pools transparency UI with SVG icons (no emoji) and glass cards.
- */
 export default function Pools() {
   const [data, setData] = useState<PoolStats[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      // Simulate successful fetch
       setData(mockPoolData);
       setLoading(false);
     }, 800);
@@ -61,25 +61,127 @@ export default function Pools() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div
-          className="h-8 w-8 animate-spin rounded-full border-4 border-[#2C4BFD] border-t-transparent"
-          aria-label="Loading pools"
-        />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2C4BFD] border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center px-4">
+        <div className="glass-card rounded-2xl p-8 text-center text-rose-400">
+          <p className="text-lg font-bold">{error}</p>
+          <button
+            type="button"
+            className="mt-4 rounded-lg bg-white/5 px-4 py-2 text-sm hover:bg-white/10 transition-colors"
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center px-4">
+        <div className="glass-card rounded-2xl p-8 text-center text-gray-400">
+          <p className="text-lg">No active pools found.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <main id="main-content" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold text-white">Pools</h1>
-      <p className="mt-2 text-sm text-gray-400">
-        Liquidity and round pool transparency across prediction markets.
-      </p>
-      <ContributorTaskPlaceholder
-        className="mt-10"
-        title="Rebuild Pools Page"
-        issueHint={`Render pool cards for ${(data ?? []).map((p) => p.asset).join(', ')} with volume, UP/DOWN split, precision pool, and yield. Use SVG asset icons and glass-card layout. Mock data is ready in this file.`}
-      />
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-white">Liquidity Pools</h1>
+        <p className="mt-2 text-gray-400">
+          Transparency and historical stats for all active round pools.
+        </p>
+      </header>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {data.map((pool) => (
+          <PoolCard key={pool.asset} pool={pool} />
+        ))}
+      </div>
     </main>
+  );
+}
+
+function PoolCard({ pool }: { pool: PoolStats }) {
+  const upPct =
+    pool.upDownPool.total > 0
+      ? Math.round((pool.upDownPool.up / pool.upDownPool.total) * 100)
+      : 0;
+  const downPct = pool.upDownPool.total > 0 ? 100 - upPct : 0;
+
+  return (
+    <article className={`glass-card rounded-2xl p-6 ${TRANSITION}`}>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-[#BEC7FE]">
+            <AssetIcon asset={pool.asset} size={20} />
+          </span>
+          <h2 className="text-xl font-bold text-white">{pool.asset} Pool</h2>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <p className="text-sm font-medium text-gray-400">Total Volume</p>
+        <p className="text-2xl font-bold text-white">
+          {pool.totalVolume.toLocaleString()} <span className="text-sm font-normal text-gray-500">vXLM</span>
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {/* UP/DOWN Pool */}
+        <div className="rounded-xl bg-white/5 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-gray-300">UP/DOWN Pool</h3>
+          <p className="mb-2 text-lg font-bold text-[#BEC7FE]">
+            {pool.upDownPool.total.toLocaleString()} <span className="text-xs font-normal text-gray-500">vXLM</span>
+          </p>
+          <div className="flex h-2 overflow-hidden rounded-full bg-gray-800">
+            <div
+              className="bg-[#2C4BFD] transition-all"
+              style={{ width: `${upPct}%` }}
+              title={`UP ${upPct}%`}
+            />
+            <div
+              className="bg-rose-500 transition-all"
+              style={{ width: `${downPct}%` }}
+              title={`DOWN ${downPct}%`}
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-xs font-medium">
+            <span className="text-[#BEC7FE]">UP {upPct}%</span>
+            <span className="text-rose-400">DOWN {downPct}%</span>
+          </div>
+        </div>
+
+        {/* Precision Pool */}
+        <div className="rounded-xl bg-white/5 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-gray-300">Precision Pool</h3>
+          <div className="flex items-end justify-between">
+            <p className="text-lg font-bold text-cyan-300">
+              {pool.precisionPool.total.toLocaleString()} <span className="text-xs font-normal text-gray-500">vXLM</span>
+            </p>
+            <p className="text-xs text-gray-400">{pool.precisionPool.predictions} predictions</p>
+          </div>
+        </div>
+
+        {/* Historical Stats */}
+        <div className="rounded-xl border border-white/5 bg-transparent p-4">
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Historical Yield
+          </h3>
+          <p className="text-lg font-bold text-emerald-400">
+            +{pool.historicalYield}% <span className="text-xs font-normal text-gray-500">avg/round</span>
+          </p>
+        </div>
+      </div>
+    </article>
   );
 }
