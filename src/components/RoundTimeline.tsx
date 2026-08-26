@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
 import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
@@ -67,25 +67,27 @@ const RoundTimeline: React.FC = () => {
     sseConnection?.status || 'disconnected'
   );
 
-  const [prevCurrentState, setPrevCurrentState] = useState(currentState);
+  // This only tracks the prior value for the live-region announcement; it does
+  // not affect rendering, so keeping it in a ref avoids a cascading render.
+  const previousStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
   useEffect(() => {
-    if (prevCurrentState !== currentState) {
+    if (previousStateRef.current !== currentState) {
       const label =
         TIMELINE_STATES.find((s) => s.key === currentState)?.label ||
         (currentState === 'disconnected'
           ? 'Disconnected'
           : currentState === 'loading'
-            ? 'Connecting'
-            : currentState);
+          ? 'Connecting'
+          : currentState);
+      previousStateRef.current = currentState;
       const timer = setTimeout(() => {
         setStateAnnouncement(`Round is now ${label}`);
       }, 0);
-      setPrevCurrentState(currentState);
       return () => clearTimeout(timer);
     }
-  }, [currentState, prevCurrentState]);
+  }, [currentState]);
 
   return (
     <div
