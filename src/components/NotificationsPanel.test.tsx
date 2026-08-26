@@ -64,12 +64,14 @@ const mockStore: {
   loadingList: boolean;
   errorList: string | null;
   markAsRead: ReturnType<typeof vi.fn>;
+  markAllAsRead: ReturnType<typeof vi.fn>;
   fetchList: ReturnType<typeof vi.fn>;
 } = {
   list: [],
   loadingList: false,
   errorList: null,
   markAsRead: vi.fn(),
+  markAllAsRead: vi.fn(),
   fetchList: vi.fn(),
 };
 
@@ -87,6 +89,7 @@ describe('NotificationsPanel', () => {
     mockStore.loadingList = false;
     mockStore.errorList = null;
     mockStore.markAsRead = vi.fn();
+    mockStore.markAllAsRead = vi.fn();
     mockStore.fetchList = vi.fn();
     
     vi.mocked(useNotificationsStore).mockImplementation((selector: any) => {
@@ -142,14 +145,18 @@ describe('NotificationsPanel', () => {
       render(<NotificationsPanel {...defaultProps} />);
 
       const closeButton = screen.getByRole('button', { name: 'Close notifications' });
+      const markAllButton = screen.getByRole('button', { name: 'Mark all notifications as read' });
       const markAsReadButton = screen.getByRole('button', { name: /mark notification/i });
 
+      // Initial focus should land on the close button (initialFocusRef)
       await waitFor(() => expect(closeButton).toHaveFocus());
 
+      // Tab from per-item mark-as-read wraps back to "Mark all as read" (first focusable)
       markAsReadButton.focus();
       fireEvent.keyDown(document, { key: 'Tab' });
-      expect(closeButton).toHaveFocus();
+      expect(markAllButton).toHaveFocus();
 
+      // Shift+Tab from "Mark all as read" wraps to per-item mark-as-read (last focusable)
       fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
       expect(markAsReadButton).toHaveFocus();
     });
@@ -243,9 +250,6 @@ describe('NotificationsPanel', () => {
       expect(emptyState).toHaveTextContent('No notifications');
       expect(emptyState).toHaveTextContent("You're all caught up! New notifications will appear here.");
       expect(emptyState).toHaveClass('p-4');
-
-      const clockIcon = screen.getByTestId('clock-icon');
-      expect(clockIcon).toHaveClass('h-12', 'w-12', 'text-gray-300', 'dark:text-gray-700', 'mb-4');
     });
   });
 

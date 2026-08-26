@@ -69,6 +69,10 @@
   animation-play-state: paused;
 }
 
+.news-ribbon:hover .news-ribbon__scroll {
+  animation-play-state: paused;
+}
+
 /* Individual message */
 .news-ribbon__message {
   display: inline-flex;
@@ -108,7 +112,7 @@
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
-  transition: background 0.2s ease;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .news-ribbon__close:hover {
@@ -128,7 +132,7 @@
 }
 
 .news-ribbon {
-  animation: slideDown 0.4s ease;
+  animation: slideDown var(--duration-slow) var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {

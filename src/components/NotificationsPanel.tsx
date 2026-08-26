@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNotificationsStore } from '../store/useNotificationsStore';
-import { Clock, Check } from './icons';
+import { Check } from './icons';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -16,7 +16,9 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
   const loadingList = useNotificationsStore((s) => s.loadingList);
   const errorList = useNotificationsStore((s) => s.errorList);
   const markAsRead = useNotificationsStore((s) => s.markAsRead);
+  const markAllAsRead = useNotificationsStore((s) => s.markAllAsRead);
   const fetchList = useNotificationsStore((s) => s.fetchList);
+  const hasUnread = list.some((n) => !n.read);
 
   useEffect(() => {
     void fetchList();
@@ -44,19 +46,31 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
       tabIndex={-1}
       className="glass-card absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-2xl text-white shadow-2xl z-50"
     >
-      <div className="p-4 border-b border-[#BEC7FE]/10 flex items-center justify-between gap-2">
+      <div className="p-4 border-b border-[#BEC7FE]/10 flex items-center justify-between gap-2 flex-wrap">
         <h2 id={titleId} className="text-lg font-medium text-gray-100">
           Notifications
         </h2>
-        <button
-          type="button"
-          ref={closeButtonRef}
-          onClick={onClose}
-          aria-label="Close notifications"
-          className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827]"
-        >
-          Close
-        </button>
+        <div className="flex items-center gap-2">
+          {hasUnread && (
+            <button
+              type="button"
+              aria-label="Mark all notifications as read"
+              onClick={() => void markAllAsRead()}
+              className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-[#2C4BFD] hover:bg-[#2C4BFD]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827] transition-colors"
+            >
+              Mark all as read
+            </button>
+          )}
+          <button
+            type="button"
+            ref={closeButtonRef}
+            onClick={onClose}
+            aria-label="Close notifications"
+            className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-300 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827]"
+          >
+            Close
+          </button>
+        </div>
       </div>
       <p id={descriptionId} className="sr-only">
         Review notifications and mark unread items as read.
@@ -77,9 +91,9 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
         )}
         {!loadingList && !errorList && list.length === 0 && (
           <EmptyState
+            variant="offline"
             title="No notifications"
             message="You're all caught up! New notifications will appear here."
-            icon={<Clock className="h-12 w-12 text-gray-400 mb-4" />}
             className="p-4"
           />
         )}
@@ -100,7 +114,7 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
                 {!n.read && (
                   <button
                     type="button"
-                    aria-label={`Mark notification “${n.title}” as read`}
+                    aria-label={`Mark notification "${n.title}" as read`}
                     onClick={() => markAsRead(n.id)}
                     className="shrink-0 p-2 rounded-lg hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827]"
                   >

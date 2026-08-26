@@ -1,54 +1,80 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
+import CommandPalette from './components/CommandPalette';
+import PageSkeleton from './components/PageSkeleton';
 import Landing from './pages/Landing';
 import RouteFallback from './components/RouteFallback';
 import LazyBoundary from './components/LazyBoundary';
+import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
+import Footer from './components/Footer';
+import ComingSoonPage from './pages/ComingSoonPage';
+import OnboardingChecklist from './components/OnboardingChecklist';
+import { Trophy } from 'lucide-react';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const LegacyDashboard = lazy(() => import('./pages/LegacyDashboard'));
-const Leaderboard = lazy(() => import('./components/Leaderboard'));
-const LearnPage = lazy(() => import('./pages/Learn'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
+const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
+const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));
 const Connect = lazy(() => import('./pages/Connect'));
 const Profile = lazy(() => import('./pages/Profile'));
+const Pools = lazy(() => import('./pages/Pools'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 function App() {
+  const { pathname } = useLocation();
+  // Landing renders its own Footer at the bottom of its bespoke layout.
+  // All other routes share the global session footer for consistent branding.
+  const showGlobalFooter = pathname !== '/';
+
   return (
-    <div className="min-h-screen bg-[#0A0F1A] font-sans text-[#F3F4F6]">
+    <div className="flex min-h-screen flex-col bg-[#0A0F1A] font-sans text-[#F3F4F6]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[9999] focus:top-4 focus:left-4 focus:rounded-lg focus:bg-cyan-500 focus:px-4 focus:py-2 focus:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#0A0F1A]"
+      >
+        Skip to main content
+      </a>
       <OfflineBanner />
       <Navbar />
-      <LazyBoundary>
-        <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/play" element={<LegacyDashboard />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/learn" element={<LearnPage />} />
-            <Route path="/connect" element={<Connect />} />
-            <Route
-              path="/pools"
-              element={
-                <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-                  Pools — Coming Soon
-                </div>
-              }
-            />
-            <Route
-              path="/tournament"
-              element={
-                <div className="xelma-grid-bg px-4 py-20 text-center text-xl font-bold text-gray-500">
-                  Tournament — Coming Soon
-                </div>
-              }
-            />
-            <Route path="/profile" element={<Profile />} />
-          </Routes>
-        </Suspense>
-      </LazyBoundary>
+      <CommandPalette />
+      <ErrorBoundary>
+        <LazyBoundary>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
+              {/* /play is deprecated: its high-value panels (price chart, round
+                  timeline, chat, end-round modal) now live in /dashboard. */}
+              <Route path="/play" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
+              <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
+              <Route path="/connect" element={<Connect />} />
+              <Route path="/pools" element={<Pools />} />
+              <Route
+                path="/tournament"
+                element={
+                  <ComingSoonPage
+                    icon={Trophy}
+                    title="Tournament"
+                    description="Competitive tournament mode is being built. Check back soon to compete for top rankings and exclusive rewards."
+                  />
+                }
+              />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </LazyBoundary>
+      </ErrorBoundary>
+      {showGlobalFooter && <Footer />}
       <Toaster richColors position="top-center" theme="dark" />
+      <OnboardingChecklist />
     </div>
   );
 }

@@ -1,79 +1,66 @@
-import { useState } from "react";
-import "./NewsRibbon.css";
+import { X, Sparkles } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import './NewsRibbon.css';
 
-const newsItems = [
-  "Many coins, including Bitcoin, saw a significant drop in price. It's a reminder of how sensitive the market can be to news and events!",
-  "Stellar transactions settle in ~5 seconds with fees under $0.00001 – perfect for real-world use.",
-  "Bitcoin ETFs are reshaping institutional investment in crypto. Stay informed to make better predictions!",
-];
+export interface NewsItem {
+  id: string;
+  text: string;
+}
 
 export interface NewsRibbonProps {
+  newsItems?: NewsItem[];
   onClose?: () => void;
 }
 
-export function NewsRibbon({ onClose }: NewsRibbonProps) {
-  const [isVisible, setIsVisible] = useState(true);
-  const [isPaused, setIsPaused] = useState(false);
+const DEFAULT_NEWS: NewsItem[] = [
+  { id: '1', text: 'Stellar (XLM) surges 12% following major protocol upgrade' },
+  { id: '2', text: 'Xelma launches community prediction markets for Stellar ecosystem' },
+  { id: '3', text: 'Soroban smart contracts reach 1M daily transactions' },
+  { id: '4', text: 'Stellar Development Foundation announces $10M innovation fund' },
+  { id: '5', text: 'XLM/BTC trading volume hits 6-month high on decentralized exchanges' },
+  { id: '6', text: 'New Stellar anchor network expands access to 15 African markets' },
+];
 
-  const handleClose = () => {
-    setIsVisible(false);
+export function NewsRibbon({ newsItems = DEFAULT_NEWS, onClose }: NewsRibbonProps) {
+  const [dismissed, setDismissed] = useState(false);
+
+  const handleDismiss = useCallback(() => {
+    setDismissed(true);
     onClose?.();
-  };
+  }, [onClose]);
 
-  if (!isVisible) return null;
-
-  // Duplicate items for seamless loop
-  const scrollContent = [...newsItems, ...newsItems];
+  if (dismissed || newsItems.length === 0) return null;
 
   return (
     <div
       className="news-ribbon"
       role="region"
       aria-label="News updates"
+      aria-live="polite"
     >
       <div className="news-ribbon__container">
-        <span className="news-ribbon__icon" aria-hidden>
-          📰
+        <span className="news-ribbon__icon" aria-hidden="true">
+          <Sparkles size={18} />
         </span>
-        
-        <div 
-          className="news-ribbon__track"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-        >
-          <div 
-            className={`news-ribbon__scroll ${isPaused ? "news-ribbon__scroll--paused" : ""}`}
-          >
-            {scrollContent.map((item, idx) => (
-              <span key={idx} className="news-ribbon__message">
-                {item}
-                <span className="news-ribbon__separator">•</span>
+        <div className="news-ribbon__track">
+          <div className="news-ribbon__scroll">
+            {[...newsItems, ...newsItems].map((item, index) => (
+              <span key={`${item.id}-${index}`} className="news-ribbon__message">
+                {item.text}
+                {index < newsItems.length * 2 - 1 && (
+                  <span className="news-ribbon__separator" aria-hidden="true">•</span>
+                )}
               </span>
             ))}
           </div>
         </div>
-
-        {/* Close button */}
         <button
+          type="button"
+          onClick={handleDismiss}
           className="news-ribbon__close"
-          onClick={handleClose}
-          aria-label="Close news ribbon"
+          aria-label="Close news updates"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M12 4L4 12M4 4L12 12"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <X size={14} />
         </button>
       </div>
     </div>

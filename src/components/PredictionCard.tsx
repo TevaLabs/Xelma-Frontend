@@ -7,6 +7,7 @@ interface PredictionCardProps {
   isConnecting?: boolean;
   isSubmittingPrediction?: boolean;
   onPrediction?: (prediction: PredictionData) => void;
+  walletBalance?: string | null;
 }
 
 const PredictionCard = ({
@@ -15,6 +16,7 @@ const PredictionCard = ({
   isConnecting = false,
   isSubmittingPrediction = false,
   onPrediction,
+  walletBalance,
 }: PredictionCardProps) => {
 
   const isDisabled =
@@ -31,6 +33,7 @@ const PredictionCard = ({
         isConnecting={isConnecting}
         isSubmittingPrediction={isSubmittingPrediction}
         onPrediction={onPrediction}
+        walletBalance={walletBalance}
       />
 
     </div>

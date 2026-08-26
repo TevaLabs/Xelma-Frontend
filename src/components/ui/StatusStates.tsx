@@ -1,5 +1,10 @@
 import { Loader2, AlertCircle, Inbox, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/utils";
+import {
+  NoRoundsIllustration,
+  NoHistoryIllustration,
+  OfflineIllustration,
+} from "../icons/StellarIllustrations";
 
 interface LoadingProps {
     message?: string;
@@ -66,17 +71,35 @@ export const ErrorState = ({ message, onRetry, className, title = "Oops! Somethi
     );
 };
 
+const variantIllustrations = {
+  "no-rounds": NoRoundsIllustration,
+  "no-history": NoHistoryIllustration,
+  offline: OfflineIllustration,
+} as const;
+
+type EmptyVariant = keyof typeof variantIllustrations;
+
 interface EmptyProps {
     title: string;
     message: string;
     icon?: React.ReactNode;
     className?: string;
+    variant?: EmptyVariant;
 }
 
-export const EmptyState = ({ title, message, icon, className }: EmptyProps) => (
-    <div className={cn("flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-white/10 bg-[#111827]/40 backdrop-blur-sm min-h-[200px]", className)}>
-        {icon || <Inbox className="h-12 w-12 text-gray-500 mb-4" />}
-        <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-        <p className="text-gray-400 max-w-sm text-sm">{message}</p>
-    </div>
-);
+export const EmptyState = ({ title, message, icon, className, variant }: EmptyProps) => {
+    const Illustration = variant ? variantIllustrations[variant] : null;
+    const iconElement = icon ?? (
+      Illustration
+        ? <Illustration className="mb-4" />
+        : <Inbox className="h-12 w-12 text-gray-500 mb-4" />
+    );
+
+    return (
+        <div className={cn("flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-white/10 bg-[#111827]/40 backdrop-blur-sm min-h-[200px]", className)}>
+            {iconElement}
+            <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
+            <p className="text-gray-400 max-w-sm text-sm">{message}</p>
+        </div>
+    );
+};

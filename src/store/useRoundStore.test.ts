@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useRoundStore } from './useRoundStore';
+import {
+  useRoundStore,
+  getChatChannelId,
+  selectActiveChatChannelId,
+  CHAT_CHANNEL_FALLBACK,
+  CHAT_CHANNEL_ROUND_PREFIX,
+} from './useRoundStore';
 import { ApiError } from '../lib/api';
 import type { Round } from '../lib/api-client';
 
@@ -134,7 +140,7 @@ describe('useRoundStore', () => {
     it('creates EventSource with correct URL', () => {
       useRoundStore.getState().subscribeToRoundEvents();
       
-      expect(global.EventSource).toHaveBeenCalledWith('/api/rounds/events');
+      expect(global.EventSource).toHaveBeenCalledWith(expect.stringContaining('/api/rounds/events'));
     });
 
     it('handles round:started event', () => {
@@ -282,6 +288,60 @@ describe('useRoundStore', () => {
       // Fetch should override event stream state
       const state = useRoundStore.getState();
       expect(state.activeRound).toEqual(mockResolvedRound);
+    });
+  });
+});
+
+describe('Chat channel id derivation (#185)', () => {
+  describe('getChatChannelId', () => {
+    it('returns round:<id> for string round ids', () => {
+      expect(getChatChannelId({ id: 'abc' } as Round)).toBe('round:abc');
+    });
+
+    it('returns round:<id> for numeric round ids', () => {
+      expect(getChatChannelId({ id: 42 } as Round)).toBe('round:42');
+    });
+
+    it('falls back to general when round is null', () => {
+      expect(getChatChannelId(null)).toBe(CHAT_CHANNEL_FALLBACK);
+    });
+
+    it('falls back to general when round is undefined', () => {
+      expect(getChatChannelId(undefined)).toBe(CHAT_CHANNEL_FALLBACK);
+    });
+
+    it('falls back to general when round has no id', () => {
+      expect(getChatChannelId({} as Round)).toBe(CHAT_CHANNEL_FALLBACK);
+    });
+
+    it('exposes CHAT_CHANNEL_FALLBACK as "general"', () => {
+      expect(CHAT_CHANNEL_FALLBACK).toBe('general');
+    });
+
+    it('exposes CHAT_CHANNEL_ROUND_PREFIX as "round:"', () => {
+      expect(CHAT_CHANNEL_ROUND_PREFIX).toBe('round:');
+    });
+  });
+
+  describe('selectActiveChatChannelId', () => {
+    it('reads activeRound and returns round:<id> when present', () => {
+      const previous = useRoundStore.getState();
+      useRoundStore.setState({ activeRound: { id: 'r1' } as Round });
+      try {
+        expect(selectActiveChatChannelId(useRoundStore.getState())).toBe('round:r1');
+      } finally {
+        useRoundStore.setState(previous);
+      }
+    });
+
+    it('returns the fallback when activeRound is null', () => {
+      const previous = useRoundStore.getState();
+      useRoundStore.setState({ activeRound: null });
+      try {
+        expect(selectActiveChatChannelId(useRoundStore.getState())).toBe('general');
+      } finally {
+        useRoundStore.setState(previous);
+      }
     });
   });
 });

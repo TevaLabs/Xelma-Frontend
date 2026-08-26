@@ -103,4 +103,29 @@ describe('ProfileSettingsModal accessibility', () => {
 
     expect(switchControl).toHaveAttribute('aria-checked', 'true');
   });
+
+  it('validates file type on avatar upload', async () => {
+    const { toast } = await import('sonner');
+    render(<ProfileSettingsModal onClose={vi.fn()} />);
+
+    const fileInput = await screen.findByLabelText(/UPLOAD & CROP/i);
+    const invalidFile = new File(['text content'], 'document.pdf', { type: 'application/pdf' });
+
+    fireEvent.change(fileInput, { target: { files: [invalidFile] } });
+
+    expect(toast.error).toHaveBeenCalledWith('Invalid file type', expect.any(Object));
+  });
+
+  it('validates file size limit on avatar upload', async () => {
+    const { toast } = await import('sonner');
+    render(<ProfileSettingsModal onClose={vi.fn()} />);
+
+    const fileInput = await screen.findByLabelText(/UPLOAD & CROP/i);
+    const largeContent = new Uint8Array(6 * 1024 * 1024);
+    const largeFile = new File([largeContent], 'heavy.png', { type: 'image/png' });
+
+    fireEvent.change(fileInput, { target: { files: [largeFile] } });
+
+    expect(toast.error).toHaveBeenCalledWith('File too large', expect.any(Object));
+  });
 });

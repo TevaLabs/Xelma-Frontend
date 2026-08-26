@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { createRef } from 'react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import RoundCard from '../RoundCard';
 import type { MockRound } from '../../types';
+import { useSettingsStore } from '../../store/useSettingsStore';
 
 describe('RoundCard Component', () => {
   const defaultRound: MockRound = {
@@ -21,7 +23,7 @@ describe('RoundCard Component', () => {
     expect(screen.getByText('BTC/USD')).toBeInTheDocument();
     expect(screen.getByText('UP/DOWN')).toBeInTheDocument();
     expect(screen.getByText(/reference \$67,420/i)).toBeInTheDocument();
-    expect(screen.getByText(/pool: 4,000 vxlm/i)).toBeInTheDocument();
+    expect(screen.getByText(/pool: 4\.00k vxlm/i)).toBeInTheDocument();
   });
 
   it('renders UP/DOWN percentage layout for updown mode', () => {
@@ -77,16 +79,18 @@ describe('RoundCard Component', () => {
   });
 
   it('renders countdown timer formatted text', () => {
+    vi.useFakeTimers();
     render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
 
-    expect(screen.getByText('2:30')).toBeInTheDocument();
+    expect(screen.getByText('02:30')).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it('updates the countdown timer text as time passes using fake timers', () => {
     vi.useFakeTimers();
     render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
 
-    expect(screen.getByText('2:30')).toBeInTheDocument();
+    expect(screen.getByText('02:30')).toBeInTheDocument();
 
     // Advance time one second at a time to allow React effects to re-register the interval
     for (let i = 0; i < 10; i++) {
@@ -95,7 +99,7 @@ describe('RoundCard Component', () => {
       });
     }
 
-    expect(screen.getByText('2:20')).toBeInTheDocument();
+    expect(screen.getByText('02:20')).toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -140,5 +144,103 @@ describe('RoundCard Component', () => {
     fireEvent.click(button);
 
     expect(onSubmitPredictionMock).not.toHaveBeenCalled();
+  });
+
+  // Issue #175 — Improve RoundCard touch targets and mobile card layout
+  describe('Mobile layout & touch targets (#175)', () => {
+    it('submit button enforces a minimum 44px tap target height', () => {
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
+      const button = screen.getByTestId('round-card-submit');
+      expect(button.className).toMatch(/min-h-\[44px\]/);
+      expect(button.className).toMatch(/py-3/);
+      expect(button.className).toMatch(/w-full/);
+    });
+
+    it('article element caps vertical padding on mobile and grows on >=640px', () => {
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
+      const article = screen.getByTestId('round-card');
+      expect(article.className).toMatch(/\bp-4\b/);
+      expect(article.className).toMatch(/\bsm:p-5\b/);
+    });
+
+    it('article uses flex-col stacking so metadata wraps under the title on small screens', () => {
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
+      const meta = screen.getByTestId('round-card-meta');
+      // Mobile (<640px) must collapse to a column to keep one-handed reach.
+      expect(meta.className).toMatch(/\bflex-col\b/);
+      expect(meta.className).toMatch(/\bgap-2\b/);
+      // ≥640px breakpoint switches to a justified row.
+      expect(meta.className).toMatch(/\bsm:flex-row\b/);
+      expect(meta.className).toMatch(/\bsm:justify-between\b/);
+    });
+
+    it('header element stacks asset info and mode badge on mobile and sits side-by-side on >=640px', () => {
+      const { container } = render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
+      const header = container.querySelector('header');
+      expect(header).not.toBeNull();
+      const headerClass = header!.className;
+      expect(headerClass).toMatch(/\bflex-col\b/);
+      expect(headerClass).toMatch(/\bsm:flex-row\b/);
+      expect(headerClass).toMatch(/\bsm:justify-between\b/);
+    });
+
+    it('pool text uses break-words to prevent overflow on tight viewports', () => {
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
+      const pool = screen.getByTestId('round-card-pool');
+      expect(pool.className).toMatch(/\bbreak-words\b/);
+    });
+
+    it('asset title block truncates overflowing reference strings', () => {
+      const wideRound: MockRound = {
+        ...defaultRound,
+        startPrice: 123_456_789,
+      };
+      const { container } = render(<RoundCard round={wideRound} onSubmitPrediction={vi.fn()} />);
+      const referencePrice = container.querySelector('p.truncate');
+      expect(referencePrice).not.toBeNull();
+    });
+  });
+
+  describe('deep-link highlighting', () => {
+    afterEach(() => {
+      useSettingsStore.getState().setMotionPreference('system');
+    });
+
+    it('marks data-highlighted="false" and omits highlight styling by default', () => {
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
+      const card = screen.getByTestId('round-card');
+
+      expect(card).toHaveAttribute('data-highlighted', 'false');
+      expect(card.className).not.toMatch(/accent-border-teal/);
+      expect(card.className).not.toMatch(/accent-pulse/);
+    });
+
+    it('applies the highlight border and pulse animation when isHighlighted is true', () => {
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} isHighlighted />);
+      const card = screen.getByTestId('round-card');
+
+      expect(card).toHaveAttribute('data-highlighted', 'true');
+      expect(card.className).toMatch(/accent-border-teal/);
+      expect(card.className).toMatch(/accent-pulse/);
+    });
+
+    it('omits the pulse animation (but keeps the border) when reduced motion is preferred', () => {
+      useSettingsStore.getState().setMotionPreference('reduce');
+
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} isHighlighted />);
+      const card = screen.getByTestId('round-card');
+
+      expect(card.className).toMatch(/accent-border-teal/);
+      expect(card.className).not.toMatch(/accent-pulse/);
+    });
+
+    it('forwards a ref to the underlying <article> element', () => {
+      const ref = createRef<HTMLElement>();
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} ref={ref} />);
+
+      expect(ref.current).not.toBeNull();
+      expect(ref.current?.tagName).toBe('ARTICLE');
+      expect(ref.current).toBe(screen.getByTestId('round-card'));
+    });
   });
 });

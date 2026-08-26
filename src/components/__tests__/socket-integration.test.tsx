@@ -15,12 +15,13 @@ vi.mock('../../lib/socket', () => {
     onChatMessage: vi.fn(),
     joinNotifications: vi.fn(),
     joinChat: vi.fn(),
+    leaveChat: vi.fn(),
     sendChat: vi.fn(),
     getSubscriptionCount: vi.fn(),
     hasActiveSubscriptions: vi.fn(),
     isConnected: vi.fn(),
   };
-  
+
   return {
     socketService: mockSocketService,
   };
@@ -29,7 +30,7 @@ vi.mock('../../lib/socket', () => {
 // Mock API client
 vi.mock('../../lib/api-client', () => ({
   priceApi: {
-    getHistory: vi.fn().mockResolvedValue([]),
+    getPriceSeries: vi.fn().mockResolvedValue([]),
   },
 }));
 

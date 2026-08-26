@@ -14,6 +14,7 @@ interface NotificationsState {
   fetchList: () => Promise<void>;
   addNotification: (payload: NotificationEventPayload) => void;
   markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
   clear: () => void;
 }
 
@@ -73,6 +74,22 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
       await notificationsApi.markAsRead(id);
     } catch {
       // revert on failure by refetching count
+      await get().fetchUnread();
+    }
+  },
+  markAllAsRead: async () => {
+    // Optimistic update: mark all local items as read and reset badge
+    set((state) => ({
+      list: state.list.map((n) => ({ ...n, read: true })),
+      unread: 0,
+    }));
+    try {
+      await notificationsApi.markAllAsRead();
+    } catch {
+      // If the batch endpoint fails, fall back to per-item calls for unread items
+      const unreadIds = get().list.filter((n) => !n.read).map((n) => n.id);
+      await Promise.allSettled(unreadIds.map((id) => notificationsApi.markAsRead(id)));
+      // Sync the badge count from the server
       await get().fetchUnread();
     }
   },

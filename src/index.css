@@ -10,6 +10,11 @@
   --color-xelma-blue-dark: #1e3fd4;
   --color-xelma-teal: #06b6d4;
   --color-xelma-teal-bright: #22d3ee;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
 @variant dark (&:where(.dark, .dark *));
@@ -48,6 +53,22 @@ body {
   border-color: rgba(6, 182, 212, 0.35) !important;
 }
 
+/* Subtle attention pulse for a deep-linked/highlighted card. Only applied
+   when the caller has already checked useReducedMotion() — see RoundCard. */
+.accent-pulse {
+  animation: pulse-highlight 1.8s ease-in-out 2;
+}
+
+@keyframes pulse-highlight {
+  0%,
+  100% {
+    box-shadow: 0 0 24px rgba(6, 182, 212, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 36px rgba(6, 182, 212, 0.32);
+  }
+}
+
 /* Hero headline — analytical glow, not casino neon */
 .hero-headline {
   color: #fff;
@@ -67,7 +88,7 @@ body {
 .btn-primary {
   background: linear-gradient(135deg, #2c4bfd 0%, #1e3fd4 50%, #0891b2 100%);
   color: #fff;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
   box-shadow: 0 4px 24px rgba(44, 75, 253, 0.3);
 }
 
@@ -84,7 +105,7 @@ body {
   border: 1px solid rgba(190, 199, 254, 0.25);
   background: rgba(255, 255, 255, 0.04);
   color: #f3f4f6;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 
 .btn-ghost:hover {
@@ -133,6 +154,19 @@ body {
   }
 }
 
+.navbar {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  /* optional left/right padding for notched devices */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Anchor scroll offset for fixed navbar */
+[id] {
+  scroll-margin-top: 80px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -146,4 +180,28 @@ body {
   .status-dot-red {
     animation: none;
   }
+
+  html {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip link for keyboard accessibility */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #2c4bfd;
+  color: white;
+  padding: 8px 16px;
+  z-index: 100;
+  transition: top 0.15s ease;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
 }

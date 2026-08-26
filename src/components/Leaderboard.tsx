@@ -1,9 +1,29 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
 import Avatar from '../assets/avatar.svg';
 import { leaderboardApi, type LeaderboardEntry } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
+import { PanelHeader } from './ui/PanelHeader';
+import { formatVXLM } from '../lib/utils';
+import { TRANSITION, TRANSITION_COLORS, TRANSFORM_TRANSITION } from '../utils/motion';
+
+// ---------------------------------------------------------------------------
+// Types & constants
+// ---------------------------------------------------------------------------
+
+const FILTER_OPTIONS = ['all', 'daily', 'weekly', 'monthly'] as const;
+type FilterOption = typeof FILTER_OPTIONS[number];
+
+const FILTER_PARAM = 'filter';
+const ROW_HEIGHT = 80; // px – fixed height for every virtualised row
+const OVERSCAN = 5;
+
+function isValidFilter(value: string | null): value is FilterOption {
+  return FILTER_OPTIONS.includes(value as FilterOption);
+}
 
 interface LeaderboardUser {
   id: string;
@@ -20,12 +40,36 @@ function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser
   return { id, name, avatar, xlm };
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 const Leaderboard = () => {
   const [users, setUsers] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLeaderboard = async () => {
+  // ── #203: URL query param for filter ──────────────────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawFilter = searchParams.get(FILTER_PARAM);
+  const activeFilter: FilterOption = isValidFilter(rawFilter) ? rawFilter : 'all';
+
+  const setFilter = useCallback(
+    (next: FilterOption) => {
+      setSearchParams(
+        (prev) => {
+          const updated = new URLSearchParams(prev);
+          updated.set(FILTER_PARAM, next);
+          return updated;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  // ── Data fetch ─────────────────────────────────────────────────────────────
+  const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -38,26 +82,26 @@ const Leaderboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void fetchLeaderboard();
-  }, []);
+  }, [fetchLeaderboard]);
 
+  // ── Wallet ─────────────────────────────────────────────────────────────────
   const walletPublicKey = useWalletStore((s) => s.publicKey);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
 
-  const sortedUsers = useMemo(() => {
-    return [...users].sort((a, b) => b.xlm - a.xlm);
-  }, [users]);
+  // ── Sorting & derived data ─────────────────────────────────────────────────
+  const sortedUsers = useMemo(() => [...users].sort((a, b) => b.xlm - a.xlm), [users]);
 
   const currentUser = useMemo(() => {
     if (!walletPublicKey) return null;
-    return sortedUsers.find((user) => user.id === walletPublicKey) ?? null;
+    return sortedUsers.find((u) => u.id === walletPublicKey) ?? null;
   }, [sortedUsers, walletPublicKey]);
 
   const currentUserRank = currentUser
-    ? sortedUsers.findIndex((user) => user.id === currentUser.id) + 1
+    ? sortedUsers.findIndex((u) => u.id === currentUser.id) + 1
     : null;
 
   const walletShortAddress = walletPublicKey
@@ -66,75 +110,50 @@ const Leaderboard = () => {
 
   const topThree = sortedUsers.slice(0, 3);
   const restUsers = sortedUsers.slice(3);
-  const rank1 = topThree[0];
-  const rank2 = topThree[1];
-  const rank3 = topThree[2];
+  const [rank1, rank2, rank3] = topThree;
 
-  const leaderboardRows = restUsers.map((user, index) => {
-    const isCurrent = currentUser?.id === user.id;
-    const rowClassName = clsx(
-      'flex flex-col items-center gap-3 md:flex-row md:justify-between md:gap-0 rounded-2xl p-4 shadow-sm transition-all duration-300 group',
-      isCurrent
-        ? 'glass-card accent-border-teal bg-cyan-500/5'
-        : 'glass-card hover:bg-white/5 hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.08)] transform hover:-translate-y-0.5'
-    );
+  // ── #202: Virtualizer setup ────────────────────────────────────────────────
+  const listRef = useRef<HTMLDivElement | null>(null);
 
-    return (
-      <li key={user.id} className={rowClassName}>
-        <div className="flex items-center gap-6 w-full justify-center md:justify-start">
-          <span className="text-cyan-400/60 font-bold text-lg w-8 text-center tabular-nums">
-            {index + 4}
-          </span>
-          <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-900 border border-white/10 group-hover:border-cyan-500/30 transition-colors">
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <span className="font-bold text-white text-lg group-hover:text-cyan-200 transition-colors">
-            {user.name}
-          </span>
-        </div>
-        <div className="text-center md:text-right w-full md:w-auto mt-2 md:mt-0 bg-cyan-950/30 border border-cyan-500/20 px-4 py-2 rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.05)]">
-          <span className="font-bold text-cyan-300 text-lg tabular-nums">
-            {user.xlm.toLocaleString()}
-          </span>
-          <span className="text-xs font-semibold text-cyan-400 ml-1.5 uppercase tracking-wider">
-            vXLM
-          </span>
-        </div>
-      </li>
-    );
+  // eslint-disable-next-line react-hooks/incompatible-library -- useVirtualizer intentionally returns functions; React Compiler memoization skip is expected
+  const rowVirtualizer = useVirtualizer({
+    count: restUsers.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: OVERSCAN,
   });
 
-  if (loading) {
-    return (
-      <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" />
-        <div className="relative w-full max-w-4xl mx-auto">
-          <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center mb-16 tracking-tight">
-            Leaderboard
-          </h1>
-          <LoadingState message="Loading leaderboard..." className="min-h-[40vh]" />
-        </div>
+  // ---------------------------------------------------------------------------
+  // Loading / error states
+  // ---------------------------------------------------------------------------
+
+  const containerWrapper = (children: React.ReactNode) => (
+    <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" />
+      <div className="relative w-full max-w-4xl mx-auto">
+        <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center mb-16 tracking-tight">
+          Leaderboard
+        </h1>
+        {children}
       </div>
+    </div>
+  );
+
+  if (loading) {
+    return containerWrapper(
+      <LoadingState message="Loading leaderboard..." className="min-h-[40vh]" />
     );
   }
 
   if (error) {
-    return (
-      <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" />
-        <div className="relative w-full max-w-4xl mx-auto">
-          <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center mb-16 tracking-tight">
-            Leaderboard
-          </h1>
-          <ErrorState message={error} onRetry={fetchLeaderboard} className="min-h-[40vh]" />
-        </div>
-      </div>
+    return containerWrapper(
+      <ErrorState message={error} onRetry={fetchLeaderboard} className="min-h-[40vh]" />
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   return (
     <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
@@ -143,15 +162,45 @@ const Leaderboard = () => {
       <div className="pointer-events-none absolute -right-24 top-16 h-96 w-96 rounded-full bg-[#2C4BFD]/5 blur-3xl" />
 
       <div className="relative w-full max-w-4xl mx-auto">
-        <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center mb-16 tracking-tight">
-          Leaderboard
-        </h1>
+        <PanelHeader
+          variant="hero"
+          className="mb-10"
+          title="Leaderboard"
+          action={
+            <div
+              role="tablist"
+              aria-label="Time range filter"
+              className="flex justify-center gap-2 flex-wrap"
+            >
+              {FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeFilter === opt}
+                  onClick={() => setFilter(opt)}
+                  className={clsx(
+                    'rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',
+                    activeFilter === opt
+                      ? 'bg-cyan-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
+                      : 'glass-card text-gray-400 hover:text-white hover:border-cyan-500/40'
+                  )}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          }
+        />
 
+        {/* ── Sticky current-user summary (#202 preserved) ── */}
         {isWalletConnected && (
-          <div className={clsx(
-            "mb-8 rounded-2xl glass-card p-5 lg:sticky lg:top-20 lg:z-20 transition-all duration-300",
-            currentUser ? "accent-border-teal" : ""
-          )}>
+          <div
+            className={clsx(
+              `mb-8 rounded-2xl glass-card p-5 lg:sticky lg:top-20 lg:z-20 ${TRANSITION}`,
+              currentUser ? 'accent-border-teal' : ''
+            )}
+          >
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#22d3ee]">
@@ -167,7 +216,7 @@ const Leaderboard = () => {
                 </p>
                 <p className="text-sm text-gray-400">
                   {currentUser
-                    ? `${currentUser.xlm.toLocaleString()} vXLM`
+                    ? formatVXLM(currentUser.xlm)
                     : 'Predictions will place you on the leaderboard.'}
                 </p>
               </div>
@@ -180,43 +229,35 @@ const Leaderboard = () => {
           </div>
         )}
 
-        {/* Podium Section */}
+        {/* ── Podium ── */}
         <div className="flex flex-col md:flex-row items-end justify-center gap-6 mb-16 mt-24">
           {/* Rank 2 (Silver) */}
           {rank2 && (
             <div className="order-2 md:order-1 flex flex-col items-center w-full md:w-1/3 group">
-              <div className="relative mb-4 transition-transform duration-300 md:group-hover:-translate-y-2">
+              <div className={`relative mb-4 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#C0C0C0] shadow-[0_0_20px_rgba(192,192,192,0.2)] z-10 relative bg-[#111827] ring-2 ring-[#C0C0C0]/25 ring-offset-2 ring-offset-[#0A0F1A]">
-                  <img
-                    src={rank2.avatar}
-                    alt={rank2.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={rank2.avatar} alt={rank2.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#C0C0C0] to-[#E0E0E0] text-gray-900 text-sm font-extrabold py-1 px-3.5 rounded-full shadow-md z-20 whitespace-nowrap min-w-[32px] text-center border-2 border-[#0A0F1A]">
                   #2
                 </div>
               </div>
-              <p className="font-bold text-white text-lg mb-1 group-hover:text-cyan-200 transition-colors">
+              <p className={`font-bold text-white text-lg mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
                 {rank2.name}
               </p>
               <p className="text-[#C0C0C0] font-bold text-sm bg-slate-500/10 border border-slate-500/20 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(192,192,192,0.05)]">
-                {rank2.xlm.toLocaleString()} vXLM
+                {formatVXLM(rank2.xlm)}
               </p>
-              <div className="w-full h-28 glass-card bg-gradient-to-t from-slate-500/15 via-slate-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-slate-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(192,192,192,0.05)]"></div>
+              <div className="w-full h-28 glass-card bg-gradient-to-t from-slate-500/15 via-slate-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-slate-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(192,192,192,0.05)]" />
             </div>
           )}
 
           {/* Rank 1 (Gold) */}
           {rank1 && (
             <div className="order-1 md:order-2 flex flex-col items-center w-full md:w-1/3 -mt-6 md:-mt-12 z-10 group">
-              <div className="relative mb-5 transition-transform duration-300 md:group-hover:-translate-y-2">
+              <div className={`relative mb-5 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className="w-32 h-32 rounded-full overflow-hidden border-[5px] border-[#FFD700] shadow-[0_0_30px_rgba(255,215,0,0.3)] z-10 relative bg-[#111827] ring-2 ring-[#FFD700]/30 ring-offset-2 ring-offset-[#0A0F1A]">
-                  <img
-                    src={rank1.avatar}
-                    alt={rank1.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={rank1.avatar} alt={rank1.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#FFD700] to-[#FDB931] text-gray-900 text-base font-extrabold py-1.5 px-4.5 rounded-full shadow-lg z-20 whitespace-nowrap min-w-[40px] text-center border-2 border-[#0A0F1A]">
                   #1
@@ -228,51 +269,104 @@ const Leaderboard = () => {
                   👑
                 </div>
               </div>
-              <p className="font-bold text-white text-2xl mb-1 group-hover:text-cyan-200 transition-colors">
+              <p className={`font-bold text-white text-2xl mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
                 {rank1.name}
               </p>
               <p className="text-[#FDB931] font-extrabold text-base bg-amber-500/15 border border-amber-500/25 px-4 py-1.5 rounded-full shadow-md shadow-amber-500/5">
-                {rank1.xlm.toLocaleString()} vXLM
+                {formatVXLM(rank1.xlm)}
               </p>
-              <div className="w-full h-36 glass-card bg-gradient-to-t from-amber-500/20 via-amber-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-amber-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(251,191,36,0.05)]"></div>
+              <div className="w-full h-36 glass-card bg-gradient-to-t from-amber-500/20 via-amber-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-amber-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(251,191,36,0.05)]" />
             </div>
           )}
 
           {/* Rank 3 (Bronze) */}
           {rank3 && (
             <div className="order-3 md:order-3 flex flex-col items-center w-full md:w-1/3 group">
-              <div className="relative mb-4 transition-transform duration-300 md:group-hover:-translate-y-2">
+              <div className={`relative mb-4 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#CD7F32] shadow-[0_0_20px_rgba(205,127,50,0.2)] z-10 relative bg-[#111827] ring-2 ring-[#CD7F32]/25 ring-offset-2 ring-offset-[#0A0F1A]">
-                  <img
-                    src={rank3.avatar}
-                    alt={rank3.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={rank3.avatar} alt={rank3.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#CD7F32] to-[#B87333] text-white text-sm font-extrabold py-1 px-3.5 rounded-full shadow-md z-20 whitespace-nowrap min-w-[32px] text-center border-2 border-[#0A0F1A]">
                   #3
                 </div>
               </div>
-              <p className="font-bold text-white text-lg mb-1 group-hover:text-cyan-200 transition-colors">
+              <p className={`font-bold text-white text-lg mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
                 {rank3.name}
               </p>
               <p className="text-[#CD7F32] font-bold text-sm bg-amber-700/10 border border-amber-700/20 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(205,127,50,0.05)]">
-                {rank3.xlm.toLocaleString()} vXLM
+                {formatVXLM(rank3.xlm)}
               </p>
-              <div className="w-full h-20 glass-card bg-gradient-to-t from-amber-800/15 via-amber-800/5 to-slate-900/40 rounded-t-2xl border-b-0 border-amber-800/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(180,83,9,0.05)]"></div>
+              <div className="w-full h-20 glass-card bg-gradient-to-t from-amber-800/15 via-amber-800/5 to-slate-900/40 rounded-t-2xl border-b-0 border-amber-800/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(180,83,9,0.05)]" />
             </div>
           )}
         </div>
 
-        {/* Ranked List */}
+        {/* ── #202: Virtualised ranked list ── */}
         {restUsers.length > 0 ? (
-          <ul className="space-y-4 max-w-3xl mx-auto">
-            {leaderboardRows}
-          </ul>
+          <div
+            ref={listRef}
+            className="max-w-3xl mx-auto overflow-auto"
+            style={{ height: Math.min(restUsers.length * ROW_HEIGHT, 600) }}
+            aria-label="Leaderboard ranked list"
+          >
+            <ul
+              style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const user = restUsers[virtualRow.index];
+                const isCurrent = currentUser?.id === user.id;
+
+                return (
+                  <li
+                    key={user.id}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                      padding: '0 0 12px 0',
+                    }}
+                  >
+                    <div
+                      className={clsx(
+                        `flex flex-col items-center gap-3 md:flex-row md:justify-between md:gap-0 rounded-2xl p-4 shadow-sm group h-full ${TRANSITION}`,
+                        isCurrent
+                          ? 'glass-card accent-border-teal bg-cyan-500/5'
+                          : 'glass-card hover:bg-white/5 hover:border-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.08)] transform hover:-translate-y-0.5'
+                      )}
+                    >
+                      <div className="flex items-center gap-6 w-full justify-center md:justify-start">
+                        <span className="text-cyan-400/60 font-bold text-lg w-8 text-center tabular-nums">
+                          {virtualRow.index + 4}
+                        </span>
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-900 border border-white/10 group-hover:border-cyan-500/30 transition-colors shrink-0">
+                          <img
+                            src={user.avatar}
+                            alt={user.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="font-bold text-white text-lg group-hover:text-cyan-200 transition-colors truncate">
+                          {user.name}
+                        </span>
+                      </div>
+                      <div className="text-center md:text-right w-full md:w-auto mt-2 md:mt-0 bg-cyan-950/30 border border-cyan-500/20 px-4 py-2 rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.05)] shrink-0">
+                        <span className="font-bold text-cyan-300 text-lg tabular-nums">
+                          {formatVXLM(user.xlm)}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         ) : sortedUsers.length === 0 ? (
           <EmptyState
             title="No leaderboard data yet"
-            message="Be the first to make a prediction and climb to the top!"
+            message="Be the first to make a prediction and claim the top spot."
             className="max-w-xl mx-auto"
           />
         ) : null}

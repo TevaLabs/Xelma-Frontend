@@ -24,10 +24,21 @@ export interface MockUserStats {
   rank: string;
 }
 
+export interface RankTier {
+  name: string;
+  minXp: number;
+  label: string;
+}
+
 export interface RecentActivityItem {
   id: string;
   asset: string;
-  result: 'Won' | 'Lost';
+  result: 'Won' | 'Lost' | 'Pending' | 'Failed';
   amount: number;
   mode: RoundMode;
+}
+
+export interface PricePoint {
+  time: number;
+  value: number;
 }

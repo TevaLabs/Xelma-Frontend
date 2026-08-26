@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowUpRight,
@@ -7,11 +8,15 @@ import {
   Link as LinkIcon,
   Loader2,
   RefreshCw,
+  Settings as SettingsIcon,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import ProfileSettingsModal from '../components/ProfileSettingsModal';
+import IdenticonAvatar from '../components/IdenticonAvatar';
+import BalancesPanel from '../components/BalancesPanel';
 import { useProfileStore } from '../store/useProfileStore';
+import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
 
 const defaultProfile: ProfileSettingsValues = {
@@ -24,13 +29,6 @@ const defaultProfile: ProfileSettingsValues = {
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
-}
-
-function initialsFromName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function normalizeLink(url: string) {
@@ -59,6 +57,7 @@ function displayHandle(url: string) {
 
 function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
   const displayName = profile.name.trim() || 'Player';
+  const walletAddress = useWalletStore((s) => s.publicKey);
 
   return (
     <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-[#BEC7FE]/20 bg-[#111827] shadow-lg shadow-[#2C4BFD]/10 sm:h-32 sm:w-32">
@@ -70,9 +69,7 @@ function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
           draggable={false}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-[#162033] text-3xl font-black text-[#BEC7FE]">
-          {initialsFromName(displayName)}
-        </div>
+        <IdenticonAvatar address={walletAddress} name={displayName} className="h-full w-full" />
       )}
     </div>
   );
@@ -127,14 +124,25 @@ export default function Profile() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold"
-            >
-              <Edit3 className="h-4 w-4" aria-hidden />
-              Edit profile
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                to="/settings"
+                className="btn-ghost inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold"
+                aria-label="Open settings"
+                data-testid="profile-open-settings"
+              >
+                <SettingsIcon className="h-4 w-4" aria-hidden />
+                Settings
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold"
+              >
+                <Edit3 className="h-4 w-4" aria-hidden />
+                Edit profile
+              </button>
+            </div>
           </div>
 
           {isLoading && !profile ? (
@@ -222,6 +230,8 @@ export default function Profile() {
               </section>
 
               <aside className="space-y-6" aria-label="Profile details">
+                <BalancesPanel />
+
                 <section className="glass-card rounded-xl p-5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2C4BFD]/15 text-[#BEC7FE]">

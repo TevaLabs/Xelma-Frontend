@@ -10,6 +10,22 @@ import { predictionsApi } from '../../lib/api-client';
 vi.mock('../../lib/xelma-contract', () => ({
   place_bet: vi.fn(),
   place_precision_prediction: vi.fn(),
+  estimatePlaceBet: vi.fn().mockResolvedValue({
+    baseFee: '0.0000100',
+    resourceFee: '0.0000500',
+    totalFee: '0.0000600',
+    instructions: '100000',
+    readBytes: '512',
+    writeBytes: '256',
+  }),
+  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
+    baseFee: '0.0000100',
+    resourceFee: '0.0000500',
+    totalFee: '0.0000600',
+    instructions: '100000',
+    readBytes: '512',
+    writeBytes: '256',
+  }),
 }));
 
 // Mock the api-client module
@@ -33,6 +49,7 @@ describe('BetModal Component', () => {
     useWalletStore.setState({
       status: 'connected',
       publicKey: 'GUSER123',
+      balance: '1000 XLM',
     });
     useAuthStore.setState({
       isAuthenticated: true,
@@ -278,15 +295,54 @@ describe('BetModal Component', () => {
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, direction: 'UP' as const }} />
       );
 
-      expect(screen.getByText('UP')).toBeInTheDocument();
-      expect(screen.queryByText('DOWN')).not.toBeInTheDocument();
+      expect(screen.getByText('UP')).toHaveClass('text-green-400');
+      expect(screen.getByText('DOWN')).not.toHaveClass('text-red-400');
 
       rerender(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, direction: 'DOWN' as const }} />
       );
 
-      expect(screen.getByText('DOWN')).toBeInTheDocument();
-      expect(screen.queryByText('UP')).not.toBeInTheDocument();
+      expect(screen.getByText('DOWN')).toHaveClass('text-red-400');
+      expect(screen.getByText('UP')).not.toHaveClass('text-green-400');
+    });
+  });
+
+
+  describe('precision mode inputs', () => {
+    it('lets users enter an exact price in precision mode before submitting', async () => {
+      vi.mocked(place_precision_prediction).mockResolvedValue({ txHash: 'tx_hash_precision', ledger: 123 });
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 2 } as any);
+
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Precision' }));
+      fireEvent.change(screen.getByLabelText('Exact Price Target'), { target: { value: '0.4321' } });
+      fireEvent.change(screen.getByLabelText('Stake'), { target: { value: '22.5' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(place_precision_prediction).toHaveBeenCalledWith('GUSER123', 'UP', '22.5', '0.4321', expect.any(Function));
+        expect(predictionsApi.submit).toHaveBeenCalledWith({
+          direction: 'UP',
+          stake: '22.5',
+          isLegend: true,
+          exactPrice: '0.4321',
+        });
+      });
+    });
+
+    it('prevents empty precision submissions', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, stake: '' }} />
+      );
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Precision' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Enter a stake amount');
+      expect(place_precision_prediction).not.toHaveBeenCalled();
     });
   });
 
@@ -322,6 +378,7 @@ describe('BetModal Component', () => {
       useWalletStore.setState({
         status: 'connected',
         publicKey: 'GUSER123',
+        balance: '1000 XLM',
       });
       useAuthStore.setState({
         isAuthenticated: true,

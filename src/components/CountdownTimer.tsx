@@ -1,58 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useState, useRef, useEffect } from "react";
+
+import { useRoundCountdown } from "../hooks/useRoundCountdown";
 
 interface CountdownTimerProps {
-  initialSeconds: number;
-  onExpire?: () => void;
+  endTime?: string | number | Date;
   className?: string;
+  initialSeconds?: number;
+  onExpire?: () => void;
 }
 
-function formatTime(totalSeconds: number): string {
-  const clamped = Math.max(0, totalSeconds);
-  const m = Math.floor(clamped / 60);
-  const s = clamped % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-export default function CountdownTimer({
-  initialSeconds,
-  onExpire,
-  className = '',
-}: CountdownTimerProps) {
-  const [seconds, setSeconds] = useState(initialSeconds);
+export default function CountdownTimer({ endTime, className = "", initialSeconds, onExpire }: CountdownTimerProps) {
+  const [resolvedEndTime] = useState(() =>
+    endTime ?? (initialSeconds !== undefined ? Date.now() + initialSeconds * 1000 : Date.now())
+  );
+  const { formattedTime, isExpired, timeLeftMs } = useRoundCountdown(resolvedEndTime);
+  const expiredRef = useRef(false);
 
   useEffect(() => {
-    setSeconds(initialSeconds);
-  }, [initialSeconds]);
-
-  useEffect(() => {
-    if (seconds <= 0) {
+    if (isExpired && !expiredRef.current) {
+      expiredRef.current = true;
       onExpire?.();
-      return;
     }
+    if (!isExpired) {
+      expiredRef.current = false;
+    }
+  }, [isExpired, onExpire]);
 
-    const id = window.setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(id);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  const isUrgent = !isExpired && timeLeftMs > 0 && timeLeftMs < 120_000;
 
-    return () => window.clearInterval(id);
-  }, [seconds, onExpire]);
-
-  const isUrgent = seconds > 0 && seconds < 120;
+  useEffect(() => {
+    if (isExpired && onExpire) {
+      onExpire();
+    }
+  }, [isExpired, onExpire]);
 
   return (
     <span
       className={`font-mono text-sm font-semibold tabular-nums ${
         isUrgent ? 'text-amber-400' : 'text-cyan-300'
       } ${className}`}
-      aria-live="polite"
     >
-      {formatTime(seconds)}
+      {isExpired ? 'Ended' : formattedTime}
     </span>
   );
 }

@@ -57,3 +57,50 @@ describe('EndRoundModal accessibility', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
+
+describe('EndRoundModal sharing functionality', () => {
+  beforeEach(() => {
+    vi.stubGlobal('navigator', {
+      share: vi.fn().mockResolvedValue(undefined),
+      canShare: vi.fn().mockReturnValue(true),
+    });
+
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn().mockReturnValue('blob:mock-url'),
+      revokeObjectURL: vi.fn(),
+    });
+
+    HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+      createRadialGradient: vi.fn().mockReturnValue({
+        addColorStop: vi.fn(),
+      }),
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      strokeRect: vi.fn(),
+      fillText: vi.fn(),
+      roundRect: vi.fn(),
+      stroke: vi.fn(),
+    }) as any;
+
+    HTMLCanvasElement.prototype.toBlob = vi.fn(function (this: HTMLCanvasElement, callback) {
+      callback(new Blob(['mock-png'], { type: 'image/png' }));
+    } as any);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('renders a continue button', () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
+    expect(screen.getByRole('button', { name: /continue to next round/i })).toBeInTheDocument();
+  });
+
+  it('renders net result details when modal is open', async () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
+    expect(screen.getByText('+$42.00')).toBeInTheDocument();
+    expect(screen.getByText(result.tip)).toBeInTheDocument();
+  });
+});

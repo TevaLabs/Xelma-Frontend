@@ -80,7 +80,7 @@ const LearnPage = () => {
             <div className="pointer-events-none absolute -left-24 top-32 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl" aria-hidden />
             <div className="pointer-events-none absolute -right-24 top-16 h-96 w-96 rounded-full bg-[#2C4BFD]/8 blur-3xl" aria-hidden />
 
-            <div className="relative mx-auto max-w-7xl animate-in fade-in duration-700">
+            <div className="relative mx-auto max-w-7xl">
                 <header className="mb-12 text-center">
                     <div className="inline-flex items-center justify-center p-3 mb-4 rounded-2xl bg-xelma-blue/10 border border-xelma-blue/20 text-xelma-teal">
                         <GraduationCap size={32} aria-hidden />

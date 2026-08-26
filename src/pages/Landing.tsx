@@ -1,20 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import HowItWorks from '../components/HowItWorks';
 import ModeCards from '../components/ModeCards';
-import { mockLandingStats } from '../data/mockData';
+import { useNetworkStats } from '../hooks/useNetworkStats';
 
 function useCountUp(target: number, durationMs = 1800) {
   const [value, setValue] = useState(0);
+  // Track the last displayed value so re-targeting (mock -> live stats) animates
+  // smoothly from where it is rather than snapping back to zero.
+  const latestRef = useRef(0);
 
   useEffect(() => {
     let frame = 0;
+    const startValue = latestRef.current;
     const start = performance.now();
 
     const tick = (now: number) => {
       const progress = Math.min((now - start) / durationMs, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.floor(target * eased));
+      const next = Math.floor(startValue + (target - startValue) * eased);
+      latestRef.current = next;
+      setValue(next);
       if (progress < 1) frame = requestAnimationFrame(tick);
     };
 
@@ -34,9 +41,11 @@ function formatStat(value: number, type: 'rounds' | 'vxlm' | 'players') {
 }
 
 export default function Landing() {
-  const rounds = useCountUp(mockLandingStats.totalRounds);
-  const vxlm = useCountUp(mockLandingStats.vXlmDistributed);
-  const players = useCountUp(mockLandingStats.activePlayers);
+  const { t } = useTranslation();
+  const { stats, isStale } = useNetworkStats();
+  const rounds = useCountUp(stats.totalRounds);
+  const vxlm = useCountUp(stats.vXlmDistributed);
+  const players = useCountUp(stats.activePlayers);
 
   return (
     <div className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
@@ -47,54 +56,67 @@ export default function Landing() {
 
         <div className="relative mx-auto max-w-5xl text-center">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#BEC7FE]/20 bg-[#2C4BFD]/10 px-4 py-1.5 text-sm font-medium text-cyan-200">
-            Stellar prediction infrastructure
+            {t('landing.badge')}
           </p>
 
           <h1 className="hero-headline text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            Read the market.
+            {t('landing.headline1')}
             <br />
-            <span className="hero-headline-accent">Prove your call.</span>
+            <span className="hero-headline-accent">{t('landing.headline2')}</span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-400 sm:text-xl">
-            Xelma is a trustless, dual-mode prediction market on Stellar — where collective
-            intelligence meets on-chain settlement. Practice with virtual XLM. No deposit required.
+            {t('landing.subtitle')}
           </p>
-
+ 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link to="/dashboard" className="btn-primary rounded-xl px-8 py-4 text-base font-bold">
-              Enter Prediction Terminal
+              {t('landing.enterTerminal')}
             </Link>
             <a href="#how-it-works" className="btn-ghost rounded-xl px-8 py-4 text-base font-semibold">
-              How It Works
+              {t('landing.howItWorks')}
             </a>
           </div>
-
-          <p className="mt-4 text-sm text-gray-500">
-            New accounts start with 1,000 practice vXLM on Stellar testnet.
+ 
+          <p className="mt-4 text-sm text-[#808897]">
+            {t('landing.starterNote')}
           </p>
 
-          <div className="mx-auto mt-16 grid max-w-3xl gap-4 sm:grid-cols-3">
+          {/* Reserved-height row so the badge never shifts the layout on load. */}
+          <div className="mx-auto mt-12 flex h-6 max-w-3xl items-center justify-center">
+            {isStale && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200"
+                role="status"
+                title={t('landing.cachedMetricsDescription')}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                {t('landing.cachedMetrics')}
+              </span>
+            )}
+          </div>
+
+          <div className="mx-auto mt-4 grid max-w-3xl gap-4 sm:grid-cols-3">
             <div className="glass-card rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-500">
-                Rounds Resolved
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+                {t('landing.roundsResolved')}
               </p>
             </div>
             <div className="glass-card rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-cyan-300">
                 {formatStat(vxlm, 'vxlm')} vXLM
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-500">
-                Practice Volume
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+                {t('landing.practiceVolume')}
               </p>
             </div>
             <div className="glass-card rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-[#BEC7FE]">
                 {formatStat(players, 'players')}
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-500">
-                Active Predictors
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+                {t('landing.activePredictors')}
               </p>
             </div>
           </div>
@@ -110,11 +132,11 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="text-center sm:text-left">
             <p className="text-lg font-bold text-white">Xelma</p>
-            <p className="mt-1 text-sm text-gray-500">
-              Collective market intelligence on Stellar
+            <p className="mt-1 text-sm text-[#808897]">
+              {t('footer.description')}
             </p>
           </div>
-          <div className="flex items-center gap-6 text-sm text-gray-500">
+          <div className="flex items-center gap-6 text-sm text-[#808897]">
             <span>MIT License</span>
             <a
               href="https://github.com/TevaLabs/Xelma-Frontend"

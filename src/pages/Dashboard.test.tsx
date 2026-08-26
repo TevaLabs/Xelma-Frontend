@@ -1,6 +1,57 @@
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Dashboard from './LegacyDashboard';
+
+// Configurable search params for testing deep-linking
+let mockSearchParams = new URLSearchParams();
+const mockSetSearchParams = vi.fn();
+
+// Mock the API client
+vi.mock('../lib/api-client', () => ({
+  predictionsApi: {
+    submit: vi.fn(),
+    getUserHistory: vi.fn().mockResolvedValue([]),
+  },
+  educationApi: {
+    getTip: vi.fn().mockResolvedValue(null),
+    getGuides: vi.fn().mockResolvedValue([]),
+  },
+  statsApi: {
+    getNetworkStats: vi.fn().mockResolvedValue(null),
+    getUserStats: vi.fn().mockResolvedValue(null),
+  },
+  roundsApi: {
+    getActive: vi.fn().mockResolvedValue(null),
+    getHistory: vi.fn().mockResolvedValue([]),
+  },
+  priceApi: {
+    getLatestPrice: vi.fn().mockResolvedValue(null),
+    getPriceHistory: vi.fn().mockResolvedValue([]),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, status: number) {
+      super(message);
+      this.name = 'ApiError';
+      Object.assign(this, { status });
+    }
+  },
+}));
+
+
+
+vi.mock('react-router-dom', () => ({
+  Link: ({ children, to, ...props }: any) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
+}));
+
+import { useRoundStore } from '../store/useRoundStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
+import Dashboard from './Dashboard';
+
 
 function selectFromStore<TStore extends object>(selector: unknown, store: TStore) {
   return typeof selector === 'function' ? (selector as (state: TStore) => unknown)(store) : store;
@@ -11,7 +62,7 @@ const mockRoundStore = {
   isRoundActive: true,
   resolvedRound: null,
   fetchActiveRound: vi.fn(),
-  subscribeToRoundEvents: vi.fn(() => vi.fn()), // Returns unsubscribe function
+  subscribeToRoundEvents: vi.fn(() => vi.fn()),
   dismissResolvedRound: vi.fn(),
 };
 
@@ -48,6 +99,7 @@ vi.mock('../store/useWalletStore', () => ({
     }
   ),
   selectIsWalletConnected: vi.fn((state) => state.status === 'connected' && Boolean(state.publicKey)),
+  selectNeedsFunding: vi.fn(() => false),
 }));
 
 vi.mock('../hooks/useConnectionStatus', () => ({
@@ -64,35 +116,17 @@ vi.mock('../hooks/useConnectionStatus', () => ({
   }),
 }));
 
-// Mock the API client
-vi.mock('../lib/api-client', () => ({
-  predictionsApi: {
-    submit: vi.fn(),
-  },
-  ApiError: class ApiError extends Error {
-    constructor(message: string, status: number) {
-      super(message);
-      this.name = 'ApiError';
-      Object.assign(this, { status });
-    }
-  },
-}));
-
 // Mock all the components to focus on integration logic
-vi.mock('../components/ChatSidebar', () => ({
-  ChatSidebar: ({ showNewsRibbon }: { showNewsRibbon: boolean }) => (
-    <div data-testid="chat-sidebar" data-show-news-ribbon={showNewsRibbon}>
-      Chat Sidebar
-    </div>
-  ),
-}));
-
 vi.mock('../components/PriceChart', () => ({
-  default: ({ height }: { height: number }) => (
+  default: ({ height }: { height: number; entryPrice?: number | null; onPriceUpdate?: (price: number) => void }) => (
     <div data-testid="price-chart" data-height={height}>
       Price Chart
     </div>
   ),
+}));
+
+vi.mock('../components/RoundTimeline', () => ({
+  default: () => <div data-testid="round-timeline">Timeline</div>,
 }));
 
 type PredictionCardMockProps = {
@@ -110,30 +144,30 @@ type PredictionCardMockProps = {
 
 vi.mock('../components/PredictionCard', () => ({
   default: (props: PredictionCardMockProps) => {
-    const { 
-      isWalletConnected, 
-      isRoundActive, 
-      isConnecting, 
-      isSubmittingPrediction, 
-      onPrediction 
+    const {
+      isWalletConnected,
+      isRoundActive,
+      isConnecting,
+      isSubmittingPrediction,
+      onPrediction,
     } = props;
-    
+
     return (
-      <div 
+      <div
         data-testid="prediction-card"
         data-wallet-connected={String(isWalletConnected)}
         data-round-active={String(isRoundActive)}
         data-connecting={String(isConnecting)}
         data-submitting={String(isSubmittingPrediction)}
       >
-        <button 
+        <button
           onClick={() => {
             if (onPrediction) {
-              onPrediction({ 
-                direction: 'UP', 
-                stake: '10', 
-                exactPrice: '100', 
-                isLegend: false 
+              onPrediction({
+                direction: 'UP',
+                stake: '10',
+                exactPrice: '100',
+                isLegend: false,
               });
             }
           }}
@@ -150,14 +184,6 @@ vi.mock('../components/PredictionHistory', () => ({
   default: ({ userId }: { userId: string | null }) => (
     <div data-testid="prediction-history" data-user-id={userId}>
       Prediction History
-    </div>
-  ),
-}));
-
-vi.mock('../components/LiveGameStatsPanel', () => ({
-  default: () => (
-    <div data-testid="live-game-stats-panel">
-      <span>142</span>
     </div>
   ),
 }));
@@ -188,15 +214,38 @@ vi.mock('../components/EndRoundModal', () => ({
   ),
 }));
 
-import { useRoundStore } from '../store/useRoundStore';
-import { useWalletStore } from '../store/useWalletStore';
-import { predictionsApi, ApiError } from '../lib/api-client';
+vi.mock('../components/BetModal', () => ({
+  default: ({ isOpen, onClose, onSuccess }: any) => (
+    <div data-testid="bet-modal" data-open={isOpen}>
+      <button onClick={onClose} data-testid="close-bet-modal">Close</button>
+      <button onClick={() => onSuccess('tx-123')} data-testid="success-bet-modal">Success</button>
+    </div>
+  ),
+}));
+
+// RoundCard is not mocked — it renders for real so we can assert deep-link highlight
+vi.mock('../components/CountdownTimer', () => ({
+  default: ({ endTime }: { endTime: Date }) => (
+    <span data-testid="countdown-timer">{endTime.toISOString()}</span>
+  ),
+}));
+
 
 describe('Dashboard', () => {
+
   beforeEach(() => {
     vi.resetAllMocks();
-    // Don't use fake timers as they interfere with async operations
-    
+
+    // Reset search params to default (no round param)
+    mockSearchParams = new URLSearchParams();
+
+    // Re-establish mock implementations for API client after reset
+    vi.mocked(educationApi.getTip).mockResolvedValue(null);
+    vi.mocked(educationApi.getGuides).mockResolvedValue([]);
+    vi.mocked(statsApi.getNetworkStats).mockResolvedValue(null);
+    vi.mocked(statsApi.getUserStats).mockResolvedValue(null);
+    vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([]);
+
     // Reset store mocks to default state
     Object.assign(mockRoundStore, {
       isRoundActive: true,
@@ -209,34 +258,37 @@ describe('Dashboard', () => {
       status: 'connected',
       publicKey: 'GTEST123',
     });
+
+    // vi.resetAllMocks() above clears the global window.matchMedia
+    // implementation from src/test/setup.ts — re-establish it so
+    // useReducedMotion() (used by the deep-linked RoundCard scroll effect)
+    // doesn't crash on `.matches` of undefined.
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
   });
 
   afterEach(() => {
-    // Don't use real timers cleanup since we're not using fake timers
+    // no-op
   });
 
   describe('rendering', () => {
     it('renders all main components', () => {
       render(<Dashboard />);
 
-      expect(screen.getByTestId('chat-sidebar')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-card')).toBeInTheDocument();
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-history')).toBeInTheDocument();
-    });
-
-    it('passes showNewsRibbon prop to ChatSidebar', () => {
-      render(<Dashboard showNewsRibbon={false} />);
-
-      const chatSidebar = screen.getByTestId('chat-sidebar');
-      expect(chatSidebar).toHaveAttribute('data-show-news-ribbon', 'false');
-    });
-
-    it('defaults showNewsRibbon to true', () => {
-      render(<Dashboard />);
-
-      const chatSidebar = screen.getByTestId('chat-sidebar');
-      expect(chatSidebar).toHaveAttribute('data-show-news-ribbon', 'true');
     });
 
     it('passes correct props to PredictionCard', () => {
@@ -256,21 +308,16 @@ describe('Dashboard', () => {
       expect(predictionHistory).toHaveAttribute('data-user-id', 'GTEST123');
     });
 
-    it('shows the live game stats panel instead of the static player placeholder', () => {
+    it('renders the share button', () => {
       render(<Dashboard />);
 
-
-      expect(screen.getByTestId('live-game-stats-panel')).toBeInTheDocument();
-      expect(screen.queryByText('142 Playing Now')).not.toBeInTheDocument();
-
-      expect(within(screen.getByTestId('live-game-stats-panel')).getByText('142')).toBeInTheDocument();
-
+      expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
+      expect(screen.getByText('Share')).toBeInTheDocument();
     });
   });
 
   describe('wallet connection states', () => {
     it('handles disconnected wallet', () => {
-      // Mock disconnected wallet state
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
         const store = { ...mockWalletStore, status: 'idle', publicKey: null };
         return selectFromStore(selector, store);
@@ -280,11 +327,12 @@ describe('Dashboard', () => {
 
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-wallet-connected', 'false');
-      
+
       const predictionHistory = screen.getByTestId('prediction-history');
-      // When publicKey is null, the data-user-id attribute won't be set to "null" string
-      // Instead, React will not render the attribute or render it as empty
       expect(predictionHistory).toBeInTheDocument();
+
+      expect(screen.getByTestId('dashboard-wallet-prompt')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-connect-now')).toBeInTheDocument();
     });
 
     it('handles connecting wallet state', () => {
@@ -310,6 +358,23 @@ describe('Dashboard', () => {
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-connecting', 'true');
     });
+
+    it('mounts the profile summary panel when the wallet is connected', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
+    });
+
+    it('omits the profile summary panel when the wallet is disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.queryByLabelText('Your profile')).not.toBeInTheDocument();
+    });
   });
 
   describe('round states', () => {
@@ -321,8 +386,8 @@ describe('Dashboard', () => {
 
       render(<Dashboard />);
 
-      const predictionCard = screen.getByTestId('prediction-card');
-      expect(predictionCard).toHaveAttribute('data-round-active', 'false');
+      expect(screen.getByText('No Active Rounds')).toBeInTheDocument();
+      expect(screen.queryByTestId('prediction-card')).not.toBeInTheDocument();
     });
 
     it('opens the end round modal when a resolved round exists', () => {
@@ -397,297 +462,87 @@ describe('Dashboard', () => {
     });
   });
 
-  describe('prediction submission', () => {
-    it('successfully submits prediction', async () => {
-      vi.mocked(predictionsApi.submit).mockResolvedValue({
-        id: 'pred-123',
-        direction: 'UP',
-        stake: '10',
-      });
-
-      render(<Dashboard />);
-
-      // Verify the button exists
-      const submitButton = screen.getByTestId('submit-prediction');
-      expect(submitButton).toBeInTheDocument();
-      
-      fireEvent.click(submitButton);
-
-      // Wait for the API call
-      await waitFor(() => {
-        expect(predictionsApi.submit).toHaveBeenCalled();
-      }, { timeout: 3000 });
-
-      // Verify the call arguments
-      expect(predictionsApi.submit).toHaveBeenCalledWith({
-        direction: 'UP',
-        stake: '10',
-        exactPrice: '100',
-        isLegend: false,
-      });
-
-      // Wait for success message
-      await waitFor(() => {
-        expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-      });
-      
-      expect(screen.getByRole('alert')).toHaveClass('bg-green-50');
-    });
-
-    it('shows submitting state during prediction', async () => {
-      let resolveSubmit: (value: { id: string }) => void;
-      const submitPromise = new Promise<{ id: string }>((resolve) => {
-        resolveSubmit = resolve;
-      });
-      vi.mocked(predictionsApi.submit).mockReturnValue(submitPromise);
-
+  describe('bet modal interaction', () => {
+    it('opens bet modal on prediction and closes on close action', async () => {
       render(<Dashboard />);
 
       const submitButton = screen.getByTestId('submit-prediction');
       fireEvent.click(submitButton);
 
-      await waitFor(() => {
-        const predictionCard = screen.getByTestId('prediction-card');
-        expect(predictionCard).toHaveAttribute('data-submitting', 'true');
-      });
+      const modal = screen.getByTestId('bet-modal');
+      expect(modal).toHaveAttribute('data-open', 'true');
 
-      resolveSubmit!({ id: 'pred-123' });
-      
-      await waitFor(() => {
-        const predictionCard = screen.getByTestId('prediction-card');
-        expect(predictionCard).toHaveAttribute('data-submitting', 'false');
-      });
-    });
+      const closeButton = screen.getByTestId('close-bet-modal');
+      fireEvent.click(closeButton);
 
-    it('handles API error during submission', async () => {
-      const apiError = new ApiError('Insufficient balance', 400);
-      vi.mocked(predictionsApi.submit).mockRejectedValue(apiError);
-
-      render(<Dashboard />);
-
-      const submitButton = screen.getByTestId('submit-prediction');
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Insufficient balance')).toBeInTheDocument();
-        expect(screen.getByRole('alert')).toHaveClass('bg-red-50');
-      });
-    });
-
-    it('handles generic error during submission', async () => {
-      const genericError = new Error('Network error');
-      vi.mocked(predictionsApi.submit).mockRejectedValue(genericError);
-
-      render(<Dashboard />);
-
-      const submitButton = screen.getByTestId('submit-prediction');
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Failed to submit prediction. Please try again.')).toBeInTheDocument();
-      });
-    });
-
-    it('clears success message after 3 seconds', async () => {
-      vi.useFakeTimers();
-      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-123' });
-
-      render(<Dashboard />);
-
-      const submitButton = screen.getByTestId('submit-prediction');
-      fireEvent.click(submitButton);
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-
-      // Fast-forward all timers
-      await act(async () => {
-        vi.runAllTimers();
-      });
-
-      // Message should be cleared now
-      expect(screen.queryByText('Prediction Sent!')).not.toBeInTheDocument();
-      
-      vi.useRealTimers();
-    });
-
-    it('clears existing timeout when new prediction is submitted', async () => {
-      vi.useFakeTimers();
-      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-123' });
-
-      render(<Dashboard />);
-
-      const submitButton = screen.getByTestId('submit-prediction');
-      
-      // First submission
-      fireEvent.click(submitButton);
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-
-      // Second submission before timeout
-      await act(async () => {
-        vi.advanceTimersByTime(1000);
-      });
-      fireEvent.click(submitButton);
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-
-      // Should still be visible after original 3 seconds
-      await act(async () => {
-        vi.advanceTimersByTime(2500);
-      });
-      expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-
-      // Should clear after new 3 seconds
-      await act(async () => {
-        vi.advanceTimersByTime(1000);
-      });
-      expect(screen.queryByText('Prediction Sent!')).not.toBeInTheDocument();
-      
-      vi.useRealTimers();
-    });
-
-    it('clears message immediately when new prediction starts', async () => {
-      vi.mocked(predictionsApi.submit)
-        .mockResolvedValueOnce({ id: 'pred-1' })
-        .mockReturnValueOnce(new Promise(() => {}));
-
-      render(<Dashboard />);
-
-      const submitButton = screen.getByTestId('submit-prediction');
-      
-      // First submission
-      fireEvent.click(submitButton);
-      await waitFor(() => {
-        expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-      });
-
-      // Second submission should clear message immediately
-      fireEvent.click(submitButton);
-      
-      // Message should be cleared immediately when new submission starts
-      expect(screen.queryByText('Prediction Sent!')).not.toBeInTheDocument();
+      expect(modal).toHaveAttribute('data-open', 'false');
     });
   });
 
-  describe('cleanup', () => {
-    it('clears timeout on unmount', async () => {
-      vi.useFakeTimers();
-      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-123' });
-
-      const { unmount } = render(<Dashboard />);
-
-      const submitButton = screen.getByTestId('submit-prediction');
-      fireEvent.click(submitButton);
-
-      // Unmount before timeout
-      unmount();
-
-      // Should not throw or cause memory leaks
-      await act(async () => {
-        vi.advanceTimersByTime(5000);
-      });
-      
-      vi.useRealTimers();
-    });
-  });
-
-  describe('accessibility', () => {
-    it('has proper alert role for messages', async () => {
-      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-123' });
+  describe('round deep-link scroll behavior (?round=)', () => {
+    it('scrolls the highlighted RoundCard into view when the round id is visible', async () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
 
       render(<Dashboard />);
 
-      const submitButton = screen.getByTestId('submit-prediction');
-      fireEvent.click(submitButton);
+      // Multiple RoundCards render (one per XLM round); find the highlighted one.
+      const cards = await screen.findAllByTestId('round-card');
+      const highlighted = cards.find((c) => c.getAttribute('data-highlighted') === 'true');
 
-      await waitFor(() => {
-        const alert = screen.getByRole('alert');
-        expect(alert).toBeInTheDocument();
-        expect(alert).toHaveTextContent('Prediction Sent!');
-      });
+      expect(highlighted).toBeTruthy();
+      expect(highlighted).toHaveAttribute('data-highlighted', 'true');
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ block: 'center' }),
+      );
     });
 
-    it('uses appropriate ARIA attributes for error messages', async () => {
-      const apiError = new ApiError('Error message', 400);
-      vi.mocked(predictionsApi.submit).mockRejectedValue(apiError);
+    it('does not call scrollIntoView when the round id is missing', () => {
+      mockSearchParams = new URLSearchParams();
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
 
       render(<Dashboard />);
 
-      const submitButton = screen.getByTestId('submit-prediction');
-      fireEvent.click(submitButton);
-
-      await waitFor(() => {
-        const alert = screen.getByRole('alert');
-        expect(alert).toHaveTextContent('Error message');
-      });
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
     });
-  });
 
-  describe('responsive layout', () => {
-    it('applies correct CSS classes for responsive design', () => {
-      render(<Dashboard />);
-
-      const dashboard = screen.getByText('Chat Sidebar').closest('.dashboard');
-      expect(dashboard).toHaveClass('flex', 'min-h-full');
-
-      const mainContent = screen.getByTestId('prediction-card').closest('.flex-1');
-      expect(mainContent).toHaveClass('ml-0', 'md:ml-80');
-    });
-  });
-
-  describe('edge cases', () => {
-    it('handles multiple rapid prediction submissions', async () => {
-      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-123' });
+    it('does not call scrollIntoView when the deep-linked round is filtered out by the asset tab', () => {
+      // Round id 3 is an XLM round; requesting it while on the BTC tab means
+      // it never renders, so there is nothing to scroll to.
+      mockSearchParams = new URLSearchParams('round=3&asset=BTC');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
 
       render(<Dashboard />);
 
-      const submitButton = screen.getByTestId('submit-prediction');
-      
-      // Rapid clicks
-      fireEvent.click(submitButton);
-      fireEvent.click(submitButton);
-      fireEvent.click(submitButton);
-
-      // Should handle gracefully without errors
-      await waitFor(() => {
-        expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-      });
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
     });
 
-    it('handles prediction submission when wallet becomes disconnected', async () => {
-      let resolveSubmit: (value: { id: string }) => void;
-      const submitPromise = new Promise<{ id: string }>((resolve) => {
-        resolveSubmit = resolve;
+    it('uses instant scroll behavior when reduced motion is preferred', () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
       });
-      vi.mocked(predictionsApi.submit).mockReturnValue(submitPromise);
 
-      const { rerender } = render(<Dashboard />);
+      render(<Dashboard />);
 
-      const submitButton = screen.getByTestId('submit-prediction');
-      fireEvent.click(submitButton);
-
-      // Simulate wallet disconnection during submission
-      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
-        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
-        return selectFromStore(selector, store);
-      }) as never);
-
-      rerender(<Dashboard />);
-
-      resolveSubmit!({ id: 'pred-123' });
-
-      await waitFor(() => {
-        expect(screen.getByText('Prediction Sent!')).toBeInTheDocument();
-      });
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
     });
   });
 });

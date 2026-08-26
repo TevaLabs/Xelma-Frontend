@@ -38,7 +38,7 @@ interface ProfileState {
 }
 
 export const useProfileStore = create<ProfileState>((set) => ({
-  profile: null,
+  profile: readLocalCache(),
   isLoading: false,
   error: null,
 
@@ -93,3 +93,12 @@ export const useProfileStore = create<ProfileState>((set) => ({
     }
   },
 }));
+
+useAuthStore.subscribe(
+  (state) => {
+    const jwt = state.jwt;
+    if (jwt) {
+      useProfileStore.getState().loadProfile();
+    }
+  },
+);

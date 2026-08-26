@@ -1,8 +1,34 @@
 import { create } from 'zustand';
 import { roundsApi, type Round } from '../lib/api-client';
 import { normalizeApiError } from '../lib/api';
+import { getSseUrl } from '../lib/apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+const API_BASE = getSseUrl();
+
+/** Fallback chat channel used when no active round is known. */
+export const CHAT_CHANNEL_FALLBACK = 'general';
+
+/** Prefix for round-scoped chat channels (`round:<id>`). */
+export const CHAT_CHANNEL_ROUND_PREFIX = 'round:';
+
+/**
+ * Derive the chat channel id for a given round. Falls back to `general`
+ * when the round is missing or has no usable id, so chat keeps working
+ * outside an active round.
+ */
+export function getChatChannelId(round: Round | null | undefined): string {
+  if (round && (typeof round.id === 'string' || typeof round.id === 'number')) {
+    return `${CHAT_CHANNEL_ROUND_PREFIX}${round.id}`;
+  }
+  return CHAT_CHANNEL_FALLBACK;
+}
+
+/**
+ * Zustand selector hook form of `getChatChannelId`. Use as
+ * `const channelId = useRoundStore(selectActiveChatChannelId)`.
+ */
+export const selectActiveChatChannelId = (state: RoundStore): string =>
+  getChatChannelId(state.activeRound);
 
 interface RoundEventEnvelope {
   event?: string;

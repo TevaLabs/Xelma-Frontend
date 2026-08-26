@@ -24,7 +24,7 @@ vi.mock('../../store/useAuthStore', () => ({
 }));
 
 // Import after mocking
-import { socketService, type ConnectionState } from '../socket';
+import { socketService, normalizeSocketUrl, type ConnectionState } from '../socket';
 import { io } from 'socket.io-client';
 
 // Get the mocked socket instance
@@ -309,5 +309,31 @@ describe('Socket Service', () => {
       
       unsubscribe();
     });
+  });
+});
+
+describe('normalizeSocketUrl', () => {
+  it('strips /api suffix', () => {
+    expect(normalizeSocketUrl('http://localhost:3000/api')).toBe('http://localhost:3000');
+  });
+
+  it('strips /api/ with trailing slash', () => {
+    expect(normalizeSocketUrl('http://localhost:3000/api/')).toBe('http://localhost:3000');
+  });
+
+  it('leaves URL unchanged when no /api suffix', () => {
+    expect(normalizeSocketUrl('http://localhost:3000')).toBe('http://localhost:3000');
+  });
+
+  it('strips /api from a production URL', () => {
+    expect(normalizeSocketUrl('https://xelma-backend.onrender.com/api')).toBe('https://xelma-backend.onrender.com');
+  });
+
+  it('leaves production URL unchanged when no /api suffix', () => {
+    expect(normalizeSocketUrl('https://xelma-backend.onrender.com')).toBe('https://xelma-backend.onrender.com');
+  });
+
+  it('returns empty string unchanged', () => {
+    expect(normalizeSocketUrl('')).toBe('');
   });
 });
