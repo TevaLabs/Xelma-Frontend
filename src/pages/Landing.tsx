@@ -6,12 +6,28 @@ import ModeCards from '../components/ModeCards';
 import { useNetworkStats } from '../hooks/useNetworkStats';
 
 function useCountUp(target: number, durationMs = 1800) {
-  const [value, setValue] = useState(0);
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const [value, setValue] = useState(prefersReducedMotion ? target : 0);
   // Track the last displayed value so re-targeting (mock -> live stats) animates
   // smoothly from where it is rather than snapping back to zero.
-  const latestRef = useRef(0);
+  const latestRef = useRef(prefersReducedMotion ? target : 0);
 
   useEffect(() => {
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      setValue(target);
+      latestRef.current = target;
+      return;
+    }
+
     let frame = 0;
     const startValue = latestRef.current;
     const start = performance.now();
