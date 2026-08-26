@@ -22,6 +22,7 @@ const Connect = lazy(() => import('./pages/Connect'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Pools = lazy(() => import('./pages/Pools'));
 const Settings = lazy(() => import('./pages/Settings'));
+const PublicProfileCard = lazy(() => import('./pages/PublicProfileCard'));
 
 function App() {
   const { pathname } = useLocation();
@@ -64,6 +65,8 @@ function App() {
                 }
               />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:id" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><PublicProfileCard /></Suspense>} />
+              <Route path="/u/:handle" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><PublicProfileCard /></Suspense>} />
               <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
               <Route path="*" element={<Navigate to="/" replace />} />
 
