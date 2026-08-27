@@ -36,7 +36,7 @@ The app has a dual-dashboard model plus a standalone landing page:
 
 - `/` renders the bespoke public landing experience.
 - `/dashboard` is the **single primary prediction terminal**. It includes the price chart, round lifecycle timeline, connection status, end-round modal, and opt-in community chat. This is the live dashboard used for all connected prediction flows.
-- `/play` is **deprecated** and permanently redirects to `/dashboard`. The `LegacyDashboard` component is retained only for reference and is no longer routed. New work should target `/dashboard` exclusively.
+- `/play` is **deprecated** and permanently redirects to `/dashboard`. The former `LegacyDashboard` page has been removed. New work should target `/dashboard` exclusively.
 
 All routed pages are composed under the dark terminal shell in `src/App.tsx`: `<OfflineBanner />`, `<Navbar />`, lazy routes, `<Footer />` (except the landing route), and `<Toaster />`. Avoid adding a second global shell or duplicate header. Prefer existing dark palette utilities and shared components.
 

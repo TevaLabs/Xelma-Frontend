@@ -290,9 +290,9 @@ price chart, the round lifecycle timeline, round-update connection status, the
 end-round modal, and opt-in community chat (toggled from the dashboard header so
 the default terminal stays uncluttered).
 
-`/play` is **deprecated** and permanently redirects to `/dashboard`. The
-`LegacyDashboard` component is retained only for reference and is no longer
-routed. Chat and notifications are available via the in-dashboard toggle; further
+`/play` is **deprecated** and permanently redirects to `/dashboard`. The former
+`LegacyDashboard` page has been removed — `/dashboard` is the single dashboard
+story. Chat and notifications are available via the in-dashboard toggle; further
 social/notification consolidation is tracked in issue
 [#130](https://github.com/TevaLabs/Xelma-Frontend/issues/130).
 
