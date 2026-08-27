@@ -115,6 +115,7 @@ const Leaderboard = () => {
   // ── #202: Virtualizer setup ────────────────────────────────────────────────
   const listRef = useRef<HTMLDivElement | null>(null);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- useVirtualizer intentionally returns functions; React Compiler memoization skip is expected
   const rowVirtualizer = useVirtualizer({
     count: restUsers.length,
     getScrollElement: () => listRef.current,

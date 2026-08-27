@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useStellarAddressValidation } from '../hooks/useStellarAddressValidation';
 import { type Network } from '../utils/validateStellarAddress';
-import { Loader2, CheckCircle2, XCircle, Wallet, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, XCircle, Wallet, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import clsx from 'clsx';
 import { toast } from 'sonner';
 import WalletConnect from '../components/WalletConnect';
@@ -9,6 +9,7 @@ import BalancesPanel from '../components/BalancesPanel';
 import FriendbotFundCard from '../components/FriendbotFundCard';
 import { useWalletStore } from '../store/useWalletStore';
 import { useNavigate } from 'react-router-dom';
+import { Spinner } from '../components/ui/Spinner';
 
 const Connect = () => {
   const [address, setAddress] = useState('');
@@ -76,7 +77,7 @@ const Connect = () => {
   // Get the feedback icon based on validation state
   const getFeedbackIcon = () => {
     if (isValidating) {
-      return <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />;
+      return <Spinner label="Validating address" size="sm" />;
     }
     if (isValid) {
       return <CheckCircle2 className="w-5 h-5 text-green-400" />;
@@ -263,7 +264,7 @@ const Connect = () => {
           >
             {isValidating ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Spinner size="sm" />
                 <span>Validating...</span>
               </>
             ) : (

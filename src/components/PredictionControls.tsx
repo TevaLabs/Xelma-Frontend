@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import PredictionHelpTooltip from "./PredictionHelpTooltip";
 import "./PredictionCard.css";
 
 const EXACT_PRICE_MIN = 0.0001;
@@ -144,7 +145,10 @@ export function PredictionControls({
 
   return (
     <>
-      <h2 className="prediction-card__title">Guess price prediction</h2>
+      <div className="flex items-center justify-center gap-2 mb-7">
+        <h2 className="prediction-card__title" style={{ margin: 0 }}>Guess price prediction</h2>
+        <PredictionHelpTooltip />
+      </div>
 
       {isConnecting && (
         <p className="prediction-card__connecting" role="status">

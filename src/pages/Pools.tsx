@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ContributorTaskPlaceholder from '../components/ContributorTaskPlaceholder';
+import { Spinner } from '../components/ui/Spinner';
 
 type PoolAsset = 'BTC' | 'ETH' | 'XLM';
 
@@ -61,10 +62,7 @@ export default function Pools() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div
-          className="h-8 w-8 animate-spin rounded-full border-4 border-[#2C4BFD] border-t-transparent"
-          aria-label="Loading pools"
-        />
+        <Spinner label="Loading pools" size="lg" />
       </div>
     );
   }

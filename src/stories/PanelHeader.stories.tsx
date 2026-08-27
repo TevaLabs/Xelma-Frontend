@@ -1,4 +1,4 @@
-import PanelHeader from '../components/PanelHeader';
+import PanelHeader from '../components/ui/PanelHeader';
 
 export default { title: 'Glass Card Primitives/PanelHeader' };
 
@@ -12,7 +12,7 @@ export const WithActions = () => (
   <PanelHeader
     title="Leaderboard"
     subtitle="Top traders this week"
-    actions={<button style={{ padding: '6px 12px', borderRadius: 8 }}>View All</button>}
+    action={<button style={{ padding: '6px 12px', borderRadius: 8 }}>View All</button>}
   />
 );
 
