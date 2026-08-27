@@ -258,6 +258,24 @@ describe('Dashboard', () => {
       status: 'connected',
       publicKey: 'GTEST123',
     });
+
+    // vi.resetAllMocks() above clears the global window.matchMedia
+    // implementation from src/test/setup.ts — re-establish it so
+    // useReducedMotion() (used by the deep-linked RoundCard scroll effect)
+    // doesn't crash on `.matches` of undefined.
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
   });
 
   afterEach(() => {
@@ -339,6 +357,23 @@ describe('Dashboard', () => {
 
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-connecting', 'true');
+    });
+
+    it('mounts the profile summary panel when the wallet is connected', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
+    });
+
+    it('omits the profile summary panel when the wallet is disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.queryByLabelText('Your profile')).not.toBeInTheDocument();
     });
   });
 
@@ -441,6 +476,73 @@ describe('Dashboard', () => {
       fireEvent.click(closeButton);
 
       expect(modal).toHaveAttribute('data-open', 'false');
+    });
+  });
+
+  describe('round deep-link scroll behavior (?round=)', () => {
+    it('scrolls the highlighted RoundCard into view when the round id is visible', async () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      // Multiple RoundCards render (one per XLM round); find the highlighted one.
+      const cards = await screen.findAllByTestId('round-card');
+      const highlighted = cards.find((c) => c.getAttribute('data-highlighted') === 'true');
+
+      expect(highlighted).toBeTruthy();
+      expect(highlighted).toHaveAttribute('data-highlighted', 'true');
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ block: 'center' }),
+      );
+    });
+
+    it('does not call scrollIntoView when the round id is missing', () => {
+      mockSearchParams = new URLSearchParams();
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not call scrollIntoView when the deep-linked round is filtered out by the asset tab', () => {
+      // Round id 3 is an XLM round; requesting it while on the BTC tab means
+      // it never renders, so there is nothing to scroll to.
+      mockSearchParams = new URLSearchParams('round=3&asset=BTC');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses instant scroll behavior when reduced motion is preferred', () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
     });
   });
 });

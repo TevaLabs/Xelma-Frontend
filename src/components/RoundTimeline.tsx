@@ -81,8 +81,8 @@ const RoundTimeline: React.FC = () => {
             : currentState);
       const timer = setTimeout(() => {
         setStateAnnouncement(`Round is now ${label}`);
+        setPrevCurrentState(currentState);
       }, 0);
-      setPrevCurrentState(currentState);
       return () => clearTimeout(timer);
     }
   }, [currentState, prevCurrentState]);

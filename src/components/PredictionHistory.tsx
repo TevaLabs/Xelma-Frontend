@@ -82,7 +82,6 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
   }, [history, userId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadHistory();
   }, [loadHistory]);
 

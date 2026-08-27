@@ -40,6 +40,8 @@ The app has a dual-dashboard model plus a standalone landing page:
 
 All routed pages are composed under the dark terminal shell in `src/App.tsx`: `<OfflineBanner />`, `<Navbar />`, lazy routes, `<Footer />` (except the landing route), and `<Toaster />`. Avoid adding a second global shell or duplicate header. Prefer existing dark palette utilities and shared components.
 
+**Canonical shared UI:** Import `PanelHeader` only from `src/components/ui/PanelHeader.tsx`. Do not recreate a root-level `src/components/PanelHeader.tsx` — the duplicate was removed to prevent API drift.
+
 ## Stellar Wave contributor quick-start
 
 Xelma participates in the Stellar Wave hackathon program. This section is the fastest path
@@ -103,6 +105,7 @@ you may need these additional environment variables. Add them to your local `.en
 - [ ] Keep the PR focused on one concern.
 - [ ] Run `pnpm lint` and fix reported issues.
 - [ ] Run `pnpm test:unit` for unit coverage.
+- [ ] Run `pnpm test:e2e` to ensure Playwright smoke tests pass.
 - [ ] Run `pnpm build` for the TypeScript/Vite production build.
 - [ ] Include screenshots or a short screen recording for visible UI changes.
 - [ ] Mention any env vars, migrations, or manual QA steps reviewers need.

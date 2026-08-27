@@ -1,4 +1,4 @@
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
@@ -37,10 +37,100 @@ export interface FeeEstimate {
 export interface SorobanInspectorSnapshot {
   source: 'rpc' | 'mock';
   status?: 'ok' | 'error';
+  /** Raw, undecoded position ScVal — kept for the "View raw JSON" disclosure. */
   position?: unknown;
+  /** Raw, undecoded round ScVal — kept for the "View raw JSON" disclosure. */
   round?: unknown;
+  /** Structured fields decoded from `position`/`round`, when recognizable. */
+  fields?: SorobanInspectorFields;
   error?: string;
   inspectedAt?: string;
+}
+
+/** Structured, human-readable fields decoded from the raw position/round ScVals. */
+export interface SorobanInspectorFields {
+  positionSide?: string;
+  stake?: string;
+  roundId?: string;
+  poolSplit?: string;
+}
+
+/** Decodes an ScVal-shaped value, returning null when it cannot be converted. */
+function decodeScVal(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  try {
+    return scValToNative(value as xdr.ScVal);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads a field off a decoded map/object by trying several plausible key
+ * spellings (contracts vary in whether they use snake_case, camelCase, or
+ * short aliases) — mirrors the defensive lookup used for round ids in
+ * prediction-events.ts.
+ */
+function pickField(record: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    if (record[key] !== undefined && record[key] !== null) return record[key];
+  }
+  return undefined;
+}
+
+function stringifyFieldValue(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number' || typeof value === 'string') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  try {
+    return JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Best-effort extraction of structured, human-readable fields (position side,
+ * stake, round id, pool split) from the decoded position/round contract
+ * return values. Field names are not guaranteed by the contract ABI, so every
+ * lookup tries multiple plausible key spellings and simply omits a field it
+ * cannot find rather than throwing — callers should treat any field as
+ * optional and fall back to the raw JSON disclosure when nothing is found.
+ */
+export function extractInspectorFields(position: unknown, round: unknown): SorobanInspectorFields {
+  const decodedPosition = decodeScVal(position);
+  const decodedRound = decodeScVal(round);
+
+  const positionRecord =
+    decodedPosition && typeof decodedPosition === 'object' && !Array.isArray(decodedPosition)
+      ? (decodedPosition as Record<string, unknown>)
+      : {};
+  const roundRecord =
+    decodedRound && typeof decodedRound === 'object' && !Array.isArray(decodedRound)
+      ? (decodedRound as Record<string, unknown>)
+      : {};
+
+  const side = pickField(positionRecord, ['side', 'position_side', 'positionSide', 'direction']);
+  const stake = pickField(positionRecord, ['stake', 'amount', 'wager']);
+  const roundId = pickField(roundRecord, ['round_id', 'roundId', 'id', 'round']) ?? pickField(positionRecord, ['round_id', 'roundId', 'round']);
+  const poolUp = pickField(roundRecord, ['pool_up', 'poolUp', 'up_pool']);
+  const poolDown = pickField(roundRecord, ['pool_down', 'poolDown', 'down_pool']);
+  const poolSplitRaw = pickField(roundRecord, ['pool_split', 'poolSplit']);
+
+  let poolSplit = stringifyFieldValue(poolSplitRaw);
+  if (!poolSplit && (poolUp !== undefined || poolDown !== undefined)) {
+    const up = stringifyFieldValue(poolUp) ?? '0';
+    const down = stringifyFieldValue(poolDown) ?? '0';
+    poolSplit = `${up} / ${down}`;
+  }
+
+  return {
+    positionSide: stringifyFieldValue(side),
+    stake: stringifyFieldValue(stake),
+    roundId: stringifyFieldValue(roundId),
+    poolSplit,
+  };
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -121,6 +211,7 @@ export async function inspectSorobanState(userAddress: string): Promise<SorobanI
       status: 'ok',
       position: positionResult,
       round: roundResult,
+      fields: extractInspectorFields(positionResult, roundResult),
       inspectedAt: new Date().toISOString(),
     };
   } catch (err) {

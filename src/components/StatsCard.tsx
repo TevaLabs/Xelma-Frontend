@@ -5,7 +5,7 @@ import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore
 import { claim_winnings } from '../lib/xelma-contract';
 import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
-import PanelHeader from './PanelHeader';
+import PanelHeader from './ui/PanelHeader';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 

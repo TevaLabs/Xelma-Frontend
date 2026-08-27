@@ -47,9 +47,21 @@ const closedRound: MockRound = {
   closesInSeconds: 0,
 };
 
+const urgentRound: MockRound = {
+  id: 5,
+  asset: 'BTC',
+  mode: 'updown',
+  status: 'live',
+  startPrice: 67420,
+  poolUp: 2800,
+  poolDown: 1400,
+  closesInSeconds: 25,
+};
+
 const noop = () => {};
 
 export const UpDown = () => <RoundCard round={updownRound} onSubmitPrediction={noop} />;
 export const Precision = () => <RoundCard round={precisionRound} onSubmitPrediction={noop} />;
 export const NewRound = () => <RoundCard round={newRound} onSubmitPrediction={noop} />;
 export const Closed = () => <RoundCard round={closedRound} onSubmitPrediction={noop} />;
+export const Urgent = () => <RoundCard round={urgentRound} onSubmitPrediction={noop} />;

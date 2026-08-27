@@ -93,18 +93,14 @@ describe('EndRoundModal sharing functionality', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders a share result button', () => {
+  it('renders a continue button', () => {
     render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
-    expect(screen.getByRole('button', { name: /share result/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue to next round/i })).toBeInTheDocument();
   });
 
-  it('attempts to use navigator.share when clicking share result', async () => {
+  it('renders net result details when modal is open', async () => {
     render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
-    const shareButton = screen.getByRole('button', { name: /share result/i });
-    fireEvent.click(shareButton);
-
-    await waitFor(() => {
-      expect(navigator.share).toHaveBeenCalled();
-    });
+    expect(screen.getByText('+$42.00')).toBeInTheDocument();
+    expect(screen.getByText(result.tip)).toBeInTheDocument();
   });
 });

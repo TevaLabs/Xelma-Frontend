@@ -10,19 +10,33 @@ interface EndRoundModalProps {
     amount?: number;
     tip?: string;
   };
+  playResolveSound?: boolean;
 }
 
 /**
  * STUBBED for contributor rebuild — dialog wiring + result copy kept for tests.
  * Rebuild dark terminal win/loss celebration (no light emerald/rose cards).
  */
-export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModalProps) {
+export default function EndRoundModal({
+  isOpen,
+  onClose,
+  result,
+  playResolveSound = false,
+}: EndRoundModalProps) {
   const {
     isWin = false,
     amount = 0,
     tip = 'Stay tuned for the next round.',
   } = result ?? {};
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !playResolveSound) return;
+    // TODO: add audio asset
+    const audio = new Audio('/sounds/round-resolved.mp3');
+    audio.play().catch(() => {});
+    return () => { audio.pause(); };
+  }, [isOpen, playResolveSound]);
 
   useEffect(() => {
     if (isOpen) {

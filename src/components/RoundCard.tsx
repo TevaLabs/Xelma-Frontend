@@ -1,11 +1,16 @@
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import { formatVXLM, formatPercent } from '../lib/utils';
 import { TRANSITION } from '../utils/motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useRoundCountdown } from '../hooks/useRoundCountdown';
+
+const URGENCY_THRESHOLD_SECONDS = 30;
+const URGENCY_THRESHOLD_MS = URGENCY_THRESHOLD_SECONDS * 1000;
 
 const ASSET_ICONS: Record<string, string> = {
   BTC: '₿',
@@ -36,8 +41,16 @@ function poolSize(round: MockRound): number {
   return round.totalPool ?? 0;
 }
 
-export default function RoundCard({ round, onSubmitPrediction, isHighlighted = false }: RoundCardProps) {
+const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
+  { round, onSubmitPrediction, isHighlighted = false },
+  ref,
+) {
+  const { reduced } = useReducedMotion();
   const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
+  // Live ticking countdown so the urgency state (secondsLeft < 30) updates
+  // between server round refreshes, matching the displayed countdown timer.
+  const { isExpired, timeLeftMs } = useRoundCountdown(endTime);
+  const isUrgent = !isExpired && timeLeftMs < URGENCY_THRESHOLD_MS;
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
@@ -66,16 +79,32 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
     return () => window.clearTimeout(timer);
   }, [round.closesInSeconds, statusMeta.label]);
 
+  const prevUrgent = useRef(isUrgent);
+  const [urgencyAnnouncement, setUrgencyAnnouncement] = useState('');
+
+  // Announce the urgency state transition (under 30s) politely, distinct from
+  // the CLOSING SOON status announcement above.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (prevUrgent.current !== isUrgent) {
+        prevUrgent.current = isUrgent;
+        setUrgencyAnnouncement(isUrgent ? 'Round closing in under 30 seconds' : '');
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isUrgent]);
+
   return (
     <article
+      ref={ref}
       className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION} ${
         isHighlighted ? 'accent-border-teal' : ''
-      }`}
+      } ${isHighlighted && !reduced ? 'accent-pulse' : ''}`}
       data-testid="round-card"
       data-highlighted={isHighlighted ? 'true' : 'false'}
     >
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {statusAnnouncement}
+        {[statusAnnouncement, urgencyAnnouncement].filter(Boolean).join(' ')}
       </div>
 
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
@@ -117,6 +146,15 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
           <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
             {getStatusMeta(round, round.closesInSeconds).label}
           </span>
+          {isUrgent && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-rose-300"
+              data-testid="round-card-urgency"
+            >
+              <span className="status-dot status-dot-urgent" aria-hidden="true" />
+              Under 30s
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-400">
           <span>Resolves in</span>
@@ -164,4 +202,6 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
       </button>
     </article>
   );
-}
+});
+
+export default RoundCard;
