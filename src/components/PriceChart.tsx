@@ -522,6 +522,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
 
   // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setData([]);
     setIsLoading(true);
     setLoadError(null);
@@ -534,8 +535,8 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       setIsLoading(false);
     }
 
-    // Also attempt to fetch live data from API
     void loadInitialPrices();
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [asset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update chart line color when asset changes
