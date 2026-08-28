@@ -4,14 +4,18 @@ import { useTranslation } from 'react-i18next';
 import HowItWorks from '../components/HowItWorks';
 import ModeCards from '../components/ModeCards';
 import { useNetworkStats } from '../hooks/useNetworkStats';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
-function useCountUp(target: number, durationMs = 1800) {
-  const [value, setValue] = useState(0);
-  // Track the last displayed value so re-targeting (mock -> live stats) animates
-  // smoothly from where it is rather than snapping back to zero.
-  const latestRef = useRef(0);
+function useCountUp(target: number, durationMs = 1800, skipAnimation = false) {
+  const [value, setValue] = useState(skipAnimation ? target : 0);
+  const latestRef = useRef(skipAnimation ? target : 0);
 
   useEffect(() => {
+    if (skipAnimation) {
+      latestRef.current = target;
+      return;
+    }
+
     let frame = 0;
     const startValue = latestRef.current;
     const start = performance.now();
@@ -27,7 +31,7 @@ function useCountUp(target: number, durationMs = 1800) {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [target, durationMs]);
+  }, [target, durationMs, skipAnimation]);
 
   return value;
 }
@@ -43,9 +47,10 @@ function formatStat(value: number, type: 'rounds' | 'vxlm' | 'players') {
 export default function Landing() {
   const { t } = useTranslation();
   const { stats, isStale } = useNetworkStats();
-  const rounds = useCountUp(stats.totalRounds);
-  const vxlm = useCountUp(stats.vXlmDistributed);
-  const players = useCountUp(stats.activePlayers);
+  const { reduced } = useReducedMotion();
+  const rounds = useCountUp(stats.totalRounds, 1800, reduced);
+  const vxlm = useCountUp(stats.vXlmDistributed, 1800, reduced);
+  const players = useCountUp(stats.activePlayers, 1800, reduced);
 
   return (
     <div className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
@@ -96,26 +101,26 @@ export default function Landing() {
             )}
           </div>
 
-          <div className="mx-auto mt-4 grid max-w-3xl gap-4 sm:grid-cols-3">
-            <div className="glass-card rounded-xl p-5 text-left">
-              <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+          <div className="mx-auto mt-4 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            <div className="glass-card rounded-xl p-5 text-left transition-all duration-300 hover:border-[#BEC7FE]/25 hover:shadow-[0_0_24px_rgba(255,255,255,0.03)]">
+              <p className="text-xl font-black text-white sm:text-2xl">{formatStat(rounds, 'rounds')}</p>
+              <p className="mt-1.5 text-xs font-medium uppercase tracking-wider text-[#808897]">
                 {t('landing.roundsResolved')}
               </p>
             </div>
-            <div className="glass-card rounded-xl p-5 text-left">
-              <p className="text-2xl font-black text-cyan-300">
+            <div className="glass-card rounded-xl p-5 text-left transition-all duration-300 hover:border-cyan-400/25 hover:shadow-[0_0_24px_rgba(6,182,212,0.06)]">
+              <p className="text-xl font-black text-cyan-300 sm:text-2xl">
                 {formatStat(vxlm, 'vxlm')} vXLM
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1.5 text-xs font-medium uppercase tracking-wider text-[#808897]">
                 {t('landing.practiceVolume')}
               </p>
             </div>
-            <div className="glass-card rounded-xl p-5 text-left">
-              <p className="text-2xl font-black text-[#BEC7FE]">
+            <div className="glass-card rounded-xl p-5 text-left transition-all duration-300 hover:border-[#2C4BFD]/25 hover:shadow-[0_0_24px_rgba(44,75,253,0.08)]">
+              <p className="text-xl font-black text-[#BEC7FE] sm:text-2xl">
                 {formatStat(players, 'players')}
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1.5 text-xs font-medium uppercase tracking-wider text-[#808897]">
                 {t('landing.activePredictors')}
               </p>
             </div>

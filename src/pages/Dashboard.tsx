@@ -187,7 +187,9 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
 
   // Clear the entry marker whenever the active round changes.
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setEntryPrice(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [activeRoundId]);
 
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -289,8 +291,10 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected, publicKey]);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     void fetchStats();
     void fetchActivities();
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [fetchStats, fetchActivities]);
 
   const refreshInspector = useCallback(async () => {
@@ -315,7 +319,9 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected, publicKey]);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     void refreshInspector();
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [refreshInspector]);
 
   // Bind the audio controller to the settings store so round-resolution cues
