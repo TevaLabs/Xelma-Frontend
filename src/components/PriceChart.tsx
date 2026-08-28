@@ -522,6 +522,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
 
   // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset chart state when the asset changes
     setData([]);
     setIsLoading(true);
     setLoadError(null);

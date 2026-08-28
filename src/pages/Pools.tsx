@@ -4,64 +4,7 @@ import { AssetIcon } from '../components/icons';
 import EmptyState from '../components/EmptyState';
 import { Spinner } from '../components/ui/Spinner';
 import { formatCompactNumber } from '../lib/utils';
-
-type PoolAsset = 'BTC' | 'ETH' | 'XLM';
-
-interface PoolStats {
-  asset: PoolAsset;
-  totalVolume: number;
-  upDownPool: {
-    total: number;
-    up: number;
-    down: number;
-  };
-  precisionPool: {
-    total: number;
-    predictions: number;
-  };
-  historicalYield: number;
-}
-
-const mockPoolData: PoolStats[] = [
-  {
-    asset: 'BTC',
-    totalVolume: 1250000,
-    upDownPool: { total: 850000, up: 450000, down: 400000 },
-    precisionPool: { total: 400000, predictions: 124 },
-    historicalYield: 4.2,
-  },
-  {
-    asset: 'ETH',
-    totalVolume: 820000,
-    upDownPool: { total: 600000, up: 350000, down: 250000 },
-    precisionPool: { total: 220000, predictions: 89 },
-    historicalYield: 3.8,
-  },
-  {
-    asset: 'XLM',
-    totalVolume: 450000,
-    upDownPool: { total: 300000, up: 100000, down: 200000 },
-    precisionPool: { total: 150000, predictions: 45 },
-    historicalYield: 5.1,
-  },
-];
-
-/**
- * Stand-in for a real `/pools` API call. Kept as a promise-returning function
- * (rather than inlining the timeout in the effect) so the loading/error
- * states below are structured the same way they'd be once this is wired to
- * a real endpoint — swap this one function out and the rest of the page
- * keeps working.
- */
-function fetchPoolStats(signal: AbortSignal): Promise<PoolStats[]> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => resolve(mockPoolData), 800);
-    signal.addEventListener('abort', () => {
-      clearTimeout(timer);
-      reject(new DOMException('Aborted', 'AbortError'));
-    });
-  });
-}
+import { poolsApi, type PoolStats, type PoolAsset } from '../lib/api-client';
 
 function AssetBadge({ asset }: { asset: PoolAsset }) {
   return (
@@ -181,7 +124,7 @@ export default function Pools() {
     setIsLoading(true);
     setError(null);
 
-    fetchPoolStats(controller.signal)
+    poolsApi.getPools({ signal: controller.signal })
       .then((result) => setData(result))
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return;

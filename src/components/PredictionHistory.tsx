@@ -82,6 +82,7 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
   }, [history, userId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: load history on mount and when the user changes
     void loadHistory();
   }, [loadHistory]);
 

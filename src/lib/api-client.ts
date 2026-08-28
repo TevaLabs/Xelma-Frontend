@@ -336,3 +336,40 @@ export const statsApi = {
         return normalizeUserStats(response);
     },
 };
+
+/** Pool asset identifier for the liquidity pools page. */
+export type PoolAsset = 'BTC' | 'ETH' | 'XLM';
+
+/** Liquidity pool stats for a single asset. */
+export interface PoolStats {
+    asset: PoolAsset;
+    totalVolume: number;
+    upDownPool: {
+        total: number;
+        up: number;
+        down: number;
+    };
+    precisionPool: {
+        total: number;
+        predictions: number;
+    };
+    historicalYield: number;
+}
+
+type PoolsResponse = PoolStats[] | { data?: PoolStats[]; pools?: PoolStats[] };
+
+/**
+ * Liquidity pool stats used by the Pools page. Accepts a plain array or a
+ * `{ data }` / `{ pools }` wrapper, mirroring the other api-client endpoints.
+ */
+export const poolsApi = {
+    getPools: async (options: { signal?: AbortSignal } = {}) => {
+        const response = await apiFetch<PoolsResponse>('/api/pools', {
+            signal: options.signal,
+        });
+        return normalizeArrayResponse<PoolStats>(
+            response as PoolStats[] | Record<string, unknown>,
+            ['data', 'pools']
+        );
+    },
+};

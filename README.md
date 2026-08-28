@@ -269,6 +269,93 @@ dynamically without requiring a frontend redeployment.
 
 ---
 
+## Mocking the API with MSW
+
+[Mock Service Worker (MSW)](https://mswjs.io) intercepts network requests at the
+protocol level, so contributors can run the **Learn**, **Dashboard**, and
+**Pools** pages entirely offline — no backend required. The same handlers power
+both the dev server and unit tests, so mocks never drift from the test fixtures.
+
+Everything lives under `src/test/msw/`:
+
+```
+src/test/msw/
+├── fixtures/          # Realistic payloads, grouped by domain
+│   ├── education.ts   #   guides + tip of the day
+│   ├── stats.ts       #   network stats + user stats
+│   └── pools.ts       #   BTC / ETH / XLM liquidity pools
+├── handlers.ts        # HTTP handlers (happy path) + errorHandlers (failure path)
+├── server.ts          # Node server + setupMswServer() helper for unit tests
+├── browser.ts         # Browser worker for the dev server
+└── index.ts           # Convenience re-exports
+```
+
+### Endpoints covered
+
+| Domain | Endpoint | Page |
+| --- | --- | --- |
+| Education | `GET /api/education/guides` | Learn |
+| Education | `GET /api/education/tip` | Learn / Dashboard |
+| Stats | `GET /api/stats/network` | Landing |
+| Stats | `GET /api/stats` | Dashboard |
+| Pools | `GET /api/pools` | Pools |
+
+Each endpoint has a happy-path handler plus a matching error handler in
+`errorHandlers`, so both the loaded and failure UI states are testable.
+
+### Enabling MSW in the dev server (offline development)
+
+1. The service worker script is committed at `public/mockServiceWorker.js`.
+   If it ever goes missing or drifts from the installed MSW version, regenerate
+   it with:
+
+   ```bash
+   pnpm dlx msw init public/ --save
+   ```
+
+2. Set the opt-in flag in your environment (`.env` or shell):
+
+   ```bash
+   VITE_ENABLE_MSW=true
+   ```
+
+3. Start the dev server — the worker boots before the app renders:
+
+   ```bash
+   pnpm dev
+   ```
+
+Requests that don't match a handler are passed through to the real backend
+(`onUnhandledRequest: 'bypass'`), so MSW composes with a running backend too.
+
+### Using MSW in unit tests
+
+Tests opt into MSW per file. The easiest way is the `setupMswServer()` helper,
+which starts the server, resets handlers between tests, and closes it at the end:
+
+```ts
+import { server, setupMswServer } from '../test/msw/server';
+import { errorHandlers } from '../test/msw/handlers';
+
+setupMswServer(); // at the top of the test file
+
+it('shows the error state when pools fail', async () => {
+  server.use(...errorHandlers); // override for this test only
+  render(<Pools />);
+  expect(await screen.findByText("Couldn't load pools")).toBeInTheDocument();
+});
+```
+
+- `server.use(handler)` overrides a handler **for the current test only** —
+  `server.resetHandlers()` (run automatically between tests by the helper)
+  restores the defaults.
+- The same `errorHandlers` are exported from `./handlers` and can be spread
+  wholesale or applied one endpoint at a time.
+- Examples to copy from: `src/test/msw/api-client.msw.test.ts` (api-client
+  happy/error paths) and `src/pages/Pools.test.tsx` (page-level integration).
+
+---
+
 ## Project structure notes
 
 ```

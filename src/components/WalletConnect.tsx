@@ -201,6 +201,7 @@ const WalletConnect = () => {
         type="button"
         onClick={() => setIsPickerOpen(true)}
         disabled={status === 'connecting' || status === 'checking'}
+        data-testid="wallet-connect-button"
         className={clsx(
           'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200',
           'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20',
