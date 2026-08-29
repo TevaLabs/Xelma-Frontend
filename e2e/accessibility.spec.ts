@@ -28,11 +28,34 @@ test.describe('E2E accessibility scan', () => {
         });
       });
 
-      const seriousViolations = results.violations.filter((violation) =>
-        violation.impact === 'serious' || violation.impact === 'critical',
+      const seriousViolations = results.violations.filter(
+        (v) => v.impact === 'serious' || v.impact === 'critical',
       );
 
-      expect(seriousViolations).toEqual([]);
+      if (seriousViolations.length > 0) {
+        // Attach full results so CI artifacts contain the detailed report
+        test.info().attach('axe-results.json', {
+          body: JSON.stringify(results, null, 2),
+          contentType: 'application/json',
+        });
+
+        // Print a short summary for logs so it's immediately visible
+        const summary = seriousViolations
+          .map(
+            (v) =>
+              `- ${v.id} (${v.impact}) — ${v.nodes.length} nodes — ${v.description}`,
+          )
+          .join('\n');
+        console.error(
+          `Accessibility: ${seriousViolations.length} serious/critical violations\n${summary}`,
+        );
+
+        // Fail with a clear message (keeps the test failing but makes the cause obvious)
+        expect(
+          seriousViolations.length,
+          `Accessibility: ${seriousViolations.length} serious/critical violations on ${route.name}`,
+        ).toBe(0);
+      }
     });
   }
 });
