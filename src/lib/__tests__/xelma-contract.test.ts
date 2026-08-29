@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { inspectSorobanState, place_bet, place_precision_prediction } from '../xelma-contract';
+import { extractInspectorFields, inspectSorobanState, place_bet, place_precision_prediction } from '../xelma-contract';
 import { signTransaction } from '@stellar/freighter-api';
 
 // Mock the Freighter API
@@ -136,6 +136,21 @@ describe('Smart Contract Bindings', () => {
     expect(result.round).toEqual({ state: 'open' });
   });
 
+  it('inspectSorobanState decodes structured fields from the position/round retvals', async () => {
+    mockSimulateTransaction
+      .mockResolvedValueOnce({ results: [{ retval: { side: 'UP', stake: 500n } }] })
+      .mockResolvedValueOnce({ results: [{ retval: { round_id: 42, pool_up: 1000, pool_down: 400 } }] });
+
+    const result = await inspectSorobanState(userPublicKey);
+
+    expect(result.fields).toEqual({
+      positionSide: 'UP',
+      stake: '500',
+      roundId: '42',
+      poolSplit: '1000 / 400',
+    });
+  });
+
   it('inspectSorobanState returns mock fallback when RPC fails', async () => {
     mockSimulateTransaction.mockRejectedValue(new Error('RPC unavailable'));
 
@@ -152,5 +167,84 @@ describe('Smart Contract Bindings', () => {
     expect(onStatus).toHaveBeenCalledWith('preparing');
     expect(onStatus).toHaveBeenCalledWith('signing');
     expect(onStatus).toHaveBeenCalledWith('submitting');
+  });
+});
+
+describe('extractInspectorFields', () => {
+  it('reads snake_case field names', () => {
+    const fields = extractInspectorFields(
+      { position_side: 'DOWN', stake: 250 },
+      { round_id: 7, pool_split: '60/40' },
+    );
+
+    expect(fields).toEqual({
+      positionSide: 'DOWN',
+      stake: '250',
+      roundId: '7',
+      poolSplit: '60/40',
+    });
+  });
+
+  it('reads camelCase field name aliases', () => {
+    const fields = extractInspectorFields(
+      { positionSide: 'UP', amount: 99 },
+      { roundId: 3, poolUp: 700, poolDown: 300 },
+    );
+
+    expect(fields.positionSide).toBe('UP');
+    expect(fields.stake).toBe('99');
+    expect(fields.roundId).toBe('3');
+    expect(fields.poolSplit).toBe('700 / 300');
+  });
+
+  it('derives pool split from poolUp/poolDown when no explicit pool_split field exists', () => {
+    const fields = extractInspectorFields({}, { pool_up: 10, pool_down: 5 });
+    expect(fields.poolSplit).toBe('10 / 5');
+  });
+
+  it('prefers an explicit pool_split field over deriving from poolUp/poolDown', () => {
+    const fields = extractInspectorFields({}, { pool_split: '80/20', pool_up: 10, pool_down: 5 });
+    expect(fields.poolSplit).toBe('80/20');
+  });
+
+  it('omits fields it cannot find rather than throwing', () => {
+    const fields = extractInspectorFields({ unrelated: true }, { also_unrelated: 1 });
+
+    expect(fields).toEqual({
+      positionSide: undefined,
+      stake: undefined,
+      roundId: undefined,
+      poolSplit: undefined,
+    });
+  });
+
+  it('handles null/undefined position and round without throwing', () => {
+    expect(() => extractInspectorFields(null, undefined)).not.toThrow();
+    expect(extractInspectorFields(null, undefined)).toEqual({
+      positionSide: undefined,
+      stake: undefined,
+      roundId: undefined,
+      poolSplit: undefined,
+    });
+  });
+
+  it('handles non-object (primitive/array) position and round without throwing', () => {
+    expect(() => extractInspectorFields('unexpected-string', [1, 2, 3])).not.toThrow();
+    expect(extractInspectorFields('unexpected-string', [1, 2, 3])).toEqual({
+      positionSide: undefined,
+      stake: undefined,
+      roundId: undefined,
+      poolSplit: undefined,
+    });
+  });
+
+  it('stringifies bigint values', () => {
+    const fields = extractInspectorFields({ side: 'UP', stake: 12345678901234567890n }, {});
+    expect(fields.stake).toBe('12345678901234567890');
+  });
+
+  it('falls back to the position record for round id when the round record has none', () => {
+    const fields = extractInspectorFields({ round_id: 5 }, { state: 'open' });
+    expect(fields.roundId).toBe('5');
   });
 });

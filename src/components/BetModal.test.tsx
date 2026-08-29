@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BetModal from './BetModal';
 import type { PredictionData } from './BetModal';
@@ -175,6 +175,31 @@ describe('BetModal — transaction pending state (#163)', () => {
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
+  it('renders an aria-live region announcing transaction failure', async () => {
+    placeBetImpl = async () => { throw new Error('User rejected'); };
+
+    const { container } = renderOpen();
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      const liveRegion = container.querySelector('[aria-live="assertive"]');
+      expect(liveRegion).toBeInTheDocument();
+      expect(liveRegion).toHaveTextContent(/transaction failed/i);
+      expect(liveRegion).toHaveTextContent(/user rejected/i);
+    });
+  });
+
+  it('renders an aria-live region announcing successful submission', async () => {
+    const { container } = renderOpen();
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      const liveRegion = container.querySelector('[aria-live="polite"]');
+      expect(liveRegion).toBeInTheDocument();
+      expect(liveRegion).toHaveTextContent(/prediction submitted successfully/i);
+    });
+  });
+
   it('shows wallet_required view when wallet is not connected', () => {
     mockIsConnected = false;
     mockIsAuthenticated = false;
@@ -206,6 +231,25 @@ describe('BetModal — transaction pending state (#163)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/prediction submitted/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Prediction Help Tooltip', () => {
+    it('renders the help button in BetModal and opens on click displaying explanations', () => {
+      renderOpen();
+
+      const helpBtn = screen.getByRole('button', { name: 'Help: Legend and Precision rules' });
+      expect(helpBtn).toBeInTheDocument();
+      expect(helpBtn).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(helpBtn);
+
+      expect(helpBtn).toHaveAttribute('aria-expanded', 'true');
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip).toBeInTheDocument();
+      expect(within(tooltip).getByText('UP/DOWN')).toBeInTheDocument();
+      expect(within(tooltip).getByText('Precision')).toBeInTheDocument();
+      expect(within(tooltip).getByText('Legend')).toBeInTheDocument();
     });
   });
 });

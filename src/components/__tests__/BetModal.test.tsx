@@ -107,6 +107,35 @@ describe('BetModal Component', () => {
     expect(screen.getByRole('button', { name: 'Connect & Authenticate' })).toBeInTheDocument();
   });
 
+  it('ignores rapid double-clicks while the first transaction is pending', async () => {
+    let resolveBet!: (value: { txHash: string; ledger: number }) => void;
+    vi.mocked(place_bet).mockImplementation(
+      () => new Promise((resolve) => { resolveBet = resolve; })
+    );
+    vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+    render(
+      <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+    );
+
+    const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+    fireEvent.click(confirmButton);
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(place_bet).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+    });
+    expect(predictionsApi.submit).not.toHaveBeenCalled();
+
+    resolveBet({ txHash: 'tx_hash_double_click', ledger: 456 });
+
+    await waitFor(() => {
+      expect(predictionsApi.submit).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+    });
+  });
+
   it('executes smart contract and backend submit on confirmation', async () => {
     vi.mocked(place_bet).mockImplementation(async (pubkey, dir, stake, onStatus) => {
       if (onStatus) onStatus('preparing');

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import PredictionControls from './PredictionControls';
 
 describe('PredictionControls', () => {
@@ -213,5 +213,54 @@ describe('PredictionControls', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /UP/i }));
     expect(onPrediction).not.toHaveBeenCalled();
+  });
+
+  describe('Help Tooltip', () => {
+    it('renders the help icon button with correct aria attributes', () => {
+      render(<PredictionControls />);
+
+      const helpBtn = screen.getByRole('button', { name: 'Help: Legend and Precision rules' });
+      expect(helpBtn).toBeInTheDocument();
+      expect(helpBtn).toHaveAttribute('aria-expanded', 'false');
+      expect(helpBtn).toHaveAttribute('aria-controls', 'prediction-help-popover');
+    });
+
+    it('tooltip/popover is hidden on initial render', () => {
+      render(<PredictionControls />);
+
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Prediction Rules/i)).not.toBeInTheDocument();
+    });
+
+    it('clicking icon opens popover and shows Legend, Precision, and UP/DOWN labels', () => {
+      render(<PredictionControls />);
+
+      const helpBtn = screen.getByRole('button', { name: 'Help: Legend and Precision rules' });
+      fireEvent.click(helpBtn);
+
+      expect(helpBtn).toHaveAttribute('aria-expanded', 'true');
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip).toBeInTheDocument();
+      expect(tooltip).toHaveAttribute('id', 'prediction-help-popover');
+
+      expect(within(tooltip).getByText('UP/DOWN')).toBeInTheDocument();
+      expect(within(tooltip).getByText('Precision')).toBeInTheDocument();
+      expect(within(tooltip).getByText('Legend')).toBeInTheDocument();
+    });
+
+    it('pressing Escape closes the popover and toggles aria-expanded back to false', () => {
+      render(<PredictionControls />);
+
+      const helpBtn = screen.getByRole('button', { name: 'Help: Legend and Precision rules' });
+      fireEvent.click(helpBtn);
+
+      expect(screen.getByRole('tooltip')).toBeInTheDocument();
+      expect(helpBtn).toHaveAttribute('aria-expanded', 'true');
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+      expect(helpBtn).toHaveAttribute('aria-expanded', 'false');
+    });
   });
 });

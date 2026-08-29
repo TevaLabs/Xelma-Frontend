@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
@@ -65,12 +65,13 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
   const balance = useWalletStore((s) => s.balance);
+  const isWatchOnly = useWalletStore((s) => s.isWatchOnly);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   // Shared transaction status machine (preparing → signing → submitting → syncing)
   const tx = useTxStatusMachine();
 
-  const initialView = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+  const initialView = (!isConnected || !isAuthenticated || isWatchOnly) ? 'wallet_required' : 'confirm';
   const [view, setView] = useState<ModalView>(initialView);
   const [isConnecting, setIsConnecting] = useState(false);
   const [mode, setMode] = useState<PredictionMode>(predictionData?.isLegend ? 'precision' : 'direction');
@@ -166,7 +167,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
     if (isOpen) {
-      const targetView = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+      const targetView = (!isConnected || !isAuthenticated || isWatchOnly) ? 'wallet_required' : 'confirm';
       setView(targetView);
       tx.reset();
       setPrevPredictionData(predictionData);
@@ -179,6 +180,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       setFeeEstimate(null);
       setFeeEstimateStatus('idle');
       setFeeEstimateError(null);
+      setOutcomeAnnouncement('');
     }
   }
 
@@ -213,7 +215,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     setInlineStakeError(error || '');
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     const stakeError = validateStake(stake, balance);
     const exactPriceError = mode === 'precision' ? validateExactPrice(exactPrice) : null;
 
@@ -294,9 +296,31 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         onPredictionError();
       }
     }
-  };
+  }, [balance, direction, exactPrice, isConnected, mode, onPending, onPredictionError, onSuccess, publicKey, stake, tx]);
 
   const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
+
+  const [outcomeAnnouncement, setOutcomeAnnouncement] = useState('');
+  const prevTxStepRef = useRef(tx.step);
+
+  useEffect(() => {
+    if (tx.step === prevTxStepRef.current) return;
+    prevTxStepRef.current = tx.step;
+
+    const timer = window.setTimeout(() => {
+      if (tx.step === 'success') {
+        setOutcomeAnnouncement(
+          'Prediction submitted successfully. Your prediction has been successfully written on-chain and registered.',
+        );
+      } else if (tx.step === 'error') {
+        setOutcomeAnnouncement(`Transaction failed. ${tx.errorMessage || 'An unexpected error occurred.'}`);
+      } else {
+        setOutcomeAnnouncement('');
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [tx.step, tx.errorMessage]);
 
   const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
   const handleConfirmRef = useRef<() => void>(() => {});
@@ -305,7 +329,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   useEffect(() => {
     handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
     handleConfirmRef.current = handleConfirm;
-  }, [handleConfirm]);
+  });
 
   useEffect(() => {
     if (!isOpen || view !== 'confirm') return;
@@ -335,6 +359,16 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {outcomeAnnouncement && (
+        <div
+          aria-live={tx.step === 'error' ? 'assertive' : 'polite'}
+          aria-atomic="true"
+          className="sr-only"
+          role={tx.step === 'error' ? 'alert' : 'status'}
+        >
+          {outcomeAnnouncement}
+        </div>
+      )}
       <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
       <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
         <button
@@ -347,23 +381,44 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
         {view === 'wallet_required' && (
           <div className="text-center py-4">
-            <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
-            <p className="text-gray-400 text-sm mb-6">
-              You need to connect and authenticate your Stellar wallet to submit predictions.
-            </p>
-            <button
-              onClick={handleConnectAndAuth}
-              disabled={isConnecting}
-              className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isConnecting ? 'Connecting…' : 'Connect & Authenticate'}
-            </button>
+            {isWatchOnly ? (
+              <>
+                <h3 className="text-lg font-bold text-purple-400 mb-2">Watch-Only Mode</h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  You are viewing this address in watch-only mode. Connect a wallet with signing capability to submit predictions.
+                </p>
+                <button
+                  onClick={handleConnectAndAuth}
+                  disabled={isConnecting}
+                  className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect Wallet'}
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  You need to connect and authenticate your Stellar wallet to submit predictions.
+                </p>
+                <button
+                  onClick={handleConnectAndAuth}
+                  disabled={isConnecting}
+                  className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect & Authenticate'}
+                </button>
+              </>
+            )}
           </div>
         )}
 
         {view === 'confirm' && tx.step === 'idle' && (
           <div>
-            <h3 className="text-lg font-bold mb-4" id="prediction-modal-title">Confirm Prediction</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold" id="prediction-modal-title">Confirm Prediction</h3>
+              <PredictionHelpTooltip id="bet-modal-prediction-help-popover" />
+            </div>
 
             <p className="mb-4 text-xs text-gray-500" aria-hidden="true">
               <kbd className="inline-block px-1.5 py-0.5 text-[11px] font-semibold border border-gray-600 rounded bg-gray-800 text-gray-300 leading-tight">U</kbd>

@@ -50,6 +50,8 @@ vi.mock('react-router-dom', () => ({
 import { useRoundStore } from '../store/useRoundStore';
 import { useWalletStore } from '../store/useWalletStore';
 import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
+import { useSettingsStore, DEFAULT_SETTINGS } from '../store/useSettingsStore';
+import { bindSoundPreference, playRoundResolutionCue } from '../utils/audioController';
 import Dashboard from './Dashboard';
 
 
@@ -230,6 +232,12 @@ vi.mock('../components/CountdownTimer', () => ({
   ),
 }));
 
+vi.mock('../utils/audioController', () => ({
+  bindSoundPreference: vi.fn(),
+  clearSoundPreferenceBinding: vi.fn(),
+  playRoundResolutionCue: vi.fn(),
+}));
+
 
 describe('Dashboard', () => {
 
@@ -257,6 +265,27 @@ describe('Dashboard', () => {
     Object.assign(mockWalletStore, {
       status: 'connected',
       publicKey: 'GTEST123',
+    });
+
+    localStorage.clear();
+    useSettingsStore.setState({ ...DEFAULT_SETTINGS });
+
+    // vi.resetAllMocks() above clears the global window.matchMedia
+    // implementation from src/test/setup.ts — re-establish it so
+    // useReducedMotion() (used by the deep-linked RoundCard scroll effect)
+    // doesn't crash on `.matches` of undefined.
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
     });
   });
 
@@ -340,6 +369,23 @@ describe('Dashboard', () => {
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-connecting', 'true');
     });
+
+    it('mounts the profile summary panel when the wallet is connected', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
+    });
+
+    it('omits the profile summary panel when the wallet is disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.queryByLabelText('Your profile')).not.toBeInTheDocument();
+    });
   });
 
   describe('round states', () => {
@@ -403,6 +449,60 @@ describe('Dashboard', () => {
     });
   });
 
+  describe('sound (unified with useSettingsStore)', () => {
+    const resolvedRound = {
+      id: 'round-123',
+      status: 'resolved',
+      isWin: true,
+      netChange: 42,
+      tip: 'Nice finish!',
+    };
+
+    function mockResolvedRound() {
+      vi.mocked(useRoundStore).mockImplementation((selector: any) => {
+        const store = { ...mockRoundStore, isRoundActive: false, resolvedRound };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+    }
+
+    it('binds the audio controller to the settings store on mount', () => {
+      render(<Dashboard />);
+      expect(bindSoundPreference).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('plays the round-resolution cue when settings sound is enabled', () => {
+      useSettingsStore.setState({ soundEnabled: true });
+      mockResolvedRound();
+
+      render(<Dashboard />);
+
+      expect(playRoundResolutionCue).toHaveBeenCalledWith(true);
+    });
+
+    it('does not play the round-resolution cue when settings sound is disabled', () => {
+      useSettingsStore.setState({ soundEnabled: false });
+      mockResolvedRound();
+
+      render(<Dashboard />);
+
+      expect(playRoundResolutionCue).not.toHaveBeenCalled();
+    });
+
+    it('never writes the legacy xelma_round_sound localStorage key', () => {
+      useSettingsStore.setState({ soundEnabled: true });
+      mockResolvedRound();
+
+      render(<Dashboard />);
+
+      expect(localStorage.getItem('xelma_round_sound')).toBeNull();
+    });
+
+    it('does not render an ad-hoc round sound toggle', () => {
+      render(<Dashboard />);
+      expect(screen.queryByText('Round sound')).not.toBeInTheDocument();
+    });
+  });
+
   describe('initialization', () => {
     it('fetches active round on mount', () => {
       render(<Dashboard />);
@@ -441,6 +541,73 @@ describe('Dashboard', () => {
       fireEvent.click(closeButton);
 
       expect(modal).toHaveAttribute('data-open', 'false');
+    });
+  });
+
+  describe('round deep-link scroll behavior (?round=)', () => {
+    it('scrolls the highlighted RoundCard into view when the round id is visible', async () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      // Multiple RoundCards render (one per XLM round); find the highlighted one.
+      const cards = await screen.findAllByTestId('round-card');
+      const highlighted = cards.find((c) => c.getAttribute('data-highlighted') === 'true');
+
+      expect(highlighted).toBeTruthy();
+      expect(highlighted).toHaveAttribute('data-highlighted', 'true');
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ block: 'center' }),
+      );
+    });
+
+    it('does not call scrollIntoView when the round id is missing', () => {
+      mockSearchParams = new URLSearchParams();
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not call scrollIntoView when the deep-linked round is filtered out by the asset tab', () => {
+      // Round id 3 is an XLM round; requesting it while on the BTC tab means
+      // it never renders, so there is nothing to scroll to.
+      mockSearchParams = new URLSearchParams('round=3&asset=BTC');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses instant scroll behavior when reduced motion is preferred', () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
     });
   });
 });
