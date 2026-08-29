@@ -15,7 +15,7 @@ import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
 import EventLogDrawer from "../components/EventLogDrawer";
-import { Radio } from "lucide-react";
+import { Eye, Radio, Wallet } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
@@ -549,8 +549,9 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
             <Link
               to="/connect"
               data-testid="dashboard-connect-now"
-              className="btn-primary no-underline inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-5 py-2 text-sm font-bold sm:w-auto"
+              className="btn-primary no-underline inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-bold sm:w-auto"
             >
+              <Wallet className="h-4 w-4" aria-hidden="true" />
               Connect now
             </Link>
           </div>
@@ -583,6 +584,34 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="dashboard__center lg:col-span-1 flex flex-col gap-6">
               {isWalletConnected && <ProfileSummaryCard />}
+              {!isWalletConnected && !isWalletConnecting && (
+                <section
+                  className="rounded-2xl glass-card border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-5"
+                  data-testid="spectate-mode-card"
+                  role="region"
+                  aria-label="Spectate mode"
+                >
+                  <div className="mb-3 flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-[#BEC7FE]" aria-hidden="true" />
+                    <h2 className="text-sm font-bold uppercase tracking-wide text-white">
+                      Spectate Mode
+                    </h2>
+                  </div>
+                  <p className="mb-4 text-sm leading-relaxed text-[#BEC7FE]">
+                    You're watching the live market without a wallet — the chart
+                    and round timeline stay available here. Connect your Freighter
+                    wallet to start predicting and track your winnings.
+                  </p>
+                  <Link
+                    to="/connect"
+                    data-testid="spectate-connect-cta"
+                    className="btn-primary no-underline inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-5 py-2 text-sm font-bold"
+                  >
+                    <Wallet className="h-4 w-4" aria-hidden="true" />
+                    Connect wallet to predict
+                  </Link>
+                </section>
+              )}
               <PredictionCard
                 isWalletConnected={isWalletConnected}
                 isRoundActive={isRoundActive}
@@ -645,20 +674,31 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
           data-testid="mobile-predict-bar"
         >
-          <button
-            type="button"
-            onClick={() => {
-              setPendingPrediction({
-                direction: 'UP',
-                stake: '',
-                isLegend: false,
-              });
-              setIsBetModalOpen(true);
-            }}
-            className="w-full py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm transition active:scale-[0.98] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22d3ee] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
-          >
-            Make Prediction
-          </button>
+          {isWalletConnected ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPendingPrediction({
+                  direction: 'UP',
+                  stake: '',
+                  isLegend: false,
+                });
+                setIsBetModalOpen(true);
+              }}
+              className="w-full py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm transition active:scale-[0.98] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22d3ee] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
+            >
+              Make Prediction
+            </button>
+          ) : (
+            <Link
+              to="/connect"
+              data-testid="mobile-predict-connect"
+              className="no-underline inline-flex w-full items-center justify-center gap-2 py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm transition active:scale-[0.98] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22d3ee] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
+            >
+              <Wallet className="h-4 w-4" aria-hidden="true" />
+              Connect to Predict
+            </Link>
+          )}
         </div>
       )}
 
