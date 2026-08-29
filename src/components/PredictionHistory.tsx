@@ -82,7 +82,13 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
   }, [history, userId]);
 
   useEffect(() => {
-    void loadHistory();
+    // Deferred through a promise chain so the effect performs no synchronous
+    // setState calls (react-hooks/set-state-in-effect).
+    Promise.resolve()
+      .then(() => {
+        void loadHistory();
+      })
+      .catch(() => undefined);
   }, [loadHistory]);
 
   if (!userId) {

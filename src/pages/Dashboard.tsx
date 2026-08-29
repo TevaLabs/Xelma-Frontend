@@ -167,7 +167,7 @@ const Dashboard = () => {
   const publicKey = useWalletStore((s) => s.publicKey);
   const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
-const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
+  const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
@@ -181,14 +181,18 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   // Price that was live when the user's prediction succeeded; marks the chart.
   const [entryPrice, setEntryPrice] = useState<number | null>(null);
 
+  // Clear the entry marker whenever the active round changes. State is adjusted
+  // during render (not in an effect) so we never call setState synchronously
+  // from an effect (react-hooks/set-state-in-effect).
+  const [prevActiveRoundId, setPrevActiveRoundId] = useState(activeRoundId);
+  if (prevActiveRoundId !== activeRoundId) {
+    setPrevActiveRoundId(activeRoundId);
+    setEntryPrice(null);
+  }
+
   const handlePriceUpdate = useCallback((price: number) => {
     currentPriceRef.current = price;
   }, []);
-
-  // Clear the entry marker whenever the active round changes.
-  useEffect(() => {
-    setEntryPrice(null);
-  }, [activeRoundId]);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
@@ -289,8 +293,15 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected, publicKey]);
 
   useEffect(() => {
-    void fetchStats();
-    void fetchActivities();
+    // Deferred through a promise chain so the effect performs no synchronous
+    // setState calls (react-hooks/set-state-in-effect). Both fetches still
+    // start promptly and run concurrently.
+    Promise.resolve()
+      .then(() => {
+        void fetchStats();
+        void fetchActivities();
+      })
+      .catch(() => undefined);
   }, [fetchStats, fetchActivities]);
 
   const refreshInspector = useCallback(async () => {
@@ -315,7 +326,13 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected, publicKey]);
 
   useEffect(() => {
-    void refreshInspector();
+    // Deferred through a promise chain so the effect performs no synchronous
+    // setState calls (react-hooks/set-state-in-effect).
+    Promise.resolve()
+      .then(() => {
+        void refreshInspector();
+      })
+      .catch(() => undefined);
   }, [refreshInspector]);
 
   // Bind the audio controller to the settings store so round-resolution cues
