@@ -10,6 +10,7 @@ import MaskedBalance from './MaskedBalance';
 import NetworkMismatchCard from './NetworkMismatchCard';
 import { EXPECTED_NETWORK_LABEL } from '../lib/stellarNetwork';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
+import FreighterMissingCard from './FreighterMissingCard';
 
 
 const focusRing =
@@ -167,15 +168,24 @@ const WalletConnect = () => {
   }
 
   if (status === 'error' && errorMessage) {
+    if (errorCode === 'FREIGHTER_UNAVAILABLE' || errorMessage.toLowerCase().includes('freighter is not installed')) {
+      return <FreighterMissingCard />;
+    }
+
     return (
-      <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <p
-          className="text-xs sm:text-sm text-red-700 dark:text-red-300 max-w-[220px] sm:max-w-xs text-right sm:text-left"
-          role="alert"
-        >
-          {errorMessage}
-        </p>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-white">
+        <div className="flex items-start gap-2.5">
+          <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-red-200">
+              {errorCode === 'ACCESS_DENIED' ? 'Wallet Access Denied' : 'Connection Error'}
+            </h4>
+            <p className="text-xs text-red-100/80 mt-1" role="alert">
+              {errorMessage}
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
           <button
             type="button"
             onClick={() => {

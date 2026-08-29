@@ -1,19 +1,85 @@
-import { Bell as LucideBell, Check as LucideCheck, Clock as LucideClock } from 'lucide-react';
-import React from 'react';
-
-// Icon wrapper — central place to swap in shadcn-native icons later.
-// Currently re-exports lucide-react icons used across the app.
+/* eslint-disable react-refresh/only-export-components -- icon barrel intentionally re-exports lucide components and sizing helpers. */
+import type { LucideProps } from 'lucide-react';
 
 import { AssetIcon } from './AssetIcon';
 
-export const Bell = (props: React.ComponentProps<typeof LucideBell>) => <LucideBell {...props} />;
-export const Check = (props: React.ComponentProps<typeof LucideCheck>) => <LucideCheck {...props} />;
-export const Clock = (props: React.ComponentProps<typeof LucideClock>) => <LucideClock {...props} />;
+export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
-// Re-export the shared per-asset SVG glyph set (BTC / ETH / XLM).
-// Replaces the older emoji-style "₿ / Ξ / ✦" glyphs used by RoundCard and
-// Pools. See: https://github.com/TevaLabs/Xelma-Frontend/issues/321
+export const iconSizeClass: Record<IconSize, string> = {
+  xs: 'size-3',
+  sm: 'size-4',
+  md: 'size-5',
+  lg: 'size-6',
+  xl: 'size-8',
+};
+
+export const getIconSizeClass = (size: IconSize = 'md') => iconSizeClass[size];
+
+export type { LucideIcon, LucideProps } from 'lucide-react';
+
+export {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Volume2,
+  UserRound,
+  Sliders,
+  Settings,
+  Link,
+  Gauge,
+  ArrowUpRight,
+  Bell,
+  BookMarked,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Clock,
+  Code,
+  Coins,
+  Copy,
+  Crosshair,
+  Download,
+  Droplets,
+  Edit3,
+  ExternalLink,
+  Eye,
+  Github,
+  GraduationCap,
+  Heart,
+  Home,
+  Inbox,
+  LayoutDashboard,
+  Library,
+  Loader2,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Radio,
+  RefreshCw,
+  Search,
+  Share2,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Telescope,
+  TrendingUp,
+  Trophy,
+  User,
+  Users,
+  Wallet,
+  WifiOff,
+  X,
+  XCircle,
+  Zap,
+} from 'lucide-react';
+
 export { AssetIcon };
 export type { AssetIconProps, SupportedAsset } from './AssetIcon';
 
-export default { Bell, Check, Clock, AssetIcon };
+export type AppIconProps = LucideProps;

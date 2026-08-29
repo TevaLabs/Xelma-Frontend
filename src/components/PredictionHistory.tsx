@@ -82,7 +82,10 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
   }, [history, userId]);
 
   useEffect(() => {
-    void loadHistory();
+    const timer = setTimeout(() => {
+      void loadHistory();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadHistory]);
 
   if (!userId) {

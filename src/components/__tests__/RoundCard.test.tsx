@@ -146,6 +146,60 @@ describe('RoundCard Component', () => {
     expect(onSubmitPredictionMock).not.toHaveBeenCalled();
   });
 
+  // Issue #414 — Round-closing urgency state when under 30 seconds
+  describe('urgency state (#414)', () => {
+    it('renders the urgency indicator when secondsLeft < 30', () => {
+      const urgentRound: MockRound = {
+        ...defaultRound,
+        closesInSeconds: 25,
+      };
+      render(<RoundCard round={urgentRound} onSubmitPrediction={vi.fn()} />);
+
+      const pill = screen.getByTestId('round-card-urgency');
+      expect(pill).toBeInTheDocument();
+      expect(screen.getByText('Under 30s')).toBeInTheDocument();
+    });
+
+    it('does not render the urgency indicator when secondsLeft >= 30', () => {
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} />);
+
+      expect(screen.queryByTestId('round-card-urgency')).not.toBeInTheDocument();
+    });
+
+    it('does not render the urgency indicator when the round has expired', () => {
+      const expiredRound: MockRound = {
+        ...defaultRound,
+        closesInSeconds: 0,
+      };
+      render(<RoundCard round={expiredRound} onSubmitPrediction={vi.fn()} />);
+
+      expect(screen.queryByTestId('round-card-urgency')).not.toBeInTheDocument();
+    });
+
+    it('announces the urgency transition politely when crossing the 30-second threshold', () => {
+      vi.useFakeTimers();
+      // Exactly 30s is not urgent; ticking below the threshold triggers it.
+      const boundaryRound: MockRound = {
+        ...defaultRound,
+        closesInSeconds: 30,
+      };
+      render(<RoundCard round={boundaryRound} onSubmitPrediction={vi.fn()} />);
+
+      expect(screen.queryByText('Round closing in under 30 seconds')).not.toBeInTheDocument();
+
+      // Tick past the 30-second threshold, then flush the announcement timer.
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+
+      expect(screen.getByText('Round closing in under 30 seconds')).toBeInTheDocument();
+      vi.useRealTimers();
+    });
+  });
+
   // Issue #175 — Improve RoundCard touch targets and mobile card layout
   describe('Mobile layout & touch targets (#175)', () => {
     it('submit button enforces a minimum 44px tap target height', () => {

@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bell,
   CheckCircle2,
+  Code,
   Eye,
   Gauge,
   RefreshCw,
@@ -21,6 +22,8 @@ import {
   playTestTone,
 } from '../utils/audioController';
 import NetworkBadge from '../components/NetworkBadge';
+import DevSettingsDrawer from '../components/DevSettingsDrawer';
+import { SHOW_DEV_SETTINGS } from '../lib/stellarConfig';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -131,6 +134,8 @@ export default function Settings() {
   const setStreamerMode = useSettingsStore((s) => s.setStreamerMode);
   const setMotionPreference = useSettingsStore((s) => s.setMotionPreference);
   const resetToDefaults = useSettingsStore((s) => s.resetToDefaults);
+
+  const [isDevDrawerOpen, setIsDevDrawerOpen] = useState(false);
 
   const { reduced, systemPreference, override } = useReducedMotion();
 
@@ -472,6 +477,50 @@ export default function Settings() {
             Use these controls only if you want to override that.
           </p>
         </section>
+
+        {/* Developer settings (dev/testnet only) */}
+        {SHOW_DEV_SETTINGS && (
+          <section
+            aria-labelledby="settings-dev-heading"
+            className="glass-card mb-6 rounded-xl p-6 sm:p-8"
+            data-testid="settings-section-dev"
+          >
+            <header className="mb-6 flex items-center gap-3">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#22D3EE]/10 text-[#22D3EE]"
+                aria-hidden
+              >
+                <Code className="h-5 w-5" />
+              </div>
+              <div>
+                <h2
+                  id="settings-dev-heading"
+                  className="text-lg font-bold text-white"
+                >
+                  Developer
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Inspect the on-chain configuration this build is connected to.
+                </p>
+              </div>
+            </header>
+
+            <button
+              type="button"
+              onClick={() => setIsDevDrawerOpen(true)}
+              className="btn-ghost inline-flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-bold"
+              data-testid="settings-open-dev-drawer"
+            >
+              <Code className="h-4 w-4" aria-hidden />
+              View contract config
+            </button>
+          </section>
+        )}
+
+        <DevSettingsDrawer
+          isOpen={isDevDrawerOpen}
+          onClose={() => setIsDevDrawerOpen(false)}
+        />
 
         {/* Footer note */}
         <p className="mt-2 text-center text-xs text-gray-500">

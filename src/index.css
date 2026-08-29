@@ -113,6 +113,12 @@ body {
   border-color: rgba(44, 75, 253, 0.35);
 }
 
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
 /* Status dots */
 .status-dot {
   display: inline-block;
@@ -130,6 +136,14 @@ body {
 .status-dot-yellow {
   background: #fbbf24;
   box-shadow: 0 0 8px #fbbf24;
+}
+
+/* Urgent (round closing in under 30 seconds) — distinct from the yellow
+   CLOSING SOON dot, used by RoundCard's non-blocking urgency pill. */
+.status-dot-urgent {
+  background: #fb7185;
+  box-shadow: 0 0 8px #fb7185;
+  animation: pulse-urgent 0.9s ease-in-out infinite;
 }
 
 .status-dot-green {
@@ -151,6 +165,18 @@ body {
   }
   50% {
     opacity: 0.55;
+  }
+}
+
+@keyframes pulse-urgent {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.4);
   }
 }
 
@@ -177,7 +203,8 @@ body {
   }
 
   .status-dot-live,
-  .status-dot-red {
+  .status-dot-red,
+  .status-dot-urgent {
     animation: none;
   }
 
