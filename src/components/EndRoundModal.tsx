@@ -33,8 +33,8 @@ export default function EndRoundModal({
 
   useEffect(() => {
     if (!isOpen) {
-      setResultAnnouncement('');
-      return;
+      const resetTimer = window.setTimeout(() => setResultAnnouncement(''), 0);
+      return () => window.clearTimeout(resetTimer);
     }
 
     const formattedAmount = Math.abs(amount).toFixed(2);

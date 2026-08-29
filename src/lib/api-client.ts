@@ -1,3 +1,16 @@
+/**
+ * Typed REST boundary for the Xelma frontend.
+ *
+ * This module owns domain-scoped API modules (`*Api`) built on `apiFetch`.
+ * Zustand stores and UI components should import from here — not call
+ * `fetch('/api/…')` directly — except for documented exceptions (auth,
+ * SSE, profile, chat). See docs/api-client-boundary.md for:
+ *
+ * - Endpoint ownership matrix (api-client vs stores vs legacy modules)
+ * - Zod validation boundaries (`api-schemas.ts`)
+ * - Safe extension checklist for new/changed backend routes
+ * - Optional OpenAPI → TypeScript / MSW stub generation notes
+ */
 import type { Guide, Tip } from '../types/education';
 import type { NotificationItem } from '../types/notification';
 import { apiFetch } from './api';
