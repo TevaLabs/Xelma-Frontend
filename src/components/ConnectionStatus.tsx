@@ -25,11 +25,11 @@ export function ConnectionStatus({
 
   const getStatusColor = () => {
     switch (status) {
-      case 'connected': return 'text-green-600 bg-green-50 border-green-200';
-      case 'connecting': return 'text-blue-600 bg-blue-50 border-blue-200';
-      case 'reconnecting': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'disconnected': return 'text-red-600 bg-red-50 border-red-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'connected': return 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800/30';
+      case 'connecting': return 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800/30';
+      case 'reconnecting': return 'text-yellow-800 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800/30';
+      case 'disconnected': return 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800/30';
+      default: return 'text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-950/20 border-gray-200 dark:border-gray-800/30';
     }
   };
 

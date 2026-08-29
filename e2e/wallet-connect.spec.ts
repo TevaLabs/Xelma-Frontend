@@ -12,8 +12,12 @@ function mockFreighter(page: import('@playwright/test').Page) {
         connected = true;
         return Promise.resolve({ address: mockAddress, error: null });
       },
-      getAddress: () =>
-        Promise.resolve({ address: mockAddress, error: null }),
+      getAddress: () => {
+        if (!connected) {
+          return Promise.resolve({ address: '', error: 'User not connected' });
+        }
+        return Promise.resolve({ address: mockAddress, error: null });
+      },
       getNetwork: () => Promise.resolve({ network: 'TESTNET', error: null }),
       signMessage: (message: string) =>
         Promise.resolve({ signedMessage: `mocked_signature_${message}`, error: null }),
@@ -22,6 +26,35 @@ function mockFreighter(page: import('@playwright/test').Page) {
 }
 
 test.describe('Wallet Connect – Freighter Mocked', () => {
+  test.beforeEach(async ({ page }) => {
+    page.on('console', (msg) => console.log('BROWSER CONSOLE:', msg.text(), msg.location().url));
+    page.on('pageerror', (err) => console.error('BROWSER PAGE ERROR:', err));
+
+    await page.route('**/api/rounds/active', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(null),
+      })
+    );
+
+    await page.route('**/api/stats/network', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({}),
+      })
+    );
+
+    await page.route('**/api/rounds/events', (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: 'text/event-stream',
+        body: '',
+      })
+    );
+  });
+
   test('Connect page shows wallet prompt and Connect Wallet button', async ({ page }) => {
     await mockFreighter(page);
 

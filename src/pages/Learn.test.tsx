@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LearnPage from './Learn';
 import { educationApi } from '../lib/api-client';
@@ -27,15 +27,25 @@ vi.mock('lucide-react', () => ({
     BookMarked: () => <div data-testid="bookmarked-icon" />,
     GraduationCap: () => <div data-testid="grad-icon" />,
     Telescope: () => <div data-testid="telescope-icon" />,
+    Search: () => <div data-testid="search-icon" />,
+    X: () => <div data-testid="x-icon" />,
 }));
 
 const mockGuides = [
     {
         id: '1',
         title: 'How to Predict',
-        description: 'A guide to prediction',
-        category: 'Stratery',
+        description: 'A guide to prediction strategies',
+        category: 'Strategy',
         readTime: '5 min',
+        createdAt: new Date().toISOString(),
+    },
+    {
+        id: '2',
+        title: 'Stellar Fundamentals',
+        description: 'Ecosystem basics and XLM',
+        category: 'Basics',
+        readTime: '3 min',
         createdAt: new Date().toISOString(),
     },
 ];
@@ -69,7 +79,87 @@ describe('LearnPage', () => {
         await waitFor(() => {
             expect(screen.getByText('How to Predict')).toBeInTheDocument();
         });
+        expect(screen.getByText('Stellar Fundamentals')).toBeInTheDocument();
         expect(screen.getByText(/Always check the chart/i)).toBeInTheDocument();
+    });
+
+    it('filters guides client-side based on search query without network requests', async () => {
+        mockedEducationApi.getGuides.mockResolvedValue(mockGuides);
+        mockedEducationApi.getTip.mockResolvedValue(mockTip);
+
+        render(<LearnPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        });
+
+        const searchInput = screen.getByRole('textbox', { name: /search guides/i });
+        fireEvent.change(searchInput, { target: { value: 'Stellar' } });
+
+        expect(screen.getByText('Stellar Fundamentals')).toBeInTheDocument();
+        expect(screen.queryByText('How to Predict')).not.toBeInTheDocument();
+        expect(mockedEducationApi.getGuides).toHaveBeenCalledTimes(1);
+    });
+
+    it('filters guides by category chip selection', async () => {
+        mockedEducationApi.getGuides.mockResolvedValue(mockGuides);
+        mockedEducationApi.getTip.mockResolvedValue(mockTip);
+
+        render(<LearnPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        });
+
+        const strategyChip = screen.getByRole('button', { name: 'Strategy' });
+        fireEvent.click(strategyChip);
+
+        expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        expect(screen.queryByText('Stellar Fundamentals')).not.toBeInTheDocument();
+        expect(strategyChip).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('renders empty match state and clears search/filter when clear button clicked', async () => {
+        mockedEducationApi.getGuides.mockResolvedValue(mockGuides);
+        mockedEducationApi.getTip.mockResolvedValue(mockTip);
+
+        render(<LearnPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        });
+
+        const searchInput = screen.getByRole('textbox', { name: /search guides/i });
+        fireEvent.change(searchInput, { target: { value: 'nonexistent query' } });
+
+        expect(screen.getByText(/No matching guides found/i)).toBeInTheDocument();
+
+        const clearButton = screen.getByRole('button', { name: /clear search & filters/i });
+        fireEvent.click(clearButton);
+
+        expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        expect(screen.getByText('Stellar Fundamentals')).toBeInTheDocument();
+    });
+
+    it('clears search input via clear icon button', async () => {
+        mockedEducationApi.getGuides.mockResolvedValue(mockGuides);
+        mockedEducationApi.getTip.mockResolvedValue(mockTip);
+
+        render(<LearnPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        });
+
+        const searchInput = screen.getByRole('textbox', { name: /search guides/i });
+        fireEvent.change(searchInput, { target: { value: 'Stellar' } });
+
+        const clearIconBtn = screen.getByRole('button', { name: /clear search/i });
+        fireEvent.click(clearIconBtn);
+
+        expect(searchInput).toHaveValue('');
+        expect(screen.getByText('How to Predict')).toBeInTheDocument();
+        expect(screen.getByText('Stellar Fundamentals')).toBeInTheDocument();
     });
 
     it('renders empty states when no content is returned', async () => {

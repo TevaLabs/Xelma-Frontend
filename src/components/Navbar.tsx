@@ -79,7 +79,7 @@ export default function Navbar() {
   const connect = useWalletStore((s) => s.connect);
   const checkConnection = useWalletStore((s) => s.checkConnection);
   const isWatchOnly = useWalletStore((s) => s.isWatchOnly);
-  const isConnecting = status === 'connecting' || status === 'checking';
+  const isConnecting = status === 'connecting';
   const currentLanguage = (i18n.language || 'en').split('-')[0];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

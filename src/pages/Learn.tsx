@@ -1,17 +1,42 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { educationApi } from "../lib/api-client";
 import { normalizeApiError } from "../lib/api";
 import type { Guide, Tip } from "../types/education";
 import { GuideCard } from "../components/education/GuideCard";
 import { TipCard } from "../components/education/TipCard";
 import { LoadingState, ErrorState, EmptyState } from "../components/ui/StatusStates";
-import { BookMarked, GraduationCap, Telescope } from "lucide-react";
+import { BookMarked, GraduationCap, Telescope, Search, X } from "lucide-react";
 
 const LearnPage = () => {
     const [guides, setGuides] = useState<Guide[]>([]);
     const [tip, setTip] = useState<Tip | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("All");
+
+    const categories = useMemo(() => {
+        const extracted = guides.map((g) => g.category).filter(Boolean);
+        return Array.from(new Set(["All", ...extracted]));
+    }, [guides]);
+
+    const filteredGuides = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        return guides.filter((guide) => {
+            const matchesCategory =
+                selectedCategory === "All" ||
+                guide.category?.toLowerCase() === selectedCategory.toLowerCase();
+
+            const matchesSearch =
+                !query ||
+                guide.title.toLowerCase().includes(query) ||
+                guide.description.toLowerCase().includes(query) ||
+                (guide.category && guide.category.toLowerCase().includes(query)) ||
+                (guide.content && guide.content.toLowerCase().includes(query));
+
+            return matchesCategory && matchesSearch;
+        });
+    }, [guides, searchQuery, selectedCategory]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -100,18 +125,94 @@ const LearnPage = () => {
                     {/* Main Content: Guides */}
                     <div className="lg:col-span-8 space-y-8">
                         <section aria-labelledby="learn-guides-heading">
-                            <div className="flex items-center gap-3 mb-8">
-                                <BookMarked className="text-xelma-teal shrink-0" size={24} aria-hidden />
-                                <h2 id="learn-guides-heading" className="text-2xl font-bold text-white">
-                                    Expert Guides
-                                </h2>
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <BookMarked className="text-xelma-teal shrink-0" size={24} aria-hidden />
+                                    <h2 id="learn-guides-heading" className="text-2xl font-bold text-white">
+                                        Expert Guides
+                                    </h2>
+                                </div>
+
+                                {/* Search Input */}
+                                {guides.length > 0 && (
+                                    <div className="relative w-full sm:w-72">
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                                            <Search size={16} aria-hidden />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            id="guide-search"
+                                            aria-label="Search guides"
+                                            placeholder="Search guides..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full rounded-xl bg-white/5 border border-white/10 pl-9 pr-8 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-xelma-teal focus:border-transparent transition-all"
+                                        />
+                                        {searchQuery && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSearchQuery("")}
+                                                aria-label="Clear search"
+                                                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal rounded-r-xl"
+                                            >
+                                                <X size={14} aria-hidden />
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
-                            {guides.length > 0 ? (
+                            {/* Category Filter Chips */}
+                            {guides.length > 0 && categories.length > 1 && (
+                                <div
+                                    className="flex flex-wrap gap-2 items-center mb-6"
+                                    role="group"
+                                    aria-label="Filter guides by category"
+                                >
+                                    {categories.map((category) => {
+                                        const isSelected = selectedCategory.toLowerCase() === category.toLowerCase();
+                                        return (
+                                            <button
+                                                key={category}
+                                                type="button"
+                                                onClick={() => setSelectedCategory(category)}
+                                                aria-pressed={isSelected}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal ${
+                                                    isSelected
+                                                        ? "bg-xelma-teal text-[#0A0F1A] shadow-sm shadow-xelma-teal/20 font-bold"
+                                                        : "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10"
+                                                }`}
+                                            >
+                                                {category}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {filteredGuides.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {guides.map((guide) => (
+                                    {filteredGuides.map((guide) => (
                                         <GuideCard key={guide.id} guide={guide} />
                                     ))}
+                                </div>
+                            ) : guides.length > 0 ? (
+                                <div className="text-center py-12 px-4 rounded-2xl glass-card border border-white/10">
+                                    <EmptyState
+                                        title="No matching guides found"
+                                        message={`No guides match your search query${selectedCategory !== 'All' ? ` or selected category "${selectedCategory}"` : ''}. Try adjusting your filters.`}
+                                        icon={<Telescope className="h-12 w-12 text-gray-500 mb-3" />}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearchQuery("");
+                                            setSelectedCategory("All");
+                                        }}
+                                        className="mt-4 px-4 py-2 rounded-xl bg-xelma-teal/10 border border-xelma-teal/30 text-xelma-teal hover:bg-xelma-teal/20 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal"
+                                    >
+                                        Clear Search & Filters
+                                    </button>
                                 </div>
                             ) : (
                                 <EmptyState

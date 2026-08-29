@@ -58,24 +58,25 @@ export default function EndRoundModal({
   }, [isOpen]);
 
   return (
-    <Dialog.Root
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/90 backdrop-blur-md" />
-        <Dialog.Content
-          aria-label={isWin ? 'Spectacular Win!' : 'Tough Break'}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 focus:outline-none"
-        >
-          {resultAnnouncement && (
-            <div aria-live="polite" aria-atomic="true" className="sr-only" role="status">
-              {resultAnnouncement}
-            </div>
-          )}
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0A0F1A] p-6">
+    <>
+      {resultAnnouncement && (
+        <div aria-live="polite" aria-atomic="true" className="sr-only" role="status">
+          {resultAnnouncement}
+        </div>
+      )}
+      <Dialog.Root
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/90 backdrop-blur-md" />
+          <Dialog.Content
+            aria-label={isWin ? 'Spectacular Win!' : 'Tough Break'}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 focus:outline-none"
+          >
+            <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0A0F1A] p-6">
             <Dialog.Title className="text-2xl font-black text-white">
               {isWin ? 'Spectacular Win!' : 'Tough Break'}
             </Dialog.Title>
@@ -105,6 +106,7 @@ export default function EndRoundModal({
           </div>
         </Dialog.Content>
       </Dialog.Portal>
-    </Dialog.Root>
+      </Dialog.Root>
+    </>
   );
 }

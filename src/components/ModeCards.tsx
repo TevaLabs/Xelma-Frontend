@@ -59,7 +59,7 @@ const ACCENT_STYLES = {
     badgeBorder: 'border-xelma-teal/20',
     iconBg: 'bg-xelma-teal/10 text-xelma-teal',
     button:
-      'bg-xelma-teal text-white hover:brightness-90 focus-visible:ring-xelma-teal',
+      'bg-xelma-teal text-[#0A0F1A] font-bold hover:brightness-90 focus-visible:ring-xelma-teal',
     bulletDot: 'bg-xelma-teal',
   },
 } as const;

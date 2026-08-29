@@ -1,6 +1,35 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Smoke Tests - Critical Routes', () => {
+  test.beforeEach(async ({ page }) => {
+    page.on('console', (msg) => console.log('BROWSER CONSOLE:', msg.text(), msg.location().url));
+    page.on('pageerror', (err) => console.error('BROWSER PAGE ERROR:', err));
+
+    await page.route('**/api/rounds/active', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(null),
+      })
+    );
+
+    await page.route('**/api/stats/network', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({}),
+      })
+    );
+
+    await page.route('**/api/rounds/events', (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: 'text/event-stream',
+        body: '',
+      })
+    );
+  });
+
   test('Landing page loads and renders correctly', async ({ page }) => {
     await page.goto('/');
 
@@ -39,6 +68,15 @@ test.describe('Smoke Tests - Critical Routes', () => {
   });
 
   test('Leaderboard page loads and renders correctly', async ({ page }) => {
+    // Mock leaderboard API
+    await page.route('**/api/leaderboard**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      })
+    );
+
     await page.goto('/leaderboard');
 
     // Verify page title

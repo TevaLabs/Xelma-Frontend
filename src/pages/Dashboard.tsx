@@ -553,7 +553,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
           </div>
         )}
 
-        {!isLoading && !isWalletConnected && (
+        {!isWalletConnected && (
           <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-4 text-sm text-[#BEC7FE] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4">
             <p className="leading-relaxed" data-testid="dashboard-wallet-prompt">
               {t('dashboard.walletPrompt.message')}
