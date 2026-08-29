@@ -66,10 +66,7 @@ const WalletConnect = () => {
   useEffect(() => {
     let cancelled = false;
 
-    if (!publicKey || !showReceivePanel) {
-      setQrDataUrl(null);
-      return;
-    }
+    if (!publicKey || !showReceivePanel) return;
 
     void toDataURL(publicKey, {
       errorCorrectionLevel: 'M',
@@ -190,7 +187,10 @@ const WalletConnect = () => {
             </button>
             <button
               type="button"
-              onClick={() => setShowReceivePanel((isOpen) => !isOpen)}
+              onClick={() => setShowReceivePanel((isOpen) => {
+                if (isOpen) setQrDataUrl(null);
+                return !isOpen;
+              })}
               className={clsx(
                 'shrink-0 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
                 focusRing

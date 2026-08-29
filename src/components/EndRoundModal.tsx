@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
 
 interface EndRoundModalProps {

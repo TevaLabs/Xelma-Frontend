@@ -81,6 +81,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const [formError, setFormError] = useState('');
   const [inlineStakeError, setInlineStakeError] = useState('');
   const [outcomeAnnouncement, setOutcomeAnnouncement] = useState('');
+  const prevTxStepRef = useRef(tx.step);
 
   // Fee estimate state
   const [feeEstimate, setFeeEstimate] = useState<FeeEstimate | null>(null);
@@ -300,8 +301,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   }, [balance, direction, exactPrice, isConnected, mode, onPending, onPredictionError, onSuccess, publicKey, stake, tx]);
 
   const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
-
-  const prevTxStepRef = useRef(tx.step);
 
   useEffect(() => {
     if (tx.step === prevTxStepRef.current) return;
