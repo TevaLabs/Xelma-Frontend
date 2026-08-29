@@ -3,10 +3,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WalletConnect from './WalletConnect';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { toast } from 'sonner';
+import { toDataURL } from 'qrcode';
 
 // Mock the stores
 vi.mock('../store/useWalletStore');
 vi.mock('../store/useAuthStore');
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+vi.mock('qrcode', () => ({
+  toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,qr-code'),
+}));
 
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
@@ -16,6 +27,8 @@ vi.mock('lucide-react', () => ({
   Wallet: ({ className, ...props }: any) => <div data-testid="wallet-icon" className={className} {...props} />,
   ShieldCheck: ({ className, ...props }: any) => <div data-testid="shield-icon" className={className} {...props} />,
   RefreshCw: ({ className, ...props }: any) => <div data-testid="refresh-icon" className={className} {...props} />,
+  Copy: ({ className, ...props }: any) => <div data-testid="copy-icon" className={className} {...props} />,
+  QrCode: ({ className, ...props }: any) => <div data-testid="qr-icon" className={className} {...props} />,
 }));
 
 const mockWalletStore = {
@@ -37,6 +50,12 @@ const mockAuthStore = {
 describe('WalletConnect', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(toDataURL).mockResolvedValue('data:image/png;base64,qr-code');
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
     
     vi.mocked(useWalletStore).mockImplementation((selector: any) => {
       if (typeof selector === 'function') {
@@ -170,6 +189,36 @@ describe('WalletConnect', () => {
       fireEvent.click(disconnectButton);
 
       expect(mockWalletStore.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('copies the connected public key with a success toast', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /copy public key/i }));
+
+      await waitFor(() => {
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith('GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+      });
+      expect(toast.success).toHaveBeenCalledWith('Public key copied');
+    });
+
+    it('shows a receive panel with a QR code encoding the public key', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /show receive qr code/i }));
+
+      await waitFor(() => {
+        expect(toDataURL).toHaveBeenCalledWith(
+          'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          expect.objectContaining({ errorCorrectionLevel: 'M' }),
+        );
+      });
+      expect(screen.getByRole('img', { name: /qr code for connected stellar public key/i })).toHaveAttribute(
+        'src',
+        'data:image/png;base64,qr-code',
+      );
+      expect(screen.getByText('GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /copy address/i })).toBeInTheDocument();
     });
 
     it('shows authentication status when authenticated', () => {
