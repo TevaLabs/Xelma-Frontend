@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRoundCountdown } from '../hooks/useRoundCountdown';
 
 interface RoundTimerProps {
@@ -45,15 +45,10 @@ export default function RoundTimer({
     return Number(t);
   };
 
-  const [initialDurationMs, setInitialDurationMs] = useState(() => {
+  const [initialDurationMs] = useState(() => {
     const diff = resolveTimestamp(endTime) - Date.now();
     return diff > 0 ? diff : 1;
   });
-
-  useEffect(() => {
-    const diff = resolveTimestamp(endTime) - Date.now();
-    setInitialDurationMs(diff > 0 ? diff : 1);
-  }, [endTime]);
 
   const progress =
     initialDurationMs > 0

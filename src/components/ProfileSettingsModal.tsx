@@ -8,6 +8,7 @@ import { useFocusTrap } from "../hooks/useFocusTrap";
 import { MODAL_OVERLAY, MODAL_CONTENT } from "../utils/motion";
 import IdenticonAvatar from "./IdenticonAvatar";
 import AvatarCropModal from "./AvatarCropModal";
+import { useSettingsStore } from "../store/useSettingsStore";
 
 type Props = {
   onClose: () => void;
@@ -79,6 +80,7 @@ function ProfileSettingsForm({
 }) {
   const saveProfile = useProfileStore((s) => s.saveProfile);
   const walletAddress = useWalletStore((s) => s.publicKey);
+  const setStreamerModeSetting = useSettingsStore((s) => s.setStreamerMode);
 
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(resolved.avatarUrl);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
@@ -199,6 +201,11 @@ function ProfileSettingsForm({
     const ok = await saveProfile(payload);
 
     setIsSaving(false);
+
+    // Mirror the streamer-mode toggle into the Settings page's local
+    // preference so the two controls stay in sync (Settings.tsx preview,
+    // future proofs-of-streamer-mode) without waiting for a page navigation.
+    setStreamerModeSetting(streamerMode);
 
     if (ok) {
       writeDraft(payload);

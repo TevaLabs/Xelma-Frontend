@@ -33,7 +33,12 @@ export interface RankTier {
 export interface RecentActivityItem {
   id: string;
   asset: string;
-  result: 'Won' | 'Lost';
+  result: 'Won' | 'Lost' | 'Pending' | 'Failed';
   amount: number;
   mode: RoundMode;
+}
+
+export interface PricePoint {
+  time: number;
+  value: number;
 }

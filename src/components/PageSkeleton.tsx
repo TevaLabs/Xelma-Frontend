@@ -10,7 +10,7 @@ interface PageSkeletonProps {
    * Name of the page type – used to apply different placeholder dimensions.
    * Supported values: 'dashboard' | 'legacy' | 'leaderboard' | 'learn'.
    */
-  type: 'dashboard' | 'legacy' | 'leaderboard' | 'learn';
+  type: 'dashboard' | 'legacy' | 'leaderboard' | 'learn' | 'settings';
 }
 
 const PageSkeleton: React.FC<PageSkeletonProps> = ({ type }) => {
@@ -19,6 +19,7 @@ const PageSkeleton: React.FC<PageSkeletonProps> = ({ type }) => {
     legacy: 'h-80',
     leaderboard: 'h-64',
     learn: 'h-72',
+    settings: 'h-80',
   };
 
   return (

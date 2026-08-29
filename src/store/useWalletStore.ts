@@ -1,14 +1,16 @@
 import { create } from 'zustand';
-import {
-  isConnected,
-  requestAccess,
-  getAddress,
-  getNetwork,
-  signMessage,
-} from '@stellar/freighter-api';
+import { isConnected, getAddress, getNetwork } from '@stellar/freighter-api';
 import { toast } from 'sonner';
+import { freighterAdapter } from '../lib/wallets';
 import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
+import { HORIZON_URL } from '../lib/horizon';
+import { FRIENDBOT_ENABLED, LOW_BALANCE_THRESHOLD_XLM } from '../lib/friendbot';
+import {
+  EXPECTED_NETWORK_LABEL,
+  isExpectedNetwork,
+  networkPassphraseFor,
+} from '../lib/stellarNetwork';
 
 const API_BASE = getApiBaseUrl();
 
@@ -32,13 +34,44 @@ interface WalletState {
   /** Last user-visible error (cleared on successful connect/check). */
   errorMessage: string | null;
   errorCode: WalletErrorCode | null;
-  /** True when Freighter reports a network other than TESTNET (still connected). */
+  /** True when Freighter reports a network other than the configured one (still connected). */
   networkMismatch: boolean;
+  /** True when viewing an address in watch-only mode (no signing capability). */
+  isWatchOnly: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
   reset: () => void;
   checkConnection: () => Promise<void>;
+  /** Re-reads the native balance from Horizon for the connected address. */
+  refreshBalance: () => Promise<void>;
   clearError: () => void;
+  /** Set watch-only mode with a specific address (no signing capability). */
+  setWatchOnly: (address: string) => Promise<void>;
+}
+
+/**
+ * Reads the native XLM balance for an address from Horizon and formats it for
+ * display. An account Horizon does not know yet (404) reads as `0.00 XLM`.
+ */
+async function fetchFormattedBalance(address: string): Promise<string> {
+  const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
+  if (response.status === 404) {
+    return '0.00 XLM';
+  }
+  if (!response.ok) {
+    throw new Error(`Horizon returned ${response.status}`);
+  }
+  const data = await response.json();
+  const balances = data.balances as Array<{ asset_type: string; balance: string }>;
+  const nativeBalance = balances.find((b) => b.asset_type === 'native');
+  return nativeBalance ? `${parseFloat(nativeBalance.balance).toFixed(2)} XLM` : '0.00 XLM';
+}
+
+/** Parses a stored balance string such as `12.50 XLM` into a number. */
+export function parseXlmBalance(balance: string | null): number | null {
+  if (!balance) return null;
+  const parsed = Number.parseFloat(balance.replace(/[^\d.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /** Dedupe concurrent checkConnection calls (remount / multiple headers). */
@@ -59,6 +92,17 @@ function mapConnectError(err: unknown): { message: string; code: WalletErrorCode
 export const selectIsWalletConnected = (s: WalletState): boolean =>
   s.status === 'connected' && Boolean(s.publicKey);
 
+/**
+ * True when a connected testnet account is too poor to pay Soroban fees, so the
+ * Friendbot CTA should be offered. Never true on mainnet, and never while the
+ * balance is unknown (Horizon unreachable) — guessing would only add noise.
+ */
+export const selectNeedsFunding = (s: WalletState): boolean => {
+  if (!FRIENDBOT_ENABLED || !selectIsWalletConnected(s)) return false;
+  const xlm = parseXlmBalance(s.balance);
+  return xlm !== null && xlm < LOW_BALANCE_THRESHOLD_XLM;
+};
+
 export const useWalletStore = create<WalletState>((set, get) => ({
   status: 'idle',
   publicKey: null,
@@ -67,6 +111,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   errorMessage: null,
   errorCode: null,
   networkMismatch: false,
+  isWatchOnly: false,
 
   clearError: () => set({ errorMessage: null, errorCode: null }),
 
@@ -79,6 +124,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       errorMessage: null,
       errorCode: null,
       networkMismatch: false,
+      isWatchOnly: false,
     });
   },
 
@@ -91,6 +137,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       errorMessage: null,
       errorCode: null,
       networkMismatch: false,
+      isWatchOnly: false,
     });
     useAuthStore.getState().clearAuth();
     toast.success('Wallet disconnected');
@@ -134,23 +181,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         const { network } = await getNetwork();
         const net = (network as string | null) || null;
-        const networkMismatch = net !== 'TESTNET';
+        const networkMismatch = !isExpectedNetwork(net);
 
         let formattedBalance: string | null = null;
         try {
-          const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${address}`);
-          if (response.status === 404) {
-            formattedBalance = '0.00 XLM';
-          } else if (!response.ok) {
-            throw new Error('Fetch failed');
-          } else {
-            const data = await response.json();
-            const balances = data.balances as Array<{ asset_type: string; balance: string }>;
-            const nativeBalance = balances.find((b) => b.asset_type === 'native');
-            formattedBalance = nativeBalance
-              ? `${parseFloat(nativeBalance.balance).toFixed(2)} XLM`
-              : '0.00 XLM';
-          }
+          formattedBalance = await fetchFormattedBalance(address);
         } catch {
           formattedBalance = null;
           toast.error('Could not load balance. You can still use the app; try reconnecting if needed.');
@@ -167,7 +202,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         });
 
         if (networkMismatch) {
-          toast.error('Please switch to Stellar Testnet in Freighter for full compatibility.');
+          toast.error(`Please switch to Stellar ${EXPECTED_NETWORK_LABEL} in Freighter for full compatibility.`);
         }
       } catch {
         set({
@@ -185,6 +220,68 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     return checkConnectionInFlight;
   },
 
+  refreshBalance: async () => {
+    const { publicKey } = get();
+    if (!publicKey) return;
+
+    try {
+      set({ balance: await fetchFormattedBalance(publicKey) });
+    } catch {
+      toast.error('Could not refresh balance. Try again in a moment.');
+    }
+  },
+
+  setWatchOnly: async (address: string) => {
+    set({
+      status: 'connecting',
+      errorMessage: null,
+      errorCode: null,
+      networkMismatch: false,
+    });
+
+    try {
+      // Validate Stellar G-address format
+      if (!address.startsWith('G') || address.length !== 56) {
+        throw new Error('Invalid Stellar address. Must be a G-address (56 characters starting with G).');
+      }
+
+      let formattedBalance: string | null = null;
+      try {
+        formattedBalance = await fetchFormattedBalance(address);
+      } catch {
+        formattedBalance = null;
+        toast.error('Could not load balance. The address may not exist on the network.');
+      }
+
+      set({
+        publicKey: address,
+        network: EXPECTED_NETWORK_LABEL.toLowerCase(),
+        balance: formattedBalance,
+        status: 'connected',
+        networkMismatch: false,
+        errorMessage: null,
+        errorCode: null,
+        isWatchOnly: true,
+      });
+
+      toast.success('Watch-only mode activated. Viewing address without signing capability.');
+    } catch (error) {
+      console.error('Watch-only setup error:', error);
+      const message = error instanceof Error ? error.message : 'Could not set up watch-only mode.';
+      set({
+        status: 'error',
+        publicKey: null,
+        network: null,
+        balance: null,
+        networkMismatch: false,
+        isWatchOnly: false,
+        errorMessage: message,
+        errorCode: 'UNKNOWN',
+      });
+      toast.error(message);
+    }
+  },
+
   connect: async () => {
     if (get().status === 'connecting') return;
 
@@ -196,17 +293,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     });
 
     try {
-      let connected = false;
-      for (let i = 0; i < 5; i++) {
-        const { isConnected: isFreighterConnected } = await isConnected();
-        if (isFreighterConnected) {
-          connected = true;
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      if (!connected) {
+      const { isAvailable } = await freighterAdapter.isAvailable();
+      if (!isAvailable) {
         set({
           status: 'error',
           errorMessage: 'Freighter is not installed or not unlocked. Install Freighter and try again.',
@@ -220,35 +308,17 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         setTimeout(() => reject(new Error('TIMEOUT')), 30000);
       });
 
-      const accessResult = await Promise.race([requestAccess(), timeoutPromise]);
-      const { address, error } = accessResult;
+      const { address, network } = await Promise.race([
+        freighterAdapter.connect(),
+        timeoutPromise,
+      ]);
 
-      if (error) {
-        throw new Error(String(error));
-      }
-      if (!address) {
-        throw new Error('User denied access');
-      }
-
-      const { network } = await getNetwork();
-      const net = (network as string | null) || null;
-      const networkMismatch = net !== 'TESTNET';
+      const net = network;
+      const networkMismatch = !isExpectedNetwork(net);
 
       let formattedBalance: string | null = null;
       try {
-        const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${address}`);
-        if (response.status === 404) {
-          formattedBalance = '0.00 XLM';
-        } else if (!response.ok) {
-          throw new Error('Failed to fetch account data');
-        } else {
-          const data = await response.json();
-          const balances = data.balances as Array<{ asset_type: string; balance: string }>;
-          const nativeBalance = balances.find((b) => b.asset_type === 'native');
-          formattedBalance = nativeBalance
-            ? `${parseFloat(nativeBalance.balance).toFixed(2)} XLM`
-            : '0.00 XLM';
-        }
+        formattedBalance = await fetchFormattedBalance(address);
       } catch {
         formattedBalance = null;
         toast.error('Connected, but balance could not be loaded. Try again later.');
@@ -267,7 +337,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       toast.success('Wallet connected!');
 
       if (networkMismatch) {
-        toast.error('Please switch to Stellar Testnet in Freighter');
+        toast.error(`Please switch to Stellar ${EXPECTED_NETWORK_LABEL} in Freighter`);
       }
 
       try {
@@ -281,15 +351,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         const { challenge } = await challengeRes.json();
 
-        const { signedMessage, error: signError } = await signMessage(challenge, {
+        const signedMessage = await freighterAdapter.signMessage(challenge, {
           address,
-          networkPassphrase:
-            network === 'TESTNET'
-              ? 'Test SDF Network ; September 2015'
-              : 'Public Global Stellar Network ; September 2015',
+          networkPassphrase: networkPassphraseFor(net),
         });
-
-        if (signError) throw new Error(signError.message ?? 'Failed to sign challenge');
 
         const connectRes = await fetch(`${API_BASE}/api/auth/connect`, {
           method: 'POST',

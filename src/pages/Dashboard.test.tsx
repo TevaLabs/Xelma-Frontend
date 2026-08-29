@@ -1,5 +1,11 @@
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import '../i18n';
+import i18n from '../i18n';
+
+// Configurable search params for testing deep-linking
+let mockSearchParams = new URLSearchParams();
+const mockSetSearchParams = vi.fn();
 
 // Mock the API client
 vi.mock('../lib/api-client', () => ({
@@ -15,6 +21,14 @@ vi.mock('../lib/api-client', () => ({
     getNetworkStats: vi.fn().mockResolvedValue(null),
     getUserStats: vi.fn().mockResolvedValue(null),
   },
+  roundsApi: {
+    getActive: vi.fn().mockResolvedValue(null),
+    getHistory: vi.fn().mockResolvedValue([]),
+  },
+  priceApi: {
+    getLatestPrice: vi.fn().mockResolvedValue(null),
+    getPriceHistory: vi.fn().mockResolvedValue([]),
+  },
   ApiError: class ApiError extends Error {
     constructor(message: string, status: number) {
       super(message);
@@ -24,15 +38,24 @@ vi.mock('../lib/api-client', () => ({
   },
 }));
 
+
+
 vi.mock('react-router-dom', () => ({
   Link: ({ children, to, ...props }: any) => (
     <a href={to} {...props}>
       {children}
     </a>
   ),
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
 }));
 
+import { useRoundStore } from '../store/useRoundStore';
+import { useWalletStore } from '../store/useWalletStore';
+import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
+import { useSettingsStore, DEFAULT_SETTINGS } from '../store/useSettingsStore';
+import { bindSoundPreference, playRoundResolutionCue } from '../utils/audioController';
 import Dashboard from './Dashboard';
+
 
 function selectFromStore<TStore extends object>(selector: unknown, store: TStore) {
   return typeof selector === 'function' ? (selector as (state: TStore) => unknown)(store) : store;
@@ -43,7 +66,7 @@ const mockRoundStore = {
   isRoundActive: true,
   resolvedRound: null,
   fetchActiveRound: vi.fn(),
-  subscribeToRoundEvents: vi.fn(() => vi.fn()), // Returns unsubscribe function
+  subscribeToRoundEvents: vi.fn(() => vi.fn()),
   dismissResolvedRound: vi.fn(),
 };
 
@@ -80,6 +103,7 @@ vi.mock('../store/useWalletStore', () => ({
     }
   ),
   selectIsWalletConnected: vi.fn((state) => state.status === 'connected' && Boolean(state.publicKey)),
+  selectNeedsFunding: vi.fn(() => false),
 }));
 
 vi.mock('../hooks/useConnectionStatus', () => ({
@@ -96,16 +120,17 @@ vi.mock('../hooks/useConnectionStatus', () => ({
   }),
 }));
 
-
-
 // Mock all the components to focus on integration logic
-
 vi.mock('../components/PriceChart', () => ({
-  default: ({ height }: { height: number }) => (
+  default: ({ height }: { height: number; entryPrice?: number | null; onPriceUpdate?: (price: number) => void }) => (
     <div data-testid="price-chart" data-height={height}>
       Price Chart
     </div>
   ),
+}));
+
+vi.mock('../components/RoundTimeline', () => ({
+  default: () => <div data-testid="round-timeline">Timeline</div>,
 }));
 
 type PredictionCardMockProps = {
@@ -123,30 +148,30 @@ type PredictionCardMockProps = {
 
 vi.mock('../components/PredictionCard', () => ({
   default: (props: PredictionCardMockProps) => {
-    const { 
-      isWalletConnected, 
-      isRoundActive, 
-      isConnecting, 
-      isSubmittingPrediction, 
-      onPrediction 
+    const {
+      isWalletConnected,
+      isRoundActive,
+      isConnecting,
+      isSubmittingPrediction,
+      onPrediction,
     } = props;
-    
+
     return (
-      <div 
+      <div
         data-testid="prediction-card"
         data-wallet-connected={String(isWalletConnected)}
         data-round-active={String(isRoundActive)}
         data-connecting={String(isConnecting)}
         data-submitting={String(isSubmittingPrediction)}
       >
-        <button 
+        <button
           onClick={() => {
             if (onPrediction) {
-              onPrediction({ 
-                direction: 'UP', 
-                stake: '10', 
-                exactPrice: '100', 
-                isLegend: false 
+              onPrediction({
+                direction: 'UP',
+                stake: '10',
+                exactPrice: '100',
+                isLegend: false,
               });
             }
           }}
@@ -166,8 +191,6 @@ vi.mock('../components/PredictionHistory', () => ({
     </div>
   ),
 }));
-
-
 
 vi.mock('../components/EndRoundModal', () => ({
   default: ({
@@ -201,26 +224,38 @@ vi.mock('../components/BetModal', () => ({
       <button onClick={onClose} data-testid="close-bet-modal">Close</button>
       <button onClick={() => onSuccess('tx-123')} data-testid="success-bet-modal">Success</button>
     </div>
-  )
+  ),
 }));
 
-import { useRoundStore } from '../store/useRoundStore';
-import { useWalletStore } from '../store/useWalletStore';
-import { predictionsApi, ApiError, educationApi, statsApi } from '../lib/api-client';
+// RoundCard is not mocked — it renders for real so we can assert deep-link highlight
+vi.mock('../components/CountdownTimer', () => ({
+  default: ({ endTime }: { endTime: Date }) => (
+    <span data-testid="countdown-timer">{endTime.toISOString()}</span>
+  ),
+}));
+
+vi.mock('../utils/audioController', () => ({
+  bindSoundPreference: vi.fn(),
+  clearSoundPreferenceBinding: vi.fn(),
+  playRoundResolutionCue: vi.fn(),
+}));
+
 
 describe('Dashboard', () => {
+
   beforeEach(() => {
     vi.resetAllMocks();
-    
+
+    // Reset search params to default (no round param)
+    mockSearchParams = new URLSearchParams();
+
     // Re-establish mock implementations for API client after reset
     vi.mocked(educationApi.getTip).mockResolvedValue(null);
     vi.mocked(educationApi.getGuides).mockResolvedValue([]);
     vi.mocked(statsApi.getNetworkStats).mockResolvedValue(null);
     vi.mocked(statsApi.getUserStats).mockResolvedValue(null);
     vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([]);
-    
-    // Don't use fake timers as they interfere with async operations
-    
+
     // Reset store mocks to default state
     Object.assign(mockRoundStore, {
       isRoundActive: true,
@@ -233,10 +268,31 @@ describe('Dashboard', () => {
       status: 'connected',
       publicKey: 'GTEST123',
     });
+
+    localStorage.clear();
+    useSettingsStore.setState({ ...DEFAULT_SETTINGS });
+
+    // vi.resetAllMocks() above clears the global window.matchMedia
+    // implementation from src/test/setup.ts — re-establish it so
+    // useReducedMotion() (used by the deep-linked RoundCard scroll effect)
+    // doesn't crash on `.matches` of undefined.
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
   });
 
-  afterEach(() => {
-    // Don't use real timers cleanup since we're not using fake timers
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
   });
 
   describe('rendering', () => {
@@ -247,8 +303,6 @@ describe('Dashboard', () => {
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-history')).toBeInTheDocument();
     });
-
-
 
     it('passes correct props to PredictionCard', () => {
       render(<Dashboard />);
@@ -267,12 +321,16 @@ describe('Dashboard', () => {
       expect(predictionHistory).toHaveAttribute('data-user-id', 'GTEST123');
     });
 
+    it('renders the share button', () => {
+      render(<Dashboard />);
 
+      expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
+      expect(screen.getByText('Share')).toBeInTheDocument();
+    });
   });
 
   describe('wallet connection states', () => {
     it('handles disconnected wallet', () => {
-      // Mock disconnected wallet state
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
         const store = { ...mockWalletStore, status: 'idle', publicKey: null };
         return selectFromStore(selector, store);
@@ -282,10 +340,8 @@ describe('Dashboard', () => {
 
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-wallet-connected', 'false');
-      
+
       const predictionHistory = screen.getByTestId('prediction-history');
-      // When publicKey is null, the data-user-id attribute won't be set to "null" string
-      // Instead, React will not render the attribute or render it as empty
       expect(predictionHistory).toBeInTheDocument();
 
       expect(screen.getByTestId('dashboard-wallet-prompt')).toBeInTheDocument();
@@ -314,6 +370,23 @@ describe('Dashboard', () => {
 
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-connecting', 'true');
+    });
+
+    it('mounts the profile summary panel when the wallet is connected', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
+    });
+
+    it('omits the profile summary panel when the wallet is disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.queryByLabelText('Your profile')).not.toBeInTheDocument();
     });
   });
 
@@ -378,6 +451,60 @@ describe('Dashboard', () => {
     });
   });
 
+  describe('sound (unified with useSettingsStore)', () => {
+    const resolvedRound = {
+      id: 'round-123',
+      status: 'resolved',
+      isWin: true,
+      netChange: 42,
+      tip: 'Nice finish!',
+    };
+
+    function mockResolvedRound() {
+      vi.mocked(useRoundStore).mockImplementation((selector: any) => {
+        const store = { ...mockRoundStore, isRoundActive: false, resolvedRound };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+    }
+
+    it('binds the audio controller to the settings store on mount', () => {
+      render(<Dashboard />);
+      expect(bindSoundPreference).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('plays the round-resolution cue when settings sound is enabled', () => {
+      useSettingsStore.setState({ soundEnabled: true });
+      mockResolvedRound();
+
+      render(<Dashboard />);
+
+      expect(playRoundResolutionCue).toHaveBeenCalledWith(true);
+    });
+
+    it('does not play the round-resolution cue when settings sound is disabled', () => {
+      useSettingsStore.setState({ soundEnabled: false });
+      mockResolvedRound();
+
+      render(<Dashboard />);
+
+      expect(playRoundResolutionCue).not.toHaveBeenCalled();
+    });
+
+    it('never writes the legacy xelma_round_sound localStorage key', () => {
+      useSettingsStore.setState({ soundEnabled: true });
+      mockResolvedRound();
+
+      render(<Dashboard />);
+
+      expect(localStorage.getItem('xelma_round_sound')).toBeNull();
+    });
+
+    it('does not render an ad-hoc round sound toggle', () => {
+      render(<Dashboard />);
+      expect(screen.queryByText('Round sound')).not.toBeInTheDocument();
+    });
+  });
+
   describe('initialization', () => {
     it('fetches active round on mount', () => {
       render(<Dashboard />);
@@ -405,7 +532,7 @@ describe('Dashboard', () => {
   describe('bet modal interaction', () => {
     it('opens bet modal on prediction and closes on close action', async () => {
       render(<Dashboard />);
-      
+
       const submitButton = screen.getByTestId('submit-prediction');
       fireEvent.click(submitButton);
 
@@ -416,6 +543,38 @@ describe('Dashboard', () => {
       fireEvent.click(closeButton);
 
       expect(modal).toHaveAttribute('data-open', 'false');
+    });
+  });
+
+  describe('localization', () => {
+    it('renders Spanish wallet prompt and share button when locale is changed to es', async () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      await i18n.changeLanguage('es');
+
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('dashboard-wallet-prompt')).toHaveTextContent(
+        'Conecta tu cartera para enviar predicciones.'
+      );
+      expect(screen.getByTestId('dashboard-connect-now')).toHaveTextContent('Conectar ahora');
+      expect(screen.getByText('Compartir')).toBeInTheDocument();
+    });
+
+    it('renders Spanish empty state when no round is active', async () => {
+      vi.mocked(useRoundStore).mockImplementation((selector: any) => {
+        const store = { ...mockRoundStore, isRoundActive: false };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      await i18n.changeLanguage('es');
+
+      render(<Dashboard />);
+
+      expect(screen.getByText('No hay rondas activas')).toBeInTheDocument();
     });
   });
 });

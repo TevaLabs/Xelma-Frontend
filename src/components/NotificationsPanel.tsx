@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNotificationsStore } from '../store/useNotificationsStore';
-import { Clock, Check } from './icons';
+import { Check } from './icons';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
@@ -91,7 +91,7 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
         )}
         {!loadingList && !errorList && list.length === 0 && (
           <EmptyState
-            icon={<Clock className="h-12 w-12 text-gray-300 dark:text-gray-700 mb-4" />}
+            variant="offline"
             title="No notifications"
             message="You're all caught up! New notifications will appear here."
             className="p-4"

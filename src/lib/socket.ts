@@ -1,6 +1,31 @@
 import { io, Socket } from "socket.io-client";
 import { useAuthStore } from "../store/useAuthStore";
 import { getSocketUrl } from './apiConfig';
+import type {
+  ServerToClientEvents,
+  ClientToServerEvents,
+  PriceUpdatePayload,
+  LiveStatsPayload,
+  RoundStartedPayload,
+  RoundResolvedPayload,
+  PredictionCreatedPayload,
+  ChatMessagePayload,
+  ChatSendPayload,
+  NotificationEventPayload,
+} from './socket-events';
+
+export type {
+  ServerToClientEvents,
+  ClientToServerEvents,
+  PriceUpdatePayload,
+  LiveStatsPayload,
+  RoundStartedPayload,
+  RoundResolvedPayload,
+  PredictionCreatedPayload,
+  ChatMessagePayload,
+  ChatSendPayload,
+  NotificationEventPayload,
+};
 
 /** Strips a trailing /api segment so Socket.IO connects to the server root, not the REST prefix. */
 export function normalizeSocketUrl(url: string): string {
@@ -48,8 +73,8 @@ class ConnectionStatusStore {
 
 const connectionStore = new ConnectionStatusStore();
 
-// Enhanced socket with connection management
-export const socket: Socket = io(SOCKET_URL, {
+// Enhanced socket with connection management and typed event maps
+export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(SOCKET_URL, {
   autoConnect: false,
   reconnection: true,
   reconnectionDelay: 1000,
@@ -113,7 +138,10 @@ socket.on('reconnect_failed', () => {
 class SubscriptionManager {
   private subscriptions = new Map<string, Set<Function>>();
 
-  addSubscription(event: string, callback: Function): () => void {
+  addSubscription<K extends keyof ServerToClientEvents>(
+    event: K,
+    callback: ServerToClientEvents[K]
+  ): () => void {
     if (!this.subscriptions.has(event)) {
       this.subscriptions.set(event, new Set());
     }
@@ -154,7 +182,7 @@ class SubscriptionManager {
   clear() {
     for (const [event, callbacks] of this.subscriptions) {
       for (const callback of callbacks) {
-        socket.off(event, callback as any);
+        socket.off(event as any, callback as any);
       }
     }
     this.subscriptions.clear();
@@ -196,27 +224,27 @@ export const socketService = {
   },
 
   // Enhanced event handlers with duplicate prevention
-  onPriceUpdate(callback: (data: any) => void) {
+  onPriceUpdate(callback: (data: PriceUpdatePayload | PriceUpdatePayload[]) => void) {
     return subscriptionManager.addSubscription("price:update", callback);
   },
 
-  onChatMessage(callback: (data: any) => void) {
+  onChatMessage(callback: (data: ChatMessagePayload) => void) {
     return subscriptionManager.addSubscription("chat:message", callback);
   },
 
-  onRoundStarted(callback: (data: any) => void) {
+  onRoundStarted(callback: (data: RoundStartedPayload) => void) {
     return subscriptionManager.addSubscription("round:started", callback);
   },
 
-  onRoundResolved(callback: (data: any) => void) {
+  onRoundResolved(callback: (data: RoundResolvedPayload) => void) {
     return subscriptionManager.addSubscription("round:resolved", callback);
   },
 
-  onNotification(callback: (data: any) => void) {
+  onNotification(callback: (data: NotificationEventPayload) => void) {
     return subscriptionManager.addSubscription("notification", callback);
   },
 
-  onLiveGameStats(callback: (data: unknown) => void) {
+  onLiveGameStats(callback: (data: LiveStatsPayload) => void) {
     const unsubscribers = [
       subscriptionManager.addSubscription("game:stats", callback),
       subscriptionManager.addSubscription("game:stats:update", callback),
@@ -227,7 +255,7 @@ export const socketService = {
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   },
 
-  onPredictionCreated(callback: (data: unknown) => void) {
+  onPredictionCreated(callback: (data: PredictionCreatedPayload) => void) {
     const unsubscribers = [
       subscriptionManager.addSubscription("prediction:created", callback),
       subscriptionManager.addSubscription("prediction:submitted", callback),
@@ -261,7 +289,7 @@ export const socketService = {
     socket.emit("leave:chat", channelId);
   },
 
-  sendChat(payload: any) {
+  sendChat(payload: ChatSendPayload) {
     if (!socket.connected) {
       console.warn('Socket not connected, cannot send chat message');
       return;
@@ -293,22 +321,25 @@ type SocketEventCallback = (payload: unknown) => void;
 export const appSocket = {
   joinChannel(channel: string, payload?: unknown) {
     socketService.connect();
-    socket.emit(channel, payload);
+    socket.emit(channel as any, payload);
   },
   leaveChannel(channel: string, payload?: unknown) {
     const leaveEvent = channel.startsWith("join:")
       ? channel.replace("join:", "leave:")
       : `leave:${channel}`;
-    socket.emit(leaveEvent, payload);
+    socket.emit(leaveEvent as any, payload);
   },
   on(_channel: string, event: string, callback: SocketEventCallback) {
     // Use the enhanced subscription manager for backward compatibility
     if (event === "notification") {
-      return socketService.onNotification(callback);
+      return socketService.onNotification(callback as any);
     }
-    return subscriptionManager.addSubscription(event, callback);
+    return subscriptionManager.addSubscription(event as any, callback as any);
   },
 };
 
 // Export connection status store for components
 export { connectionStore };
+
+
+

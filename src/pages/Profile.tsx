@@ -1,20 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowUpRight,
   CheckCircle2,
   Edit3,
   Link as LinkIcon,
-  Loader2,
   RefreshCw,
+  Settings as SettingsIcon,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import ProfileSettingsModal from '../components/ProfileSettingsModal';
 import IdenticonAvatar from '../components/IdenticonAvatar';
+import BalancesPanel from '../components/BalancesPanel';
 import { useProfileStore } from '../store/useProfileStore';
 import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
+import { Spinner } from '../components/ui/Spinner';
 
 const defaultProfile: ProfileSettingsValues = {
   avatarUrl: null,
@@ -26,13 +29,6 @@ const defaultProfile: ProfileSettingsValues = {
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
-}
-
-function initialsFromName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function normalizeLink(url: string) {
@@ -128,24 +124,33 @@ export default function Profile() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold"
-            >
-              <Edit3 className="h-4 w-4" aria-hidden />
-              Edit profile
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                to="/settings"
+                className="btn-ghost inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold"
+                aria-label="Open settings"
+                data-testid="profile-open-settings"
+              >
+                <SettingsIcon className="h-4 w-4" aria-hidden />
+                Settings
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold"
+              >
+                <Edit3 className="h-4 w-4" aria-hidden />
+                Edit profile
+              </button>
+            </div>
           </div>
 
           {isLoading && !profile ? (
             <section
               className="glass-card flex min-h-[420px] items-center justify-center rounded-xl p-8"
-              aria-busy="true"
-              aria-label="Loading profile"
             >
               <div className="flex flex-col items-center gap-4 text-center">
-                <Loader2 className="h-9 w-9 animate-spin text-[#22D3EE]" aria-hidden />
+                <Spinner label="Loading profile" size="lg" />
                 <p className="text-sm font-semibold text-gray-300">Loading profile...</p>
               </div>
             </section>
@@ -223,6 +228,8 @@ export default function Profile() {
               </section>
 
               <aside className="space-y-6" aria-label="Profile details">
+                <BalancesPanel />
+
                 <section className="glass-card rounded-xl p-5">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#2C4BFD]/15 text-[#BEC7FE]">

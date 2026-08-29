@@ -69,6 +69,10 @@
   animation-play-state: paused;
 }
 
+.news-ribbon:hover .news-ribbon__scroll {
+  animation-play-state: paused;
+}
+
 /* Individual message */
 .news-ribbon__message {
   display: inline-flex;
