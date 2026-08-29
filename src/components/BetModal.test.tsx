@@ -77,7 +77,7 @@ const defaultPrediction: PredictionData = {
 
 function renderOpen(prediction: PredictionData = defaultPrediction, onSuccess?: (tx: string) => void) {
   const onClose = vi.fn();
-  render(
+  const res = render(
     <BetModal
       isOpen
       onClose={onClose}
@@ -85,7 +85,7 @@ function renderOpen(prediction: PredictionData = defaultPrediction, onSuccess?: 
       onSuccess={onSuccess}
     />,
   );
-  return { onClose };
+  return { onClose, ...res };
 }
 
 // ── tests ────────────────────────────────────────────────────────────────────

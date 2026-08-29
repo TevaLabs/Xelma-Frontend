@@ -29,22 +29,12 @@ export default function EndRoundModal({
     tip = 'Stay tuned for the next round.',
   } = result ?? {};
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
-  const [resultAnnouncement, setResultAnnouncement] = useState('');
-
-  useEffect(() => {
-    if (!isOpen) {
-      setResultAnnouncement('');
-      return;
-    }
-
-    const formattedAmount = Math.abs(amount).toFixed(2);
-    const message = isWin
+  const formattedAmount = Math.abs(amount).toFixed(2);
+  const resultAnnouncement = isOpen
+    ? isWin
       ? `Round result: win. Net gain plus $${formattedAmount}. ${tip}`
-      : `Round result: loss. Net loss minus $${formattedAmount}. ${tip}`;
-
-    const timer = window.setTimeout(() => setResultAnnouncement(message), 0);
-    return () => window.clearTimeout(timer);
-  }, [isOpen, isWin, amount, tip]);
+      : `Round result: loss. Net loss minus $${formattedAmount}. ${tip}`
+    : '';
 
   useEffect(() => {
     if (!isOpen || !playResolveSound) return;

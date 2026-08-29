@@ -38,7 +38,6 @@ import DashboardSkeleton from '../components/DashboardSkeleton';
 import FriendbotFundCard from '../components/FriendbotFundCard';
 import NetworkMismatchCard from '../components/NetworkMismatchCard';
 import ProfileSummaryCard from '../components/ProfileSummaryCard';
-import SorobanInspectorPanel from '../components/SorobanInspectorPanel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
