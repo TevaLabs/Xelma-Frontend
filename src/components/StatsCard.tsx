@@ -25,7 +25,21 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   const tx = useTxStatusMachine();
 
   const pendingWinnings = stats.pendingWinnings || 0;
-  const canClaim = isWalletConnected && pendingWinnings > 0 && !tx.isInFlight;
+  const isEligible = pendingWinnings > 0;
+  const canClaim = isWalletConnected && isEligible && !tx.isInFlight;
+
+  // Why claiming is gated, exposed to assistive tech via aria-describedby so a
+  // screen reader announces the reason the button is disabled. It is intentionally
+  // cleared while a claim is in flight: during that window the button is replaced
+  // by the transaction status timeline, whose accessible status text announces
+  // what is happening — a stale "disabled reason" is never read out.
+  const disabledReason = tx.isInFlight
+    ? null
+    : !isWalletConnected
+      ? 'Connect wallet to claim'
+      : !isEligible
+        ? 'No pending rewards to claim'
+        : null;
 
   const handleClaim = async () => {
     // Guard against double-submits while a claim is already in-flight.
@@ -147,7 +161,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
             type="button"
             disabled={!canClaim}
             onClick={handleClaim}
-            title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
+            aria-describedby={disabledReason ? 'claim-rewards-description' : undefined}
             className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
               ${canClaim 
                 ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' 
@@ -155,8 +169,8 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           >
             Claim Rewards
           </button>
-          <p className="mt-2 text-center text-xs text-gray-400">
-            {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
+          <p id="claim-rewards-description" className="mt-2 text-center text-xs text-gray-400">
+            {disabledReason ?? 'Ready to claim'}
           </p>
         </>
       ) : (

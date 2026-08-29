@@ -128,7 +128,11 @@ describe('StatsCard', () => {
 
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
-      expect(button).toHaveAttribute('title', 'Connect wallet to claim');
+      // Issue #450: the disabled reason must be exposed to assistive tech via
+      // aria-describedby so a screen reader announces why the claim is disabled.
+      expect(button).toHaveAttribute('aria-describedby');
+      const description = document.getElementById(button.getAttribute('aria-describedby')!);
+      expect(description).toHaveTextContent('Connect wallet to claim');
     });
 
     it('is disabled when connected but there are no pending winnings', () => {
@@ -137,7 +141,9 @@ describe('StatsCard', () => {
 
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
-      expect(button).toHaveAttribute('title', 'No pending rewards');
+      expect(button).toHaveAttribute('aria-describedby');
+      const description = document.getElementById(button.getAttribute('aria-describedby')!);
+      expect(description).toHaveTextContent('No pending rewards to claim');
     });
 
     it('is enabled when connected and there are pending winnings', () => {
@@ -146,7 +152,8 @@ describe('StatsCard', () => {
 
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeEnabled();
-      expect(button).toHaveAttribute('title', 'Claim your rewards');
+      // No disabled reason to explain, so no aria-describedby is attached.
+      expect(button).not.toHaveAttribute('aria-describedby');
     });
   });
 
@@ -197,6 +204,34 @@ describe('StatsCard', () => {
         'href',
         expect.stringContaining('0123456789abcdef'),
       );
+    });
+
+    it('clears the disabled reason while a claim is in flight', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      let resolveClaim!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(claim_winnings).mockImplementation(
+        () =>
+          new Promise<{ txHash: string; ledger: number }>((resolve) => {
+            resolveClaim = resolve;
+          }),
+      );
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      // Once the claim starts, the button (and its described-by reason) is
+      // replaced by the status timeline, so no stale "disabled reason" can be
+      // announced while claiming — the timeline copy is announced instead.
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Claim...')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: /claim rewards/i })).not.toBeInTheDocument();
+      expect(screen.queryByText('Connect wallet to claim')).not.toBeInTheDocument();
+
+      resolveClaim({ txHash: 'abc', ledger: 1 });
+      await waitFor(() => {
+        expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
+      });
     });
 
     it('prevents double-submit while a claim is in-flight', async () => {
