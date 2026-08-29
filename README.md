@@ -22,6 +22,7 @@ application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 - [Environment variables](#environment-variables)
 - [Deployment](#deployment) ← production / Vercel guide
 - [Education & Learn page](#education--learn-page)
+- [API client boundary](#api-client-boundary)
 - [Project structure notes](#project-structure-notes)
 - [Localization](#localization)
 - [Testing](#testing)
@@ -266,6 +267,34 @@ dynamically without requiring a frontend redeployment.
 - `GuideCard` — premium card component for displaying individual guides.
 - `TipCard` — high-impact card component for the daily tip.
 - `StatusStates` — reusable Loading, Error, and Empty state components (under `src/components/ui/`).
+
+---
+
+## API client boundary
+
+REST calls to the backend should flow through the typed modules in
+[`src/lib/api-client.ts`](./src/lib/api-client.ts). That file is the
+frontend's contract boundary: it defines request/response types, optional Zod
+validation, and normalizers for flexible backend payloads.
+
+**Maintainer guide:** [`docs/api-client-boundary.md`](./docs/api-client-boundary.md)
+
+That document covers:
+
+- Which endpoints `api-client` owns vs which Zustand stores consume them
+- Intentional exceptions (wallet auth, profile API, SSE round events, chat)
+- How to add or change endpoints without breaking existing types
+- Optional OpenAPI → TypeScript / MSW stub generation for future backend schemas
+
+Quick rules for contributors:
+
+1. Add new REST methods to the appropriate `*Api` object in `api-client.ts`.
+2. Put shared/cached state in a Zustand store that calls `*Api` — do not
+   duplicate fetch logic in components.
+3. Add Zod schemas in `api-schemas.ts` when bad payloads would corrupt betting
+   or list UI; use normalizers when the backend wraps arrays or uses alternate
+   key names.
+4. Mock `vi.mock('../lib/api-client')` in tests, not raw `fetch`.
 
 ---
 
