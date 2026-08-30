@@ -10,6 +10,10 @@ import { predictionsApi } from '../../lib/api-client';
 vi.mock('../../lib/xelma-contract', () => ({
   place_bet: vi.fn(),
   place_precision_prediction: vi.fn(),
+  humanizeContractError: (error: unknown) =>
+    error instanceof Error && /reject|cancel/i.test(error.message)
+      ? 'You cancelled the request in your wallet. No transaction was sent.'
+      : 'Something went wrong while submitting your prediction. Please try again.',
   estimatePlaceBet: vi.fn().mockResolvedValue({
     baseFee: '0.0000100',
     resourceFee: '0.0000500',
@@ -210,7 +214,7 @@ describe('BetModal Component', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('Transaction Failed')[0]).toBeInTheDocument();
-      expect(screen.getByText('User rejected Freighter signature')).toBeInTheDocument();
+      expect(screen.getByText('You cancelled the request in your wallet. No transaction was sent.')).toBeInTheDocument();
     });
 
     // Retry should be visible

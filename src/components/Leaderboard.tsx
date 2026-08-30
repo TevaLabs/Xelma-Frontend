@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, type KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
@@ -66,6 +66,43 @@ const Leaderboard = () => {
       );
     },
     [setSearchParams]
+  );
+
+  // ── #429: keyboard-roving filter tabs (WAI-ARIA Tabs pattern, automatic
+  // activation) — exactly one tab is tabbable (the active one) at a time;
+  // Left/Right (and Up/Down) rove focus and select, Home/End jump to the
+  // first/last tab. Mouse clicks are untouched (still call setFilter directly).
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleTabKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+      let nextIndex: number | null = null;
+
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+          nextIndex = (index + 1) % FILTER_OPTIONS.length;
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          nextIndex = (index - 1 + FILTER_OPTIONS.length) % FILTER_OPTIONS.length;
+          break;
+        case 'Home':
+          nextIndex = 0;
+          break;
+        case 'End':
+          nextIndex = FILTER_OPTIONS.length - 1;
+          break;
+        default:
+          return;
+      }
+
+      event.preventDefault();
+      const nextOption = FILTER_OPTIONS[nextIndex];
+      setFilter(nextOption);
+      tabRefs.current[nextIndex]?.focus();
+    },
+    [setFilter]
   );
 
   // ── Data fetch ─────────────────────────────────────────────────────────────
@@ -177,13 +214,18 @@ const Leaderboard = () => {
               aria-label="Time range filter"
               className="flex justify-center gap-2 flex-wrap"
             >
-              {FILTER_OPTIONS.map((opt) => (
+              {FILTER_OPTIONS.map((opt, index) => (
                 <button
                   key={opt}
+                  ref={(el) => {
+                    tabRefs.current[index] = el;
+                  }}
                   type="button"
                   role="tab"
                   aria-selected={activeFilter === opt}
+                  tabIndex={activeFilter === opt ? 0 : -1}
                   onClick={() => setFilter(opt)}
+                  onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={clsx(
                     'rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',
                     activeFilter === opt

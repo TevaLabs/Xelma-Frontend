@@ -8,6 +8,8 @@ type PoolAsset = 'BTC' | 'ETH' | 'XLM';
 interface PoolStats {
   asset: PoolAsset;
   totalVolume: number;
+  /** Mock recent-volume series, oldest first, last point matches totalVolume. */
+  volumeTrend: number[];
   upDownPool: {
     total: number;
     up: number;
@@ -24,6 +26,7 @@ const mockPoolData: PoolStats[] = [
   {
     asset: 'BTC',
     totalVolume: 1250000,
+    volumeTrend: [980000, 1010000, 1040000, 1120000, 1180000, 1210000, 1250000],
     upDownPool: { total: 850000, up: 450000, down: 400000 },
     precisionPool: { total: 400000, predictions: 124 },
     historicalYield: 4.2,
@@ -31,6 +34,7 @@ const mockPoolData: PoolStats[] = [
   {
     asset: 'ETH',
     totalVolume: 820000,
+    volumeTrend: [860000, 840000, 800000, 780000, 795000, 810000, 820000],
     upDownPool: { total: 600000, up: 350000, down: 250000 },
     precisionPool: { total: 220000, predictions: 89 },
     historicalYield: 3.8,
@@ -38,6 +42,7 @@ const mockPoolData: PoolStats[] = [
   {
     asset: 'XLM',
     totalVolume: 450000,
+    volumeTrend: [520000, 500000, 480000, 470000, 460000, 455000, 450000],
     upDownPool: { total: 300000, up: 100000, down: 200000 },
     precisionPool: { total: 150000, predictions: 45 },
     historicalYield: 5.1,

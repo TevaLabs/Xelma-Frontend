@@ -77,6 +77,8 @@ The app boots on [http://localhost:5173](http://localhost:5173). During developm
 proxies `/api` and `/socket.io` to `http://localhost:3000` (configure via
 [`vite.config.ts`](./vite.config.ts) and [`src/lib/config.ts`](./src/lib/config.ts)).
 
+> 💡 **Freighter-less Demo:** Newcomers can demo the full UI, wallet connection, placing bets, and claiming rewards in <15 minutes without installing the Freighter browser extension. See [`docs/freighter-less-fixtures.md`](./docs/freighter-less-fixtures.md).
+
 ---
 
 ## Available scripts

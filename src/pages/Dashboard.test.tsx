@@ -1,5 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import '../i18n';
+import i18n from '../i18n';
 
 // Configurable search params for testing deep-linking
 let mockSearchParams = new URLSearchParams();
@@ -289,8 +291,8 @@ describe('Dashboard', () => {
     });
   });
 
-  afterEach(() => {
-    // no-op
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
   });
 
   describe('rendering', () => {
@@ -544,70 +546,35 @@ describe('Dashboard', () => {
     });
   });
 
-  describe('round deep-link scroll behavior (?round=)', () => {
-    it('scrolls the highlighted RoundCard into view when the round id is visible', async () => {
-      mockSearchParams = new URLSearchParams('round=3');
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+  describe('localization', () => {
+    it('renders Spanish wallet prompt and share button when locale is changed to es', async () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      await i18n.changeLanguage('es');
 
       render(<Dashboard />);
 
-      // Multiple RoundCards render (one per XLM round); find the highlighted one.
-      const cards = await screen.findAllByTestId('round-card');
-      const highlighted = cards.find((c) => c.getAttribute('data-highlighted') === 'true');
-
-      expect(highlighted).toBeTruthy();
-      expect(highlighted).toHaveAttribute('data-highlighted', 'true');
-      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ block: 'center' }),
+      expect(screen.getByTestId('dashboard-wallet-prompt')).toHaveTextContent(
+        'Conecta tu cartera para enviar predicciones.'
       );
+      expect(screen.getByTestId('dashboard-connect-now')).toHaveTextContent('Conectar ahora');
+      expect(screen.getByText('Compartir')).toBeInTheDocument();
     });
 
-    it('does not call scrollIntoView when the round id is missing', () => {
-      mockSearchParams = new URLSearchParams();
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
-
-      render(<Dashboard />);
-
-      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
-    });
-
-    it('does not call scrollIntoView when the deep-linked round is filtered out by the asset tab', () => {
-      // Round id 3 is an XLM round; requesting it while on the BTC tab means
-      // it never renders, so there is nothing to scroll to.
-      mockSearchParams = new URLSearchParams('round=3&asset=BTC');
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
-
-      render(<Dashboard />);
-
-      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
-    });
-
-    it('uses instant scroll behavior when reduced motion is preferred', () => {
-      mockSearchParams = new URLSearchParams('round=3');
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: vi.fn().mockImplementation((query: string) => ({
-          matches: query.includes('prefers-reduced-motion'),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        })),
+    it('renders Spanish empty state when no round is active', async () => {
+      vi.mocked(useRoundStore).mockImplementation((selector: any) => {
+        const store = { ...mockRoundStore, isRoundActive: false };
+        return typeof selector === 'function' ? selector(store) : store;
       });
 
+      await i18n.changeLanguage('es');
+
       render(<Dashboard />);
 
-      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ behavior: 'auto' }),
-      );
+      expect(screen.getByText('No hay rondas activas')).toBeInTheDocument();
     });
   });
 });

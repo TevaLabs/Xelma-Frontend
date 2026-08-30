@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
 import PredictionHistory from "../components/PredictionHistory";
@@ -37,7 +38,6 @@ import DashboardSkeleton from '../components/DashboardSkeleton';
 import FriendbotFundCard from '../components/FriendbotFundCard';
 import NetworkMismatchCard from '../components/NetworkMismatchCard';
 import ProfileSummaryCard from '../components/ProfileSummaryCard';
-import SorobanInspectorPanel from '../components/SorobanInspectorPanel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
@@ -155,6 +155,7 @@ const DailyTip = () => {
 
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
   const isLoading = useRoundStore((state) => state.isLoading);
   const sseConnection = useRoundStore((state) => state.sseConnection);
@@ -488,21 +489,21 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                       const url = new URL(window.location.href);
                       try {
                         await navigator.clipboard.writeText(url.toString());
-                        toast.success("Link copied to clipboard", {
+                        toast.success(t('dashboard.share.copied'), {
                           id: "share-round-url",
                         });
                       } catch {
-                        toast.error("Could not copy link", {
+                        toast.error(t('dashboard.share.copyError'), {
                           id: "share-round-url",
                         });
                       }
                     }}
                     data-testid="share-rounds-btn"
                     className="btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
-                    aria-label="Copy share link"
+                    aria-label={t('dashboard.share.copyAriaLabel')}
                   >
                     <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    Share
+                    {t('dashboard.share.button')}
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -532,8 +533,10 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
               </>
             ) : (
               <EmptyState
-                title={`No ${normalizedAsset} Rounds Available`}
-                description={`There are currently no active rounds for ${normalizedAsset === 'BTC' ? 'Bitcoin' : normalizedAsset === 'ETH' ? 'Ethereum' : 'Stellar'}. Try selecting a different asset or check back later.`}
+                title={t('dashboard.emptyState.noAssetRounds.title', { asset: normalizedAsset })}
+                description={t('dashboard.emptyState.noAssetRounds.description', {
+                  assetName: t(`dashboard.assetNames.${normalizedAsset}`),
+                })}
                 action={
                   <button
                     type="button"
@@ -542,7 +545,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                       void useRoundStore.getState().fetchActiveRound();
                     }}
                   >
-                    Refresh
+                    {t('dashboard.refresh')}
                   </button>
                 }
               />
@@ -553,14 +556,14 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
         {!isLoading && !isWalletConnected && (
           <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-4 text-sm text-[#BEC7FE] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4">
             <p className="leading-relaxed" data-testid="dashboard-wallet-prompt">
-              Connect your wallet to submit predictions.
+              {t('dashboard.walletPrompt.message')}
             </p>
             <Link
               to="/connect"
               data-testid="dashboard-connect-now"
               className="btn-primary no-underline inline-flex min-h-[44px] w-full items-center justify-center rounded-lg px-5 py-2 text-sm font-bold sm:w-auto"
             >
-              Connect now
+              {t('dashboard.walletPrompt.connectNow')}
             </Link>
           </div>
         )}
@@ -571,8 +574,8 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
 
         {!isLoading && !isRoundActive && (
           <EmptyState
-            title="No Active Rounds"
-            description="Learn how the game works or refresh to check for new rounds."
+            title={t('dashboard.emptyState.noActiveRounds.title')}
+            description={t('dashboard.emptyState.noActiveRounds.description')}
             icon={<NoRoundsIllustration className="mb-4" />}
             action={
               <button
@@ -582,7 +585,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                   void useRoundStore.getState().fetchActiveRound();
                 }}
               >
-                Refresh
+                {t('dashboard.refresh')}
               </button>
             }
           />
@@ -601,11 +604,25 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                 walletBalance={balance}
               />
               {isWalletConnected && (
-                <SorobanInspectorPanel
-                  inspector={inspector}
-                  isLoading={isInspectorLoading}
-                  onRefresh={() => void refreshInspector()}
-                />
+                <section className="rounded-2xl border border-cyan-500/20 bg-black/40 p-5 font-mono text-xs text-cyan-100 shadow-inner shadow-cyan-950/30" aria-labelledby="soroban-inspector-title">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 id="soroban-inspector-title" className="text-sm font-bold uppercase tracking-[0.2em] text-cyan-300">{t('dashboard.sorobanInspector.title')}</h2>
+                      <p className="mt-1 text-[11px] text-cyan-100/70">{t('dashboard.sorobanInspector.description')}</p>
+                    </div>
+                    <button type="button" onClick={() => void refreshInspector()} disabled={isInspectorLoading} className="rounded border border-cyan-400/30 px-3 py-1 text-[11px] font-semibold text-cyan-200 disabled:opacity-60">
+                      {isInspectorLoading ? t('dashboard.sorobanInspector.loading') : t('dashboard.refresh')}
+                    </button>
+                  </div>
+                  {inspector?.error && (
+                    <p className="mb-3 rounded border border-amber-400/30 bg-amber-500/10 p-2 text-amber-200" role="status">
+                      {t('dashboard.sorobanInspector.rpcFallback', { error: inspector.error })}
+                    </p>
+                  )}
+                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#020617] p-3" aria-live="polite">
+                    {JSON.stringify(inspector ?? { status: isInspectorLoading ? 'loading' : 'not connected' }, null, 2)}
+                  </pre>
+                </section>
               )}
 
               {isWalletConnected && (
@@ -620,7 +637,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-<div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
+<div className="min-h-[350px] glass-card rounded-2xl p-5">
                 <PriceChart height={280} asset={normalizedAsset} entryPrice={entryPrice} onPriceUpdate={handlePriceUpdate} />
               </div>
               {isWalletConnected && (

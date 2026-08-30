@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
+import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, humanizeContractError, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
@@ -80,6 +80,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const [exactPrice, setExactPrice] = useState(predictionData?.exactPrice ?? '');
   const [formError, setFormError] = useState('');
   const [inlineStakeError, setInlineStakeError] = useState('');
+  const [outcomeAnnouncement, setOutcomeAnnouncement] = useState('');
 
   // Fee estimate state
   const [feeEstimate, setFeeEstimate] = useState<FeeEstimate | null>(null);
@@ -138,8 +139,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         }
       } catch (err) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Failed to estimate fee';
-          setFeeEstimateError(msg);
+          // The raw error stays in the console via humanizeContractError;
+          // only the friendly copy is surfaced in the modal.
+          setFeeEstimateError(humanizeContractError(err, 'estimate'));
           setFeeEstimateStatus('failed');
         }
       }
@@ -289,9 +291,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         onSuccess(result.txHash);
       }
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error('Prediction submission error:', error);
-      tx.fail(error.message || 'An unexpected error occurred');
+      // Map the raw simulation/signing error to player-friendly copy; the raw
+      // error is kept in the console for debugging by humanizeContractError.
+      tx.fail(humanizeContractError(err, 'place_bet'));
       if (onPredictionError) {
         onPredictionError();
       }
@@ -300,7 +302,6 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
   const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
 
-  const [outcomeAnnouncement, setOutcomeAnnouncement] = useState('');
   const prevTxStepRef = useRef(tx.step);
 
   useEffect(() => {
