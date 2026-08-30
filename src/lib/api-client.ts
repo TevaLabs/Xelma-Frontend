@@ -1,6 +1,13 @@
 import type { Guide, Tip } from '../types/education';
 import type { NotificationItem } from '../types/notification';
 import { apiFetch } from './api';
+import {
+    validateApiResponse,
+    RoundSchema,
+    UserPredictionSchema,
+    LeaderboardEntrySchema,
+    ApiValidationError,
+} from './api-schemas';
 
 export { ApiError } from './api';
 
@@ -19,7 +26,20 @@ export interface Round {
 }
 
 export const roundsApi = {
-    getActive: () => apiFetch<Round | null>('/api/rounds/active'),
+    getActive: async () => {
+        try {
+            const response = await apiFetch<Round | null>('/api/rounds/active');
+            if (response === null) return null;
+            validateApiResponse('/api/rounds/active', RoundSchema, response);
+            return response;
+        } catch (error) {
+            if (error instanceof ApiValidationError) {
+                console.error('Round data validation failed:', error.message);
+                throw new Error('Received invalid round data from server. Please try again later.');
+            }
+            throw error;
+        }
+    },
 };
 
 export interface UserPrediction {
@@ -74,8 +94,21 @@ function normalizeUserPredictions(response: UserPredictionsResponse): UserPredic
 
 export const predictionsApi = {
     getUserHistory: async (userId: string) => {
-        const response = await apiFetch<UserPredictionsResponse>(`/api/predictions/user/${encodeURIComponent(userId)}`);
-        return normalizeUserPredictions(response);
+        try {
+            const response = await apiFetch<UserPredictionsResponse>(`/api/predictions/user/${encodeURIComponent(userId)}`);
+            const normalized = normalizeUserPredictions(response);
+            // Validate each prediction item
+            normalized.forEach(prediction => {
+                validateApiResponse('/api/predictions/user', UserPredictionSchema, prediction);
+            });
+            return normalized;
+        } catch (error) {
+            if (error instanceof ApiValidationError) {
+                console.error('Prediction history validation failed:', error.message);
+                throw new Error('Received invalid prediction data from server. Please try again later.');
+            }
+            throw error;
+        }
     },
     submit: async (prediction: SubmitPredictionRequest) => {
         return apiFetch<UserPrediction>('/api/predictions/submit', {
@@ -169,8 +202,21 @@ function normalizeLeaderboard(response: LeaderboardResponse): LeaderboardEntry[]
 
 export const leaderboardApi = {
     getLeaderboard: async (mode: string = 'UP_DOWN') => {
-        const response = await apiFetch<LeaderboardResponse>(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
-        return normalizeLeaderboard(response);
+        try {
+            const response = await apiFetch<LeaderboardResponse>(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
+            const normalized = normalizeLeaderboard(response);
+            // Validate each leaderboard entry
+            normalized.forEach(entry => {
+                validateApiResponse('/api/leaderboard', LeaderboardEntrySchema, entry);
+            });
+            return normalized;
+        } catch (error) {
+            if (error instanceof ApiValidationError) {
+                console.error('Leaderboard validation failed:', error.message);
+                throw new Error('Received invalid leaderboard data from server. Please try again later.');
+            }
+            throw error;
+        }
     },
 };
 

@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import '../i18n';
 import Dashboard from './Dashboard';
 import RoundCard from '../components/RoundCard';
 import BetModal from '../components/BetModal';
@@ -41,6 +42,22 @@ vi.mock('../lib/api-client', () => ({
 vi.mock('../lib/xelma-contract', () => ({
   place_bet: vi.fn(),
   place_precision_prediction: vi.fn(),
+  estimatePlaceBet: vi.fn().mockResolvedValue({
+    baseFee: '0.00001',
+    resourceFee: '0.00005',
+    totalFee: '0.00006',
+    instructions: '1000000',
+    readBytes: '500',
+    writeBytes: '200',
+  }),
+  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
+    baseFee: '0.00001',
+    resourceFee: '0.00006',
+    totalFee: '0.00007',
+    instructions: '1200000',
+    readBytes: '600',
+    writeBytes: '300',
+  }),
 }));
 
 describe('Dashboard Terminal & Round Flows', () => {
@@ -196,10 +213,10 @@ describe('Dashboard Terminal & Round Flows', () => {
         </div>
       );
 
-      // Verify round cards render asset headings
-      expect(screen.getByText('BTC/USD')).toBeInTheDocument();
-      expect(screen.getByText('ETH/USD')).toBeInTheDocument();
-      expect(screen.getByText('XLM/USD')).toBeInTheDocument();
+      // Verify round cards render asset headings (multiple rounds per asset)
+      expect(screen.getAllByText('BTC/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('ETH/USD').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('XLM/USD').length).toBeGreaterThanOrEqual(1);
 
       // Verify round details and pool statistics
       expect(screen.getByText(/reference \$67,420/i)).toBeInTheDocument();

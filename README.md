@@ -77,6 +77,8 @@ The app boots on [http://localhost:5173](http://localhost:5173). During developm
 proxies `/api` and `/socket.io` to `http://localhost:3000` (configure via
 [`vite.config.ts`](./vite.config.ts) and [`src/lib/config.ts`](./src/lib/config.ts)).
 
+> 💡 **Freighter-less Demo:** Newcomers can demo the full UI, wallet connection, placing bets, and claiming rewards in <15 minutes without installing the Freighter browser extension. See [`docs/freighter-less-fixtures.md`](./docs/freighter-less-fixtures.md).
+
 ---
 
 ## Available scripts
@@ -105,9 +107,11 @@ bundle.
 | --------------------------------- | -------- | ----------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `VITE_API_BASE_URL`               | ✅ yes   | `src/lib/config.ts`           | `http://localhost:3000`                                   | Root URL of the Xelma backend (REST + Socket.IO origin).                |
 | `VITE_API_URL`                    | ⚠️ legacy| `src/lib/config.ts` (fallback)| —                                                         | **Deprecated** — kept as a fallback for `VITE_API_BASE_URL`. New deploys should use `VITE_API_BASE_URL`. |
-| `VITE_STELLAR_NETWORK`            | optional | `src/components/Navbar.tsx`   | `TESTNET`                                                 | Human-readable network label (`TESTNET`, `PUBLIC`, or `MAINNET`). Drives the navbar badge. |
+| `VITE_STELLAR_NETWORK`            | optional | `src/components/Navbar.tsx`, `src/lib/horizon.ts`, `src/lib/stellarNetwork.ts` | `TESTNET`                              | Network label (`TESTNET`, `PUBLIC`, or `MAINNET`). Drives the navbar badge, the default Horizon endpoint, the StellarExpert explorer network, the Friendbot CTA, and the network Freighter must be on — a mismatch renders a guidance card with switch instructions. |
 | `VITE_STELLAR_NETWORK_PASSPHRASE` | ✅ prod  | `src/lib/xelma-contract.ts`, `src/components/Footer.tsx` | `Test SDF Network ; September 2015` (Networks.TESTNET) | Network passphrase used to build/sign Soroban transactions. Use `Public Global Stellar Network ; September 2015` for mainnet. |
-| `VITE_STELLAR_RPC_URL`            | ✅ prod  | `src/lib/xelma-contract.ts`   | `https://soroban-testnet.stellar.org`                     | Soroban JSON-RPC endpoint used to simulate/submit/polling.              |
+| `VITE_STELLAR_RPC_URL`            | ✅ prod  | `src/lib/xelma-contract.ts`, `src/lib/prediction-events.ts` | `https://soroban-testnet.stellar.org`   | Soroban JSON-RPC endpoint used to simulate/submit/poll transactions and to read contract events. |
+| `VITE_STELLAR_HORIZON_URL`        | optional | `src/lib/horizon.ts`          | Derived from `VITE_STELLAR_NETWORK`                       | Horizon endpoint for account balances and trustlines. Defaults to `horizon-testnet.stellar.org`, or `horizon.stellar.org` on `PUBLIC`/`MAINNET`. Set only to override. |
+| `VITE_STELLAR_FRIENDBOT_URL`      | optional | `src/lib/friendbot.ts`        | `https://friendbot.stellar.org`                           | Testnet faucet used by the "Fund with Friendbot" CTA. Ignored on `PUBLIC`/`MAINNET`, where the CTA is hidden. |
 | `VITE_XELMA_CONTRACT_ID`          | ✅ prod  | `src/lib/xelma-contract.ts`   | Testnet placeholder contract id                           | Deployed Xelma Soroban contract id (`C…`) for the target network.       |
 
 ### `.env` examples
@@ -288,9 +292,9 @@ price chart, the round lifecycle timeline, round-update connection status, the
 end-round modal, and opt-in community chat (toggled from the dashboard header so
 the default terminal stays uncluttered).
 
-`/play` is **deprecated** and permanently redirects to `/dashboard`. The
-`LegacyDashboard` component is retained only for reference and is no longer
-routed. Chat and notifications are available via the in-dashboard toggle; further
+`/play` is **deprecated** and permanently redirects to `/dashboard`. The former
+`LegacyDashboard` page has been removed — `/dashboard` is the single dashboard
+story. Chat and notifications are available via the in-dashboard toggle; further
 social/notification consolidation is tracked in issue
 [#130](https://github.com/TevaLabs/Xelma-Frontend/issues/130).
 

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import HowItWorks from '../components/HowItWorks';
 import ModeCards from '../components/ModeCards';
+import GlassCard from '../components/ui/GlassCard';
+import StatusPill from '../components/ui/StatusPill';
 import { useNetworkStats } from '../hooks/useNetworkStats';
 
 function useCountUp(target: number, durationMs = 1800) {
@@ -55,9 +57,9 @@ export default function Landing() {
         <div className="pointer-events-none absolute -right-24 top-16 h-96 w-96 rounded-full bg-[#2C4BFD]/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-5xl text-center">
-          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#BEC7FE]/20 bg-[#2C4BFD]/10 px-4 py-1.5 text-sm font-medium text-cyan-200">
+          <StatusPill as="p" tone="brand" className="mb-5 gap-2 px-4 py-1.5 text-sm font-medium">
             {t('landing.badge')}
-          </p>
+          </StatusPill>
 
           <h1 className="hero-headline text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl">
             {t('landing.headline1')}
@@ -85,40 +87,42 @@ export default function Landing() {
           {/* Reserved-height row so the badge never shifts the layout on load. */}
           <div className="mx-auto mt-12 flex h-6 max-w-3xl items-center justify-center">
             {isStale && (
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200"
+              <StatusPill
+                tone="amber"
+                dot
+                dotClassName="bg-amber-400"
+                className="px-3 py-1 text-xs font-medium"
                 role="status"
                 title={t('landing.cachedMetricsDescription')}
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                 {t('landing.cachedMetrics')}
-              </span>
+              </StatusPill>
             )}
           </div>
 
           <div className="mx-auto mt-4 grid max-w-3xl gap-4 sm:grid-cols-3">
-            <div className="glass-card rounded-xl p-5 text-left">
+            <GlassCard className="rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
                 {t('landing.roundsResolved')}
               </p>
-            </div>
-            <div className="glass-card rounded-xl p-5 text-left">
+            </GlassCard>
+            <GlassCard className="rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-cyan-300">
                 {formatStat(vxlm, 'vxlm')} vXLM
               </p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
                 {t('landing.practiceVolume')}
               </p>
-            </div>
-            <div className="glass-card rounded-xl p-5 text-left">
+            </GlassCard>
+            <GlassCard className="rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-[#BEC7FE]">
                 {formatStat(players, 'players')}
               </p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
                 {t('landing.activePredictors')}
               </p>
-            </div>
+            </GlassCard>
           </div>
         </div>
       </section>

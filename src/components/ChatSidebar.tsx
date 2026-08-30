@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, WifiOff } from "lucide-react";
 import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useRoundStore, selectActiveChatChannelId } from "../store/useRoundStore";
 import { formatRelativeTime } from "../lib/utils";
 import EmptyState from "./EmptyState";
-import { MODAL_OVERLAY, TRANSITION, TRANSFORM_TRANSITION } from "../utils/motion";
+import { ChatOfflineIllustration } from "./icons/StellarIllustrations";
+import { MODAL_OVERLAY, TRANSFORM_TRANSITION } from "../utils/motion";
 
 const MAX_MESSAGE_LENGTH = 500;
 
@@ -111,6 +113,8 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const { isConnected } = useConnectionStatus();
   // Round-scoped chat channel: derived from the active round so users in
   // round #42 only see round #42 messages. Falls back to CHAT_CHANNEL_FALLBACK
@@ -140,7 +144,8 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     }
   }, [inputValue]);
 
-  // Handle body scroll lock and escape key for mobile sheet
+  // Handle body scroll lock for the mobile sheet. Escape and Tab handling
+  // are delegated to useFocusTrap below, matching the Navbar drawer pattern.
   useEffect(() => {
     if (isMobileOpen) {
       document.body.style.overflow = "hidden";
@@ -148,18 +153,16 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
       document.body.style.overflow = "";
     }
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isMobileOpen) {
-        setIsMobileOpen(false);
-      }
-    };
-
-    document.addEventListener("keydown", handleEscape);
     return () => {
       document.body.style.overflow = "";
-      document.removeEventListener("keydown", handleEscape);
     };
   }, [isMobileOpen]);
+
+  useFocusTrap(sidebarRef, {
+    active: isMobileOpen,
+    onEscape: () => setIsMobileOpen(false),
+    restoreFocusRef: mobileToggleRef,
+  });
 
   // Load chat history from REST on mount
   useEffect(() => {
@@ -236,15 +239,18 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     <>
       {/* Mobile Overlay */}
       <div
-        className={`md:hidden fixed inset-0 bg-black/50 z-50 ${MODAL_OVERLAY} ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
+        className={`md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 ${MODAL_OVERLAY} ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
         onClick={() => setIsMobileOpen(false)}
+        aria-hidden="true"
       />
 
       {/* Mobile Toggle Button */}
       <button
-        className={`md:hidden fixed right-4 bottom-24 w-14 h-14 bg-[#2C4BFD] border-none rounded-full flex items-center justify-center cursor-pointer z-70 shadow-lg shadow-[#2C4BFD]/30 hover:scale-105 hover:shadow-xl hover:shadow-[#2C4BFD]/40 ${TRANSFORM_TRANSITION}`}
+        ref={mobileToggleRef}
+        className={`md:hidden fixed right-4 bottom-24 w-14 h-14 btn-primary border-none rounded-full flex items-center justify-center cursor-pointer z-70 ${TRANSFORM_TRANSITION} hover:scale-105`}
         onClick={toggleMobile}
         aria-label="Toggle chat sidebar"
+        aria-expanded={isMobileOpen}
       >
         <svg
           className="w-7 h-7 text-white"
@@ -276,8 +282,12 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
       {/* Sidebar / Bottom Sheet */}
       <aside
+        ref={sidebarRef}
+        role={isMobileOpen ? "dialog" : "complementary"}
+        aria-modal={isMobileOpen || undefined}
+        aria-label="Live chat"
         className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
-        bg-white dark:bg-[#1f2937] border-gray-100 dark:border-gray-800
+        bg-[#0A0F1A] border-[#BEC7FE]/10
         
         /* Desktop: Side Drawer */
         md:left-0 md:w-80 md:translate-x-0 md:transition-none
@@ -288,16 +298,16 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         ${isMobileOpen ? "translate-y-0 ease-out" : "translate-y-full ease-in md:translate-y-0 md:translate-x-0"}`}
       >
         {/* Header */}
-        <header className="flex items-center justify-between p-4 m-2.5 rounded-lg bg-white dark:bg-[#1f2937] dark:text-white">
+        <header className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <ChatIcon />
-            <h2 className="font-['DM_Sans'] font-semibold text-xl text-[#292D32] dark:text-gray-100">
+            <h2 className="font-['DM_Sans'] font-semibold text-xl text-white">
               Live Chat
             </h2>
           </div>
-          <div className="flex items-center gap-2.5 px-2 py-1 bg-white dark:bg-[#1f2937] border border-[#FAFAFA] dark:border-gray-700 rounded text-black dark:text-white">
-            <div className="w-3 h-3 bg-[#00C076] rounded-full" />
-            <span className="font-['DM_Sans'] font-semibold text-xl">
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-white">
+            <span className="status-dot status-dot-live" />
+            <span className="font-['DM_Sans'] font-semibold text-sm">
               {onlineCount}
             </span>
           </div>
@@ -306,34 +316,44 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         {/* Messages */}
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-2.5 flex flex-col gap-3 bg-[#FAFAFA] dark:bg-gray-900 mx-2.5 p-3.5 rounded-xl overscroll-contain"
+          className="flex-1 overflow-y-auto px-2.5 flex flex-col gap-3 glass-card mx-2.5 mt-2.5 p-3.5 rounded-xl overscroll-contain"
         >
           {messages.length === 0 && (
             <EmptyState
-              icon={<MessageCircle className="h-10 w-10 text-[#2C4BFD] dark:text-xelma-blue" />}
-              title="No messages yet"
-              description="Be the first to say something in the chat."
+              icon={
+                isConnected ? (
+                  <MessageCircle className="h-10 w-10 text-xelma-blue" />
+                ) : (
+                  <ChatOfflineIllustration size={80} />
+                )
+              }
+              title={isConnected ? "No messages yet" : "No connection"}
+              description={
+                isConnected
+                  ? "Be the first to say something in the chat."
+                  : "Reconnect to see and send messages."
+              }
               className="min-h-[160px] border-none bg-transparent backdrop-blur-none"
             />
           )}
           {messages.map((message) => (
             <div
               key={message.id}
-              className="flex items-start gap-2.5 p-2.5 bg-white dark:bg-[#1f2937] rounded-xl dark:text-gray-200"
+              className="flex items-start gap-2.5 p-2.5 bg-white/5 border border-white/5 rounded-xl text-gray-200"
             >
               <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#E0E7FF] to-[#2C4BFD] shrink-0 flex items-center justify-center text-white font-semibold text-sm">
                 {getInitials(message.username)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-['DM_Sans'] font-semibold text-sm text-[#292D32] dark:text-gray-100">
+                  <span className="font-['DM_Sans'] font-semibold text-sm text-white">
                     {message.username}
                   </span>
-                  <span className="font-['DM_Sans'] font-normal text-xs text-[#9B9B9B] dark:text-gray-400">
+                  <span className="font-['DM_Sans'] font-normal text-xs text-gray-400">
                     {formatRelativeTime(message.timestamp)}
                   </span>
                 </div>
-                <p className="font-['DM_Sans'] font-normal text-sm text-[#4D4D4D] dark:text-gray-300 text-wrap wrap-break-word">
+                <p className="font-['DM_Sans'] font-normal text-sm text-gray-300 text-wrap wrap-break-word">
                   {message.content}
                 </p>
               </div>
@@ -343,18 +363,22 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white dark:bg-[#1f2937] border-t border-gray-100 dark:border-gray-800 shrink-0">
+        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] glass-card border-t border-x-0 border-b-0 rounded-none shrink-0">
           {!isConnected && (
-            <div className="mb-2 text-xs text-red-500 dark:text-red-400 text-center">
+            <div
+              className="mb-2 flex items-center justify-center gap-1.5 text-xs text-red-400"
+              role="status"
+            >
+              <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
               Chat is offline - messages cannot be sent
             </div>
           )}
-          <div className="flex items-end gap-2 p-2 bg-[#FAFAFA] dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl">
+          <div className="flex items-end gap-2 p-2 bg-white/5 border border-white/10 rounded-xl">
             <textarea
               ref={textareaRef}
               rows={1}
               maxLength={MAX_MESSAGE_LENGTH}
-              className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-[#292D32] dark:text-gray-200 placeholder-[#9B9B9B] resize-none overflow-y-auto py-2 min-h-[36px] max-h-[120px] ${
+              className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-white placeholder-gray-500 resize-none overflow-y-auto py-2 min-h-[36px] max-h-[120px] ${
                 !isConnected ? 'opacity-50' : ''
               }`}
               placeholder={isConnected ? "Type a message..." : "Chat offline..."}
@@ -365,7 +389,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               aria-label="Message input"
             />
             <button
-              className={`flex items-center justify-center min-w-[36px] w-9 h-9 p-0 bg-[#2C4BFD] border-none rounded-lg cursor-pointer hover:opacity-90 hover:scale-105 shrink-0 ${TRANSITION} ${
+              className={`btn-primary flex items-center justify-center min-w-[36px] w-9 h-9 p-0 rounded-lg shrink-0 ${
                 !isConnected || inputValue.length > MAX_MESSAGE_LENGTH ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               disabled={!isConnected || inputValue.length > MAX_MESSAGE_LENGTH}
@@ -377,12 +401,12 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
           </div>
           <div className="flex items-center justify-between mt-1.5 px-1">
             {inputValue.length > MAX_MESSAGE_LENGTH && (
-              <span className="text-xs text-red-500 dark:text-red-400">
+              <span className="text-xs text-red-400">
                 Message too long (max {MAX_MESSAGE_LENGTH} characters)
               </span>
             )}
             <span className={`text-xs ml-auto ${
-              inputValue.length > MAX_MESSAGE_LENGTH ? 'text-red-500 dark:text-red-400' : 'text-[#9B9B9B] dark:text-gray-400'
+              inputValue.length > MAX_MESSAGE_LENGTH ? 'text-red-400' : 'text-gray-400'
             }`}>
               {inputValue.length}/{MAX_MESSAGE_LENGTH}
             </span>

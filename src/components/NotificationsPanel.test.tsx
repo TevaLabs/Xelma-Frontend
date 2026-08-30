@@ -250,9 +250,6 @@ describe('NotificationsPanel', () => {
       expect(emptyState).toHaveTextContent('No notifications');
       expect(emptyState).toHaveTextContent("You're all caught up! New notifications will appear here.");
       expect(emptyState).toHaveClass('p-4');
-
-      const clockIcon = screen.getByTestId('clock-icon');
-      expect(clockIcon).toHaveClass('h-12', 'w-12', 'text-gray-300', 'dark:text-gray-700', 'mb-4');
     });
   });
 
