@@ -18,6 +18,32 @@ describe('EndRoundModal accessibility', () => {
     expect(screen.getByText('You made all the right moves.')).toBeInTheDocument();
   });
 
+  it('renders an aria-live region announcing win/loss outcome', async () => {
+    const { container: winContainer } = render(
+      <EndRoundModal isOpen onClose={vi.fn()} result={result} />,
+    );
+    await waitFor(() => {
+      const winRegion = winContainer.querySelector('[aria-live="polite"]');
+      expect(winRegion).toBeInTheDocument();
+      expect(winRegion).toHaveTextContent(/round result: win/i);
+      expect(winRegion).toHaveTextContent(/net gain plus \$42\.00/i);
+    });
+
+    const { container: lossContainer } = render(
+      <EndRoundModal
+        isOpen
+        onClose={vi.fn()}
+        result={{ isWin: false, amount: 15, tip: 'Better luck next round.' }}
+      />,
+    );
+    await waitFor(() => {
+      const lossRegion = lossContainer.querySelector('[aria-live="polite"]');
+      expect(lossRegion).toBeInTheDocument();
+      expect(lossRegion).toHaveTextContent(/round result: loss/i);
+      expect(lossRegion).toHaveTextContent(/net loss minus \$15\.00/i);
+    });
+  });
+
   it('closes on Escape and restores focus to the trigger', async () => {
     const onClose = vi.fn();
 
@@ -93,18 +119,14 @@ describe('EndRoundModal sharing functionality', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders a share result button', () => {
+  it('renders a continue button', () => {
     render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
-    expect(screen.getByRole('button', { name: /share result/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /continue to next round/i })).toBeInTheDocument();
   });
 
-  it('attempts to use navigator.share when clicking share result', async () => {
+  it('renders net result details when modal is open', async () => {
     render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
-    const shareButton = screen.getByRole('button', { name: /share result/i });
-    fireEvent.click(shareButton);
-
-    await waitFor(() => {
-      expect(navigator.share).toHaveBeenCalled();
-    });
+    expect(screen.getByText('+$42.00')).toBeInTheDocument();
+    expect(screen.getByText(result.tip)).toBeInTheDocument();
   });
 });

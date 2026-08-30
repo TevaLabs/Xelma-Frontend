@@ -39,6 +39,41 @@ const es = {
   footer: {
     description: 'Inteligencia colectiva de mercado en Stellar',
   },
+  dashboard: {
+    refresh: 'Actualizar',
+    walletPrompt: {
+      message: 'Conecta tu cartera para enviar predicciones.',
+      connectNow: 'Conectar ahora',
+    },
+    emptyState: {
+      noActiveRounds: {
+        title: 'No hay rondas activas',
+        description: 'Aprende cómo funciona el juego o actualiza para ver rondas nuevas.',
+      },
+      noAssetRounds: {
+        title: 'No hay rondas de {{asset}} disponibles',
+        description:
+          'Actualmente no hay rondas activas para {{assetName}}. Prueba a seleccionar otro activo o vuelve más tarde.',
+      },
+    },
+    sorobanInspector: {
+      title: 'Inspector Soroban',
+      description: 'Posición de la cartera y estado de la ronda, solo lectura.',
+      loading: 'Cargando…',
+      rpcFallback: 'Respaldo RPC: {{error}}',
+    },
+    share: {
+      button: 'Compartir',
+      copyAriaLabel: 'Copiar enlace para compartir',
+      copied: 'Enlace copiado al portapapeles',
+      copyError: 'No se pudo copiar el enlace',
+    },
+    assetNames: {
+      BTC: 'Bitcoin',
+      ETH: 'Ethereum',
+      XLM: 'Stellar',
+    },
+  },
 };
 
 export default es;

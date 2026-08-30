@@ -30,7 +30,7 @@ vi.mock('../../lib/socket', () => {
 // Mock API client
 vi.mock('../../lib/api-client', () => ({
   priceApi: {
-    getHistory: vi.fn().mockResolvedValue([]),
+    getPriceSeries: vi.fn().mockResolvedValue([]),
   },
 }));
 

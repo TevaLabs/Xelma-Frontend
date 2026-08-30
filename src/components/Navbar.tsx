@@ -4,13 +4,19 @@
 // ISSUE: Build User Profile page (/profile)
 
 import { Link, useLocation } from 'react-router-dom';
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { Menu, X, Search } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback, type ChangeEvent } from 'react';
+
+import { useTranslation } from 'react-i18next';
+import { Menu, X, Search, Eye } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';
+
+import MaskedBalance from './MaskedBalance';
+import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
+
 
 interface NavLinkItem {
   labelKey: string;
@@ -51,6 +57,18 @@ function NetworkBadge() {
   );
 }
 
+function WatchOnlyBadge() {
+  return (
+    <span
+      className="rounded-full border border-purple-500/40 bg-purple-500/10 px-2.5 py-0.5 text-xs font-bold tracking-wide text-purple-400 flex items-center gap-1"
+      title="Watch-only mode: viewing address without signing capability"
+    >
+      <Eye className="w-3 h-3" />
+      <span>Watch-Only</span>
+    </span>
+  );
+}
+
 export default function Navbar() {
   const location = useLocation();
   const { t, i18n } = useTranslation();
@@ -60,6 +78,7 @@ export default function Navbar() {
   const status = useWalletStore((s) => s.status);
   const connect = useWalletStore((s) => s.connect);
   const checkConnection = useWalletStore((s) => s.checkConnection);
+  const isWatchOnly = useWalletStore((s) => s.isWatchOnly);
   const isConnecting = status === 'connecting' || status === 'checking';
   const currentLanguage = (i18n.language || 'en').split('-')[0];
 
@@ -165,6 +184,7 @@ export default function Navbar() {
                 <span className="text-xs">Ctrl+K</span>
               </button>
               <NetworkBadge />
+              {isWatchOnly && <WatchOnlyBadge />}
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-sm text-white">
                 <label htmlFor="language-select" className="sr-only">
                   {t('navbar.languageLabel')}
@@ -185,12 +205,20 @@ export default function Navbar() {
               </div>
               {isConnected && publicKey ? (
                 <>
-                  <span className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
-                    {balance ? `${balance} vXLM` : '… vXLM'}
-                  </span>
-                  <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-xs text-gray-300">
+                  <MaskedBalance
+                    value={balance ? `${balance} vXLM` : '… vXLM'}
+                    className="rounded-lg border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200"
+                  />
+                  <a
+                    href={accountUrl(publicKey)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={publicKey}
+                    aria-label={`${truncateAddress(publicKey)} — view on StellarExpert (${EXPLORER_NETWORK})`}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-xs text-gray-300 transition-colors hover:border-[#2C4BFD]/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]"
+                  >
                     {truncateAddress(publicKey)}
-                  </span>
+                  </a>
                 </>
               ) : null}
  
@@ -249,8 +277,9 @@ export default function Navbar() {
               </button>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <NetworkBadge />
+              {isWatchOnly && <WatchOnlyBadge />}
             </div>
 
             <nav className="flex flex-col gap-4">
@@ -293,9 +322,16 @@ export default function Navbar() {
                   </div>
                   <div className="flex items-center justify-between px-2">
                     <span className="text-sm text-gray-400">{t('navbar.address')}</span>
-                    <span className="font-mono text-sm text-gray-300">
+                    <a
+                      href={accountUrl(publicKey)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={publicKey}
+                      aria-label={`${truncateAddress(publicKey)} — view on StellarExpert (${EXPLORER_NETWORK})`}
+                      className="rounded font-mono text-sm text-gray-300 underline-offset-2 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]"
+                    >
                       {truncateAddress(publicKey)}
-                    </span>
+                    </a>
                   </div>
                 </div>
               ) : null}
