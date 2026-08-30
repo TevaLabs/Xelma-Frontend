@@ -224,6 +224,107 @@ export async function inspectSorobanState(userAddress: string): Promise<SorobanI
 }
 
 /**
+ * Safe fallback copy shown when a contract error doesn't match any known
+ * case. Deliberately generic and actionable — never leaks raw SDK / HostError
+ * internals to players.
+ */
+export const CONTRACT_ERROR_FALLBACK =
+  'Something went wrong while submitting your prediction. Please try again.';
+
+interface ErrorMapping {
+  /** Regex tested against the raw error message (case-insensitive). */
+  test: RegExp;
+  /** Player-friendly copy to show in the modal. */
+  message: string;
+}
+
+/**
+ * Raw → friendly translations for common Soroban simulation and Freighter
+ * signing failures. Order matters: more specific patterns are listed first so
+ * e.g. `Transaction rejected by network: tx_insufficient_balance` maps to the
+ * balance case rather than the generic contract-rejection case.
+ */
+const ERROR_MAPPINGS: ErrorMapping[] = [
+  {
+    // Wallet doesn't have enough XLM for the stake + fees.
+    test: /insufficient (balance|funds)|tx_insufficient_balance|not enough xlm|balance too low/i,
+    message:
+      "You don't have enough XLM in your wallet to cover this prediction and its fees. Fund your wallet and try again.",
+  },
+  {
+    // Soroban resource budget exceeded (CPU / ledger footprint too large).
+    test: /\bbudget\b|resource (limit|usage)|exceeded.*(limit|maximum)|instructions.*exceed|failed to (assemble|prepare)/i,
+    message:
+      'This prediction would use more network resources than allowed. Try a smaller stake.',
+  },
+  {
+    // Contract no longer accepts bets for the current round.
+    test: /round.*(closed|ended|not open)|betting.*(closed|ended)|no active round|market closed/i,
+    message:
+      'The current round has closed and is no longer accepting predictions. Try again in the next round.',
+  },
+  {
+    // User declined / cancelled the Freighter signature prompt.
+    test: /signing (cancelled|rejected)|user (cancelled|rejected|declined)|cancelled or rejected|cancelled.*(request|signature)|rejected the (request|signature|transaction)/i,
+    message: 'You cancelled the request in your wallet. No transaction was sent.',
+  },
+  {
+    // Wallet couldn't produce a valid signature.
+    test: /failed to sign|sign.*failed|wallet.*(error|failed)/i,
+    message: "Your wallet couldn't sign this transaction. Please try again.",
+  },
+  {
+    // Soroban authentication / invoker verification failure.
+    test: /authentication|invalid invoker|soroban.*auth/i,
+    message:
+      "Your wallet couldn't be verified for this transaction. Approve it in Freighter and try again.",
+  },
+  {
+    // Account doesn't exist or has never been funded on the network.
+    test: /unfunded|not found or unfunded|fund your (account|address)|account.*doesn'?t exist/i,
+    message: 'Your Stellar account is not funded yet. Add XLM before placing a prediction.',
+  },
+  {
+    // Network / RPC hiccups and long-running polling timeouts.
+    test: /network|timeout|timed out|unavailable|offline|failed to (broadcast|connect)|fetch failed|rpc|connection/i,
+    message: "The Stellar network didn't respond. Check your connection and try again.",
+  },
+  {
+    // Any other on-chain rejection or contract panic (catch-all).
+    test: /panicked|hosterror|contract (error|invocation)|invocation.*failed|tx_failed|failed on-chain|rejected by network/i,
+    message: 'The prediction contract rejected this request. Review your details and try again.',
+  },
+];
+
+/**
+ * Maps a raw Soroban simulation / Freighter signing error to player-friendly
+ * copy safe to show in the BetModal.
+ *
+ * The raw error is always logged to the console (with `[xelma-contract]`
+ * prefix) for debugging, and unknown errors fall back to
+ * {@link CONTRACT_ERROR_FALLBACK} instead of surfacing internals to the user.
+ */
+export function humanizeContractError(error: unknown, context = 'contract call'): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : '';
+
+  // Keep the full raw error (message + stack) in the console for debugging.
+  console.error(`[xelma-contract:${context}] raw error:`, error);
+
+  if (!raw) return CONTRACT_ERROR_FALLBACK;
+
+  for (const mapping of ERROR_MAPPINGS) {
+    if (mapping.test.test(raw)) return mapping.message;
+  }
+
+  return CONTRACT_ERROR_FALLBACK;
+}
+
+/**
  * Common transaction preparation and sign/submit wrapper
  */
 async function executeContractCall(

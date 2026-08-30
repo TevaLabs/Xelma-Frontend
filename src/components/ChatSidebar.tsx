@@ -6,6 +6,7 @@ import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useRoundStore, selectActiveChatChannelId } from "../store/useRoundStore";
 import { formatRelativeTime } from "../lib/utils";
 import EmptyState from "./EmptyState";
+import { ChatOfflineIllustration } from "./icons/StellarIllustrations";
 import { MODAL_OVERLAY, TRANSFORM_TRANSITION } from "../utils/motion";
 
 const MAX_MESSAGE_LENGTH = 500;
@@ -319,9 +320,19 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         >
           {messages.length === 0 && (
             <EmptyState
-              icon={<MessageCircle className="h-10 w-10 text-xelma-blue" />}
-              title="No messages yet"
-              description="Be the first to say something in the chat."
+              icon={
+                isConnected ? (
+                  <MessageCircle className="h-10 w-10 text-xelma-blue" />
+                ) : (
+                  <ChatOfflineIllustration size={80} />
+                )
+              }
+              title={isConnected ? "No messages yet" : "No connection"}
+              description={
+                isConnected
+                  ? "Be the first to say something in the chat."
+                  : "Reconnect to see and send messages."
+              }
               className="min-h-[160px] border-none bg-transparent backdrop-blur-none"
             />
           )}

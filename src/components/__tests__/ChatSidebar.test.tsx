@@ -211,3 +211,57 @@ describe('ChatSidebar — mobile sheet focus order', () => {
     expect(screen.getByLabelText('Live chat')).toHaveAttribute('aria-modal', 'true');
   });
 });
+
+describe('ChatSidebar — empty-state illustration (#446)', () => {
+  afterEach(() => {
+    vi.mocked(useConnectionStatus).mockReturnValue({
+      status: 'connected',
+      isConnected: true,
+      isConnecting: false,
+      isReconnecting: false,
+      isDisconnected: false,
+    });
+  });
+
+  it('shows a non-emoji SVG illustration (not just the plain message icon) when offline with no messages', () => {
+    vi.mocked(useConnectionStatus).mockReturnValue({
+      status: 'disconnected',
+      isConnected: false,
+      isConnecting: false,
+      isReconnecting: false,
+      isDisconnected: true,
+    });
+
+    render(<ChatSidebar />);
+
+    const messagesRegion = screen.getByLabelText('Message input').closest('aside')!;
+    const svgs = messagesRegion.querySelectorAll('svg[aria-hidden="true"]');
+    // At least one aria-hidden decorative SVG illustration is present (not text/emoji).
+    expect(svgs.length).toBeGreaterThan(0);
+    expect(screen.getByText(/no connection/i)).toBeInTheDocument();
+    expect(screen.getByText(/reconnect to see and send messages/i)).toBeInTheDocument();
+  });
+
+  it('shows the plain empty-state copy (not the offline illustration) when connected with no messages', () => {
+    render(<ChatSidebar />);
+
+    expect(screen.getByText(/no messages yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no connection/i)).not.toBeInTheDocument();
+  });
+
+  it('never renders an emoji character as the empty-state icon', () => {
+    vi.mocked(useConnectionStatus).mockReturnValue({
+      status: 'disconnected',
+      isConnected: false,
+      isConnecting: false,
+      isReconnecting: false,
+      isDisconnected: true,
+    });
+
+    render(<ChatSidebar />);
+
+    const emptyStateTitle = screen.getByText(/no connection/i);
+    const emojiPattern = /\p{Extended_Pictographic}/u;
+    expect(emojiPattern.test(emptyStateTitle.parentElement?.textContent ?? '')).toBe(false);
+  });
+});

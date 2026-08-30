@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Edit3,
   Link as LinkIcon,
-  Loader2,
   RefreshCw,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -18,6 +17,7 @@ import BalancesPanel from '../components/BalancesPanel';
 import { useProfileStore } from '../store/useProfileStore';
 import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
+import { Spinner } from '../components/ui/Spinner';
 
 const defaultProfile: ProfileSettingsValues = {
   avatarUrl: null,
@@ -148,11 +148,9 @@ export default function Profile() {
           {isLoading && !profile ? (
             <section
               className="glass-card flex min-h-[420px] items-center justify-center rounded-xl p-8"
-              aria-busy="true"
-              aria-label="Loading profile"
             >
               <div className="flex flex-col items-center gap-4 text-center">
-                <Loader2 className="h-9 w-9 animate-spin text-[#22D3EE]" aria-hidden />
+                <Spinner label="Loading profile" size="lg" />
                 <p className="text-sm font-semibold text-gray-300">Loading profile...</p>
               </div>
             </section>

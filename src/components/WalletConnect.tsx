@@ -10,6 +10,7 @@ import MaskedBalance from './MaskedBalance';
 import NetworkMismatchCard from './NetworkMismatchCard';
 import { EXPECTED_NETWORK_LABEL } from '../lib/stellarNetwork';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
+import FreighterMissingCard from './FreighterMissingCard';
 
 
 const focusRing =
@@ -166,29 +167,39 @@ const WalletConnect = () => {
   }
 
   if (status === 'error' && errorMessage) {
+    if (errorCode === 'FREIGHTER_UNAVAILABLE' || errorMessage.toLowerCase().includes('freighter is not installed')) {
+      return <FreighterMissingCard />;
+    }
+
     return (
-      <div className="flex items-center gap-2 p-1 pr-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-full text-red-600 dark:text-red-400 w-fit">
-        <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
-          <AlertCircle className="w-4 h-4" aria-hidden />
+      <div className="flex flex-col gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-white">
+        <div className="flex items-start gap-2.5">
+          <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-bold text-red-200">
+              {errorCode === 'ACCESS_DENIED' ? 'Wallet Access Denied' : 'Connection Error'}
+            </h4>
+            <p className="text-xs text-red-100/80 mt-1" role="alert">
+              {errorMessage}
+            </p>
+          </div>
         </div>
-        <p className="text-xs sm:text-sm font-medium max-w-[12rem] sm:max-w-xs truncate" role="alert" title={errorMessage}>
-          {errorMessage}
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            clearError();
-            void connect();
-          }}
-          className={clsx(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors ml-1',
-            focusRing
-          )}
-          aria-label="Retry"
-        >
-          <RefreshCw className="w-3.5 h-3.5" aria-hidden />
-          Retry
-        </button>
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => {
+              clearError();
+              void connect();
+            }}
+            className={clsx(
+              'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-[#2C4BFD] text-white hover:bg-[#1a3bf0]',
+              focusRing
+            )}
+          >
+            <RefreshCw className="w-4 h-4" aria-hidden />
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

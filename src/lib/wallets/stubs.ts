@@ -16,6 +16,7 @@ function notImplemented(
   id: WalletAdapter['id'],
   name: string,
   description: string,
+  comingSoonHint: string,
 ): WalletAdapter {
   const fail = (): never => {
     throw new WalletAdapterError(id, `${name} support is not available yet.`);
@@ -26,6 +27,7 @@ function notImplemented(
     name,
     description,
     isImplemented: false,
+    comingSoonHint,
 
     async isAvailable(): Promise<WalletAvailability> {
       return { isAvailable: false, reason: 'NOT_IMPLEMENTED' };
@@ -49,10 +51,12 @@ export const albedoAdapter = notImplemented(
   'albedo',
   'Albedo',
   'Web-based signer — no extension required',
+  'Albedo support is planned but not wired up yet — use Freighter for now.',
 );
 
 export const lobstrAdapter = notImplemented(
   'lobstr',
   'LOBSTR',
   'Mobile and browser wallet with WalletConnect',
+  'LOBSTR support is planned but not wired up yet — use Freighter for now.',
 );
