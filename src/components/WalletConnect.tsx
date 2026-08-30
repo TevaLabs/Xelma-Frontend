@@ -6,7 +6,6 @@ import { toDataURL } from 'qrcode';
 import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw, Copy, QrCode, Droplets, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 
-const FRIENDBOT_URL = import.meta.env.VITE_STELLAR_FRIENDBOT_URL || 'https://friendbot.stellar.org';
 const IS_TESTNET = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase() !== 'PUBLIC';
 const ISSUE_URL = 'https://github.com/fredericklamar342-prog/Xelma-Frontend/issues/295';
 
