@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { extractInspectorFields, inspectSorobanState, place_bet, place_precision_prediction } from '../xelma-contract';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONTRACT_ERROR_FALLBACK, extractInspectorFields, humanizeContractError, inspectSorobanState, place_bet, place_precision_prediction } from '../xelma-contract';
 import { signTransaction } from '@stellar/freighter-api';
 
 // Mock the Freighter API
@@ -167,6 +167,80 @@ describe('Smart Contract Bindings', () => {
     expect(onStatus).toHaveBeenCalledWith('preparing');
     expect(onStatus).toHaveBeenCalledWith('signing');
     expect(onStatus).toHaveBeenCalledWith('submitting');
+  });
+});
+
+describe('humanizeContractError', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ['insufficient balance', 'Simulation failed: HostError: Status(ContractError(7)) insufficient balance'],
+    ['tx_insufficient_balance', 'Transaction rejected by network: tx_insufficient_balance'],
+  ])('maps an insufficient-balance failure (%s) to friendly copy', (_label, raw) => {
+    expect(humanizeContractError(new Error(raw))).toBe(
+      "You don't have enough XLM in your wallet to cover this prediction and its fees. Fund your wallet and try again."
+    );
+  });
+
+  it('maps a Soroban budget/resource failure to friendly copy', () => {
+    expect(humanizeContractError(new Error('Simulation failed: HostError: Status(Budget)'))).toBe(
+      'This prediction would use more network resources than allowed. Try a smaller stake.'
+    );
+  });
+
+  it('maps a closed-round failure to friendly copy', () => {
+    expect(humanizeContractError(new Error('Simulation failed: ContractError: round is closed'))).toBe(
+      'The current round has closed and is no longer accepting predictions. Try again in the next round.'
+    );
+  });
+
+  it('maps a user-cancelled Freighter signature to friendly copy', () => {
+    expect(humanizeContractError(new Error('Freighter signing rejected: User rejected the request'))).toBe(
+      'You cancelled the request in your wallet. No transaction was sent.'
+    );
+  });
+
+  it('maps an authentication failure to friendly copy', () => {
+    expect(humanizeContractError(new Error('Simulation failed: HostError: Status(AuthenticationError)'))).toBe(
+      "Your wallet couldn't be verified for this transaction. Approve it in Freighter and try again."
+    );
+  });
+
+  it('maps an unfunded account to friendly copy', () => {
+    expect(humanizeContractError(new Error('Stellar account not found or unfunded on Testnet. Please fund your address first.'))).toBe(
+      'Your Stellar account is not funded yet. Add XLM before placing a prediction.'
+    );
+  });
+
+  it('maps a network timeout to friendly copy', () => {
+    expect(humanizeContractError(new Error('Transaction polling timed out after 60 seconds.'))).toBe(
+      "The Stellar network didn't respond. Check your connection and try again."
+    );
+  });
+
+  it('maps a generic contract panic to friendly copy', () => {
+    expect(humanizeContractError(new Error('Simulation failed: Contract invocation panicked'))).toBe(
+      'The prediction contract rejected this request. Review your details and try again.'
+    );
+  });
+
+  it('falls back to a safe message for unknown errors', () => {
+    expect(humanizeContractError(new Error('Some cryptic internal error code 0xdeadbeef'))).toBe(
+      CONTRACT_ERROR_FALLBACK
+    );
+    expect(humanizeContractError('not even an error object')).toBe(CONTRACT_ERROR_FALLBACK);
+    expect(humanizeContractError(null)).toBe(CONTRACT_ERROR_FALLBACK);
+  });
+
+  it('keeps the raw error in the console for debugging', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const raw = new Error('Simulation failed: HostError: Status(Budget)');
+
+    humanizeContractError(raw, 'place_bet');
+
+    expect(consoleSpy).toHaveBeenCalledWith('[xelma-contract:place_bet] raw error:', raw);
   });
 });
 

@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import axe from 'axe-core';
+import '../i18n';
 
 // ═══════════════════════════════════════════════════════════
 // Landing page mocks (mirrors src/pages/Landing.test.tsx)

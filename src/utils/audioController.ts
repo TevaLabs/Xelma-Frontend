@@ -57,13 +57,12 @@ export function isSoundPreferenceEnabled(): boolean {
 }
 
 /**
- * Play a short monophonic test tone (used by the Settings "Test sound" button).
- * The tone lasts ~180ms so it never gets obnoxious but is clearly audible.
- *
- * Returns `true` if the tone was scheduled, `false` if anything prevented it
- * (unsupported environment, sound disabled, suspended context).
+ * Schedule a short monophonic tone on the shared AudioContext. Shared by
+ * `playTestTone()` and `playRoundResolutionCue()` so both cues are gated by
+ * the exact same `isSoundPreferenceEnabled()` check — one preference, one
+ * code path, no risk of the two cues drifting out of sync.
  */
-export function playTestTone(): boolean {
+function playTone(frequency: number): boolean {
   if (!isSoundPreferenceEnabled()) return false;
   const ctx = getContext();
   if (!ctx) return false;
@@ -80,7 +79,7 @@ export function playTestTone(): boolean {
     const gain = ctx.createGain();
 
     oscillator.type = 'sine';
-    oscillator.frequency.value = 660; // gentle, mid-range confirmation tone
+    oscillator.frequency.value = frequency;
 
     // Linear ramp avoids audible clicks on start / end.
     const now = ctx.currentTime;
@@ -107,4 +106,27 @@ export function playTestTone(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Play a short monophonic test tone (used by the Settings "Test sound" button).
+ * The tone lasts ~180ms so it never gets obnoxious but is clearly audible.
+ *
+ * Returns `true` if the tone was scheduled, `false` if anything prevented it
+ * (unsupported environment, sound disabled, suspended context).
+ */
+export function playTestTone(): boolean {
+  return playTone(660); // gentle, mid-range confirmation tone
+}
+
+/**
+ * Play the round-resolution cue on the dashboard — a slightly higher tone for
+ * a win, lower for a loss. Gated by the same `isSoundPreferenceEnabled()`
+ * check as `playTestTone()`, so it always reflects whatever the Settings
+ * "Sound" toggle (and its `bindSoundPreference` binding) currently says.
+ *
+ * Returns `true` if the tone was scheduled, `false` if anything prevented it.
+ */
+export function playRoundResolutionCue(isWin: boolean): boolean {
+  return playTone(isWin ? 880 : 440);
 }

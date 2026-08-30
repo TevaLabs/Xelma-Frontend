@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Wallet, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { WALLET_ADAPTERS, type WalletAdapter, type WalletId } from '../lib/wallets';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { MODAL_CONTENT, MODAL_OVERLAY } from '../utils/motion';
@@ -30,10 +31,17 @@ function WalletRow({
   isConnecting: boolean;
   onSelect: () => void;
 }) {
-  const isDisabled = !adapter.isImplemented || isAvailable === false || isConnecting;
+  const isStub = !adapter.isImplemented;
+  // Stub rows stay focusable/clickable (no native `disabled`) so selecting
+  // one can surface an informational toast instead of silently doing
+  // nothing — a fully disabled button gives keyboard/screen-reader users no
+  // feedback at all. Implemented-but-unavailable adapters (extension not
+  // installed) and in-flight connections still use real `disabled`.
+  const nativeDisabled = (adapter.isImplemented && isAvailable === false) || isConnecting;
+  const isVisuallyDisabled = isStub || nativeDisabled;
 
   let badge: string | null = null;
-  if (!adapter.isImplemented) {
+  if (isStub) {
     badge = 'Coming soon';
   } else if (isChecking) {
     badge = 'Checking…';
@@ -41,14 +49,31 @@ function WalletRow({
     badge = 'Not installed';
   }
 
+  const badgeId = badge ? `wallet-badge-${adapter.id}` : undefined;
+  const hintId = isStub && adapter.comingSoonHint ? `wallet-hint-${adapter.id}` : undefined;
+  const describedBy = [badgeId, hintId].filter(Boolean).join(' ') || undefined;
+
+  const handleClick = () => {
+    if (isStub) {
+      toast.info(`${adapter.name} is coming soon`, {
+        description:
+          adapter.comingSoonHint ?? `${adapter.name} support isn't wired up yet — try Freighter for now.`,
+      });
+      return;
+    }
+    onSelect();
+  };
+
   return (
     <li>
       <button
         type="button"
-        onClick={onSelect}
-        disabled={isDisabled}
-        aria-describedby={badge ? `wallet-badge-${adapter.id}` : undefined}
-        className="flex w-full items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/70 px-4 py-3 text-left transition-colors enabled:hover:border-[#2C4BFD]/50 enabled:hover:bg-white/[0.03] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]"
+        onClick={handleClick}
+        disabled={nativeDisabled}
+        aria-disabled={isVisuallyDisabled}
+        title={isStub ? adapter.comingSoonHint : undefined}
+        aria-describedby={describedBy}
+        className="flex w-full items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/70 px-4 py-3 text-left transition-colors enabled:hover:border-[#2C4BFD]/50 enabled:hover:bg-white/[0.03] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]"
       >
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-[#2C4BFD] to-[#22D3EE] text-white"
@@ -62,7 +87,7 @@ function WalletRow({
             <span className="text-sm font-bold text-white">{adapter.name}</span>
             {badge && (
               <span
-                id={`wallet-badge-${adapter.id}`}
+                id={badgeId}
                 className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gray-400"
               >
                 {badge}
@@ -76,6 +101,15 @@ function WalletRow({
           <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#22D3EE]" aria-hidden />
         )}
       </button>
+      {hintId && (
+        // Kept outside the <button> so it augments the accessible
+        // *description* (via aria-describedby) without also bleeding into
+        // the button's accessible *name* — a name that quotes "Freighter"
+        // would otherwise collide with lookups for the real Freighter row.
+        <span id={hintId} className="sr-only">
+          {adapter.comingSoonHint}
+        </span>
+      )}
     </li>
   );
 }
@@ -84,8 +118,9 @@ function WalletRow({
  * Wallet selection modal.
  *
  * Renders one row per registered `WalletAdapter`. Freighter is fully wired;
- * adapters that report `isImplemented: false` render disabled as "Coming soon"
- * so the picker advertises the roadmap without offering a dead path.
+ * adapters that report `isImplemented: false` render as "Coming soon" — dimmed
+ * and never forwarded to `onSelect`, but still selectable so choosing one
+ * surfaces an informational toast instead of looking broken.
  */
 export default function WalletPicker({
   isOpen,

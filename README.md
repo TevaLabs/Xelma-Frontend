@@ -77,6 +77,8 @@ The app boots on [http://localhost:5173](http://localhost:5173). During developm
 proxies `/api` and `/socket.io` to `http://localhost:3000` (configure via
 [`vite.config.ts`](./vite.config.ts) and [`src/lib/config.ts`](./src/lib/config.ts)).
 
+> 💡 **Freighter-less Demo:** Newcomers can demo the full UI, wallet connection, placing bets, and claiming rewards in <15 minutes without installing the Freighter browser extension. See [`docs/freighter-less-fixtures.md`](./docs/freighter-less-fixtures.md).
+
 ---
 
 ## Available scripts
@@ -290,9 +292,9 @@ price chart, the round lifecycle timeline, round-update connection status, the
 end-round modal, and opt-in community chat (toggled from the dashboard header so
 the default terminal stays uncluttered).
 
-`/play` is **deprecated** and permanently redirects to `/dashboard`. The
-`LegacyDashboard` component is retained only for reference and is no longer
-routed. Chat and notifications are available via the in-dashboard toggle; further
+`/play` is **deprecated** and permanently redirects to `/dashboard`. The former
+`LegacyDashboard` page has been removed — `/dashboard` is the single dashboard
+story. Chat and notifications are available via the in-dashboard toggle; further
 social/notification consolidation is tracked in issue
 [#130](https://github.com/TevaLabs/Xelma-Frontend/issues/130).
 

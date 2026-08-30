@@ -6,6 +6,7 @@ import { claim_winnings } from '../lib/xelma-contract';
 import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
 import PanelHeader from './ui/PanelHeader';
+import GlassCard from './ui/GlassCard';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 
@@ -47,7 +48,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   // Loading state
   if (isLoading) {
     return (
-      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title" aria-busy="true">
+      <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title" aria-busy="true">
         <h2 id="your-stats-title" className="text-lg font-bold text-white animate-pulse">
           Your Record
         </h2>
@@ -71,14 +72,14 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           </div>
           <div className="h-11 w-full rounded-xl bg-white/5 border border-white/5 animate-pulse mt-6" />
         </div>
-      </section>
+      </GlassCard>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
+      <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
         <p className="text-red-500 mb-2">{error}</p>
         {onRetry && (
           <button
@@ -89,12 +90,12 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
             Retry
           </button>
         )}
-      </section>
+      </GlassCard>
     );
   }
 
   return (
-    <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
+    <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
       <PanelHeader title="Your Record" />
 
       <dl className="mt-5 space-y-4">
@@ -177,6 +178,6 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           />
         </div>
       )}
-    </section>
+    </GlassCard>
   );
 }
