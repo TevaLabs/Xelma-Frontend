@@ -1,11 +1,38 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { toDataURL } from 'qrcode';
+import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw, Copy, QrCode, Droplets, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
+
+const FRIENDBOT_URL = import.meta.env.VITE_STELLAR_FRIENDBOT_URL || 'https://friendbot.stellar.org';
+const IS_TESTNET = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase() !== 'PUBLIC';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error('Copy command failed');
+  }
+}
 
 const WalletConnect = () => {
   const {
@@ -21,10 +48,54 @@ const WalletConnect = () => {
     clearError,
   } = useWalletStore();
   const { isAuthenticated } = useAuthStore();
+  const [showReceivePanel, setShowReceivePanel] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     void checkConnection();
   }, [checkConnection]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!publicKey || !showReceivePanel) return;
+
+    void toDataURL(publicKey, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      scale: 6,
+      color: {
+        dark: '#0A0F1A',
+        light: '#FFFFFF',
+      },
+    })
+      .then((dataUrl) => {
+        if (!cancelled) {
+          setQrDataUrl(dataUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl(null);
+          toast.error('Could not generate receive QR code');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [publicKey, showReceivePanel]);
+
+  const handleCopyPublicKey = async () => {
+    if (!publicKey) return;
+
+    try {
+      await copyText(publicKey);
+      toast.success('Public key copied');
+    } catch {
+      toast.error('Could not copy public key');
+    }
+  };
 
   const shortAddress = publicKey
     ? `${publicKey.slice(0, 4)}...${publicKey.slice(-4)}`
@@ -49,17 +120,8 @@ const WalletConnect = () => {
         <div className="flex flex-col sm:flex-row items-stretch gap-3">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-[#BEC7FE] dark:border-gray-700 rounded-lg shadow-sm">
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-              {balance ? (
-                <>
-                  <span className="sr-only">Balance: </span>
-                  {balance}
-                </>
-              ) : (
-                <>
-                  <span className="sr-only">Balance unavailable</span>
-                  <span aria-hidden>—</span>
-                </>
-              )}
+              {balance ? <span className="sr-only">Balance:</span> : <span className="sr-only">Balance unavailable</span>}
+              {balance ?? '—'}
             </span>
           </div>
 
@@ -80,6 +142,33 @@ const WalletConnect = () => {
             )}
             <button
               type="button"
+              onClick={handleCopyPublicKey}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg text-[#2C4BFD] dark:text-[#BEC7FE] hover:bg-[#2C4BFD]/10',
+                focusRing
+              )}
+              aria-label="Copy public key"
+            >
+              <Copy className="w-4 h-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowReceivePanel((isOpen) => {
+                if (isOpen) setQrDataUrl(null);
+                return !isOpen;
+              })}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
+                focusRing
+              )}
+              aria-expanded={showReceivePanel}
+              aria-controls="wallet-receive-panel"
+              aria-label={showReceivePanel ? 'Hide receive QR code' : 'Show receive QR code'}
+            >
+              <QrCode className="w-4 h-4" aria-hidden />
+            </button>
+            <button
+              type="button"
               onClick={disconnect}
               className={clsx(
                 'shrink-0 p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20',
@@ -91,6 +180,64 @@ const WalletConnect = () => {
             </button>
           </div>
         </div>
+
+        {showReceivePanel && (
+          <div
+            id="wallet-receive-panel"
+            className="rounded-2xl border border-[#BEC7FE]/20 bg-white dark:bg-gray-900 p-4 shadow-sm"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-36 w-36 shrink-0 items-center justify-center rounded-xl bg-white p-2">
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="QR code for connected Stellar public key"
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <Loader2 className="h-6 w-6 animate-spin text-[#2C4BFD]" aria-label="Generating receive QR code" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Receive XLM</h2>
+                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  Scan this QR code or copy your Stellar public key to receive funds.
+                </p>
+                <p className="mt-3 break-all rounded-lg bg-gray-100 p-3 font-mono text-xs text-gray-800 dark:bg-gray-950 dark:text-gray-200">
+                  {publicKey}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyPublicKey}
+                    className={clsx(
+                      'inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#2C4BFD] px-4 py-2 text-sm font-bold text-white hover:bg-[#1a3bf0]',
+                      focusRing
+                    )}
+                  >
+                    <Copy className="h-4 w-4" aria-hidden />
+                    Copy address
+                  </button>
+                  {IS_TESTNET && (
+                    <a
+                      href={`${FRIENDBOT_URL}/?addr=${encodeURIComponent(publicKey)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        'inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-400/30 px-4 py-2 text-sm font-bold text-amber-200 transition-colors hover:bg-amber-400/10',
+                        focusRing
+                      )}
+                    >
+                      <Droplets className="h-4 w-4" aria-hidden />
+                      Get testnet XLM
+                      <ExternalLink className="h-3 w-3" aria-hidden />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isPendingAuth && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50 dark:border-blue-900/30 dark:bg-blue-950/50 px-4 py-3 text-sm text-blue-900 dark:text-blue-100">
