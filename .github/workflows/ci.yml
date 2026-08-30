@@ -35,7 +35,7 @@ jobs:
         run: pnpm run lint
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm run test:unit
 
       - name: Run accessibility smoke tests
         run: pnpm run test:a11y
