@@ -14,7 +14,6 @@ import ComingSoonPage from './pages/ComingSoonPage';
 import OnboardingChecklist from './components/OnboardingChecklist';
 import { Trophy } from 'lucide-react';
 
-const NotFound = lazy(() => import('./pages/NotFound'));
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
 const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));

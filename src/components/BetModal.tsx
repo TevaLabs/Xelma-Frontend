@@ -133,6 +133,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
     setFeeEstimate(null);
     setFeeEstimateStatus('idle');
     setFeeEstimateError(null);
+    // eslint-disable-next-line react-hooks/refs
     estimateParamsRef.current = '';
   }
   if (isOpen !== prevIsOpen) {
@@ -152,6 +153,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess }:
       setFeeEstimate(null);
       setFeeEstimateStatus('idle');
       setFeeEstimateError(null);
+      // eslint-disable-next-line react-hooks/refs
       estimateParamsRef.current = '';
     }
   }
