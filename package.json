@@ -12,7 +12,7 @@
     "test:unit": "vitest run",
     "test:a11y": "vitest run src/__tests__/accessibility-smoke.test.tsx",
     "test": "npm run lint && npm run build && npm run test:unit",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test e2e/smoke.spec.ts e2e/wallet-connect.spec.ts",
     "test:e2e:a11y": "playwright test e2e/accessibility.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",

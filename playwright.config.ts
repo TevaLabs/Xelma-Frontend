@@ -38,6 +38,10 @@ export default defineConfig({
           origin: 'http://localhost:5173',
           localStorage: [{ name: 'xelma_onboarding_dismissed', value: 'true' }],
         },
+        {
+          origin: 'http://127.0.0.1:5173',
+          localStorage: [{ name: 'xelma_onboarding_dismissed', value: 'true' }],
+        },
       ],
     },
   },
@@ -53,7 +57,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev',
+    command: 'pnpm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
