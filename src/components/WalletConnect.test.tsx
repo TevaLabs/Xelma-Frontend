@@ -20,6 +20,7 @@ vi.mock('qrcode', () => ({
 }));
 
 // Mock Lucide icons
+vi.stubEnv('VITE_STELLAR_NETWORK', 'TESTNET');
 vi.mock('lucide-react', () => ({
   Loader2: ({ className, ...props }: any) => <div data-testid="loader-icon" className={className} {...props} />,
   AlertCircle: ({ className, ...props }: any) => <div data-testid="alert-icon" className={className} {...props} />,
@@ -29,6 +30,8 @@ vi.mock('lucide-react', () => ({
   RefreshCw: ({ className, ...props }: any) => <div data-testid="refresh-icon" className={className} {...props} />,
   Copy: ({ className, ...props }: any) => <div data-testid="copy-icon" className={className} {...props} />,
   QrCode: ({ className, ...props }: any) => <div data-testid="qr-icon" className={className} {...props} />,
+  Droplets: ({ className, ...props }: any) => <div data-testid="droplets-icon" className={className} {...props} />,
+  ExternalLink: ({ className, ...props }: any) => <div data-testid="external-link-icon" className={className} {...props} />,
 }));
 
 const mockWalletStore = {
@@ -219,6 +222,21 @@ describe('WalletConnect', () => {
       );
       expect(screen.getByText('GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /copy address/i })).toBeInTheDocument();
+    });
+
+    it('shows a drip link in the receive panel on testnet', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /show receive qr code/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: /get testnet xlm/i })).toBeInTheDocument();
+      });
+
+      const dripLink = screen.getByRole('link', { name: /get testnet xlm/i });
+      expect(dripLink).toHaveAttribute('href', 'https://friendbot.stellar.org/?addr=GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+      expect(dripLink).toHaveAttribute('target', '_blank');
+      expect(dripLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it('shows authentication status when authenticated', () => {

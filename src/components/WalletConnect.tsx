@@ -3,8 +3,11 @@ import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { toast } from 'sonner';
 import { toDataURL } from 'qrcode';
-import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw, Copy, QrCode } from 'lucide-react';
+import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw, Copy, QrCode, Droplets, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
+
+const FRIENDBOT_URL = import.meta.env.VITE_STELLAR_FRIENDBOT_URL || 'https://friendbot.stellar.org';
+const IS_TESTNET = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase() !== 'PUBLIC';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -211,17 +214,34 @@ const WalletConnect = () => {
                 <p className="mt-3 break-all rounded-lg bg-gray-100 p-3 font-mono text-xs text-gray-800 dark:bg-gray-950 dark:text-gray-200">
                   {publicKey}
                 </p>
-                <button
-                  type="button"
-                  onClick={handleCopyPublicKey}
-                  className={clsx(
-                    'mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#2C4BFD] px-4 py-2 text-sm font-bold text-white hover:bg-[#1a3bf0]',
-                    focusRing
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyPublicKey}
+                    className={clsx(
+                      'inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#2C4BFD] px-4 py-2 text-sm font-bold text-white hover:bg-[#1a3bf0]',
+                      focusRing
+                    )}
+                  >
+                    <Copy className="h-4 w-4" aria-hidden />
+                    Copy address
+                  </button>
+                  {IS_TESTNET && (
+                    <a
+                      href={`${FRIENDBOT_URL}/?addr=${encodeURIComponent(publicKey)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        'inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-400/30 px-4 py-2 text-sm font-bold text-amber-200 transition-colors hover:bg-amber-400/10',
+                        focusRing
+                      )}
+                    >
+                      <Droplets className="h-4 w-4" aria-hidden />
+                      Get testnet XLM
+                      <ExternalLink className="h-3 w-3" aria-hidden />
+                    </a>
                   )}
-                >
-                  <Copy className="h-4 w-4" aria-hidden />
-                  Copy address
-                </button>
+                </div>
               </div>
             </div>
           </div>
