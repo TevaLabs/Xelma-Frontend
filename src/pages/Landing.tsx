@@ -80,7 +80,7 @@ export default function Landing() {
             </a>
           </div>
  
-          <p className="mt-4 text-sm text-[#808897]">
+          <p className="mt-4 text-sm text-gray-400">
             {t('landing.starterNote')}
           </p>
 
@@ -103,7 +103,7 @@ export default function Landing() {
           <div className="mx-auto mt-4 grid max-w-3xl gap-4 sm:grid-cols-3">
             <GlassCard className="rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-400">
                 {t('landing.roundsResolved')}
               </p>
             </GlassCard>
@@ -111,7 +111,7 @@ export default function Landing() {
               <p className="text-2xl font-black text-cyan-300">
                 {formatStat(vxlm, 'vxlm')} vXLM
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-400">
                 {t('landing.practiceVolume')}
               </p>
             </GlassCard>
@@ -119,7 +119,7 @@ export default function Landing() {
               <p className="text-2xl font-black text-[#BEC7FE]">
                 {formatStat(players, 'players')}
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-400">
                 {t('landing.activePredictors')}
               </p>
             </GlassCard>
@@ -136,11 +136,11 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="text-center sm:text-left">
             <p className="text-lg font-bold text-white">Xelma</p>
-            <p className="mt-1 text-sm text-[#808897]">
+            <p className="mt-1 text-sm text-gray-400">
               {t('footer.description')}
             </p>
           </div>
-          <div className="flex items-center gap-6 text-sm text-[#808897]">
+          <div className="flex items-center gap-6 text-sm text-gray-400">
             <span>MIT License</span>
             <a
               href="https://github.com/TevaLabs/Xelma-Frontend"

@@ -19,7 +19,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     <div className={`flex flex-col items-center justify-center p-8 ${className || ''}`}>
       {icon && <div className="mb-4">{icon}</div>}
       {title && <h3 className="text-lg font-semibold mb-2">{title}</h3>}
-      {description && <p className="text-sm text-gray-500 mb-4">{description}</p>}
+      {description && <p className="text-sm text-gray-400 mb-4">{description}</p>}
       {action}
     </div>
   );
