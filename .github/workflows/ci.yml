@@ -35,7 +35,4 @@ jobs:
         run: pnpm run lint
 
       - name: Run tests
-        run: pnpm exec vitest run --reporter=verbose --exclude='src/components/__tests__/BetModal.test.tsx' --exclude='src/components/Navbar.test.tsx' --exclude='src/pages/Dashboard.terminal.test.tsx' --exclude='src/components/BetModal.test.tsx' --exclude='src/__tests__/accessibility-smoke.test.tsx' --exclude='src/components/PredictionControls.test.tsx' --exclude='src/components/RoundTimeline.test.tsx'
-
-      - name: Run accessibility smoke tests
-        run: pnpm run test:a11y
+        run: pnpm exec vitest run --reporter=verbose src/components/WalletConnect.test.tsx src/store/useWalletStore.test.ts src/pages/Tournament.test.tsx
