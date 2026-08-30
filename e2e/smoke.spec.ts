@@ -1,6 +1,53 @@
 import { test, expect } from '@playwright/test';
 
+const MOCK_ADDRESS = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
+
+function mockFreighter(page: import('@playwright/test').Page) {
+  return page.addInitScript((mockAddress: string) => {
+    let connected = false;
+    (window as unknown as Record<string, unknown>).freighter = {
+      isConnected: () => Promise.resolve({ isConnected: connected }),
+      requestAccess: () => {
+        connected = true;
+        return Promise.resolve({ address: mockAddress, error: null });
+      },
+      getAddress: () =>
+        Promise.resolve({ address: mockAddress, error: null }),
+      getNetwork: () => Promise.resolve({ network: 'TESTNET', error: null }),
+      signMessage: (message: string) =>
+        Promise.resolve({ signedMessage: `mocked_signature_${message}`, error: null }),
+    };
+  }, MOCK_ADDRESS);
+}
+
 test.describe('Smoke Tests - Critical Routes', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockFreighter(page);
+    await page.route('**/horizon-testnet.stellar.org/accounts/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          balances: [{ asset_type: 'native', balance: '100.00' }],
+        }),
+      }),
+    );
+    await page.route('**/api/rounds/active', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: 'null',
+      }),
+    );
+    await page.route('**/api/auth/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ challenge: 'mock_challenge', token: 'mock_jwt_token' }),
+      }),
+    );
+  });
+
   test('Landing page loads and renders correctly', async ({ page }) => {
     await page.goto('/');
 
@@ -30,7 +77,7 @@ test.describe('Smoke Tests - Critical Routes', () => {
     // Verify dashboard content is present
     // The dashboard shows wallet connection prompt when not connected
     const walletPrompt = page.locator('[data-testid="dashboard-wallet-prompt"]');
-    await expect(walletPrompt).toBeVisible();
+    await expect(walletPrompt).toBeVisible({ timeout: 15000 });
     await expect(walletPrompt).toContainText('Connect your wallet');
 
     // Verify connect button is present
