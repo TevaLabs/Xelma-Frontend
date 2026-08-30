@@ -28,6 +28,12 @@
       "purpose": "any"
     },
     {
+      "src": "/branding/concept-a/xelma-logo-concept-a-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/branding/concept-a/xelma-logo-concept-a-256.png",
       "sizes": "256x256",
       "type": "image/png",
