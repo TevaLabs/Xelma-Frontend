@@ -13,6 +13,11 @@ const routes = [
 ] as const;
 
 test.describe('E2E accessibility scan', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('xelma_onboarding_dismissed', 'true');
+    });
+  });
   for (const route of routes) {
     test(`${route.name} has no serious axe violations`, async ({ page }) => {
       await page.goto(route.path);

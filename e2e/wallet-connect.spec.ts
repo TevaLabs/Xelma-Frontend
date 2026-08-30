@@ -22,6 +22,11 @@ function mockFreighter(page: import('@playwright/test').Page) {
 }
 
 test.describe('Wallet Connect – Freighter Mocked', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('xelma_onboarding_dismissed', 'true');
+    });
+  });
   test('Connect page shows wallet prompt and Connect Wallet button', async ({ page }) => {
     await mockFreighter(page);
 

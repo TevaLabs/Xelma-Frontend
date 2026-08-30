@@ -29,6 +29,17 @@ export default defineConfig({
     trace: 'on-first-retry',
     /* Increase timeout for navigation */
     navigationTimeout: 60000,
+    // First-visit onboarding overlay covers the landing/dashboard and fails
+    // visibility assertions in CI. Tests start from a dismissed checklist.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:5173',
+          localStorage: [{ name: 'xelma_onboarding_dismissed', value: 'true' }],
+        },
+      ],
+    },
   },
   timeout: 60000,
 
