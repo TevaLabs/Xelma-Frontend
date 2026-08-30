@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { skipOnboarding, dismissOnboardingIfPresent } from './helpers';
 
 const MOCK_ADDRESS = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
 
@@ -22,6 +23,9 @@ function mockFreighter(page: import('@playwright/test').Page) {
 }
 
 test.describe('Wallet Connect – Freighter Mocked', () => {
+  test.beforeEach(async ({ page }) => {
+    await skipOnboarding(page);
+  });
   test('Connect page shows wallet prompt and Connect Wallet button', async ({ page }) => {
     await mockFreighter(page);
 
@@ -46,6 +50,7 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
     );
 
     await page.goto('/connect');
+    await dismissOnboardingIfPresent(page);
 
     // The Connect page renders the WalletConnect component
     // Specify the button in the header (desktop), not the mobile drawer
@@ -77,6 +82,7 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
     );
 
     await page.goto('/dashboard');
+    await dismissOnboardingIfPresent(page);
 
     // Should show wallet prompt when not connected
     const walletPrompt = page.locator('[data-testid="dashboard-wallet-prompt"]');
@@ -85,13 +91,7 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
 
     // Navigate to /connect page
     await page.goto('/connect');
-
-    // Close any modal overlay that might be present (e.g., onboarding modal)
-    const modalOverlay = page.locator('.fixed.inset-0.z-\\[200\\]');
-    if (await modalOverlay.isVisible().catch(() => false)) {
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(500);
-    }
+    await dismissOnboardingIfPresent(page);
 
     // Verify Connect Wallet button is visible on the connect page
     const connectButton = page.getByRole('button', { name: 'Connect Wallet' }).nth(1);
