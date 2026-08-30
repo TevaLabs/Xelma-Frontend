@@ -18,7 +18,7 @@ const Connect = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  const { publicKey, status } = useWalletStore();
+  const { publicKey, status, setWatchOnly } = useWalletStore();
   const isConnected = status === 'connected' && Boolean(publicKey);
 
   const {
@@ -60,18 +60,14 @@ const Connect = () => {
   };
 
   // Handle connect button click
-  const handleConnect = () => {
+  const handleConnect = async () => {
     if (!isValid) {
       toast.error('Please enter a valid Stellar address');
       return;
     }
 
-    // Here you would typically connect to the address
-    // For now, we'll just show a success message
-    toast.success(`Connected to ${address.slice(0, 8)}...${address.slice(-8)} on ${selectedNetwork}`);
-    
-    // You can add your connection logic here
-    // For example, update a store or call an API
+    // Use watch-only mode for manual address connection
+    await setWatchOnly(address);
   };
 
   // Get the feedback icon based on validation state
@@ -142,7 +138,7 @@ const Connect = () => {
             )}
           </div>
 
-          {/* Advanced path toggle: optional manual address validation */}
+          {/* Advanced path toggle: optional watch-only mode */}
           <div className="border-t border-[#BEC7FE]/10 pt-4">
             <button
               type="button"
@@ -150,7 +146,7 @@ const Connect = () => {
               className="flex w-full items-center justify-between text-sm font-medium text-gray-400 hover:text-white transition-colors"
               aria-expanded={showAdvanced}
             >
-              <span>Advanced: validate an address manually</span>
+              <span>Watch-only: view an address without signing</span>
               {showAdvanced ? (
                 <ChevronUp className="w-4 h-4" />
               ) : (
@@ -270,7 +266,7 @@ const Connect = () => {
             ) : (
               <>
                 <Wallet className="w-5 h-5" />
-                <span>Validate Address</span>
+                <span>View in Watch-Only Mode</span>
               </>
             )}
           </button>

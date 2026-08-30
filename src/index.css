@@ -113,6 +113,12 @@ body {
   border-color: rgba(44, 75, 253, 0.35);
 }
 
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
 /* Status dots */
 .status-dot {
   display: inline-block;

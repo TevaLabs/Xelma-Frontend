@@ -1,7 +1,17 @@
+import type React from 'react';
 import RoundCard from '../components/RoundCard';
 import type { MockRound } from '../types';
 
-export default { title: 'Glass Card Primitives/RoundCard' };
+export default {
+  title: 'Glass Card Primitives/RoundCard',
+  decorators: [
+    (Story: React.FC) => (
+      <div style={{ background: '#0A0F1A', padding: '24px', minHeight: '300px' }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
 
 const updownRound: MockRound = {
   id: 1,

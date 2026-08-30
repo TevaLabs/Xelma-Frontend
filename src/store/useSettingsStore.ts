@@ -13,9 +13,19 @@ export type MotionPreference = 'system' | 'reduce' | 'no-preference';
 export interface SettingsState {
   /** Whether to render the "Testnet / Mainnet" badge in the global navbar. */
   showNetworkBadge: boolean;
-  /** Master UI sound toggle. Currently used by future audio cues; safe to flip. */
+  /**
+   * Master UI sound toggle — single source of truth for every UI sound cue
+   * (the Settings "Test sound" tone and the dashboard round-resolution cue).
+   * Read via `audioController`'s `bindSoundPreference` binding so both cues
+   * stay in sync without each caller re-reading the store directly.
+   */
   soundEnabled: boolean;
-  /** Local UI mirror of `streamerMode` so the navbar / settings reflect it instantly. */
+  /**
+   * Local UI mirror of `streamerMode` so the navbar / settings reflect it
+   * instantly, without waiting on a profile save. `MaskedBalance` treats this
+   * as an OR with the persisted `useProfileStore` flag — either one being
+   * true hides balances; see the precedence note on `MaskedBalance`.
+   */
   streamerMode: boolean;
   /** Override for `prefers-reduced-motion`. See {@link MotionPreference}. */
   motionPreference: MotionPreference;
