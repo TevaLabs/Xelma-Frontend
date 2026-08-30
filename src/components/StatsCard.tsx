@@ -1,5 +1,6 @@
 // ISSUE: Replace mock stats with live API call to backend /api/stats
 
+import { CircleDollarSign } from 'lucide-react';
 import type { MockUserStats } from '../types';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
@@ -9,6 +10,27 @@ import PanelHeader from './ui/PanelHeader';
 import GlassCard from './ui/GlassCard';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
+
+type ClaimUnavailableReason = 'wallet-disconnected' | 'no-pending-rewards';
+
+function getClaimUnavailableCopy(reason: ClaimUnavailableReason) {
+  if (reason === 'wallet-disconnected') {
+    return {
+      title: 'Connect your wallet',
+      message: 'Link your Stellar wallet to view and claim settled earnings.',
+      buttonTitle: 'Connect wallet to claim',
+      helperText: 'Connect wallet to claim',
+    };
+  }
+
+  return {
+    title: 'No rewards to claim',
+    message:
+      'You have no pending earnings right now. Accurate predictions that settle successfully will appear here for you to transfer to your wallet.',
+    buttonTitle: 'No pending rewards to claim',
+    helperText: 'No pending rewards',
+  };
+}
 
 interface StatsCardProps {
   stats: MockUserStats;
@@ -27,6 +49,14 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
 
   const pendingWinnings = stats.pendingWinnings || 0;
   const canClaim = isWalletConnected && pendingWinnings > 0 && !tx.isInFlight;
+  const claimUnavailableReason: ClaimUnavailableReason | null = !isWalletConnected
+    ? 'wallet-disconnected'
+    : pendingWinnings === 0
+      ? 'no-pending-rewards'
+      : null;
+  const claimUnavailableCopy = claimUnavailableReason
+    ? getClaimUnavailableCopy(claimUnavailableReason)
+    : null;
 
   const handleClaim = async () => {
     // Guard against double-submits while a claim is already in-flight.
@@ -127,7 +157,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
         <div className="border-t border-white/10 pt-4">
           <RankProgressBar xp={stats.xp} />
         </div>
-        
+
         {pendingWinnings > 0 && (
           <div className="flex items-center justify-between border-t border-white/10 pt-4">
             <dt className="text-sm text-gray-400 text-amber-200">Pending Winnings</dt>
@@ -144,20 +174,45 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
 
       {tx.step === 'idle' ? (
         <>
+          {claimUnavailableReason === 'no-pending-rewards' && claimUnavailableCopy && (
+            <div
+              id="claim-empty-state"
+              role="status"
+              aria-live="polite"
+              className="mt-6 rounded-xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-5 text-center"
+            >
+              <CircleDollarSign
+                className="mx-auto mb-3 h-8 w-8 text-gray-500"
+                aria-hidden="true"
+              />
+              <p className="text-sm font-semibold text-white">{claimUnavailableCopy.title}</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-gray-400">
+                {claimUnavailableCopy.message}
+              </p>
+            </div>
+          )}
+
           <button
             type="button"
             disabled={!canClaim}
             onClick={handleClaim}
-            title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
-            className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
-              ${canClaim 
-                ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' 
+            title={
+              canClaim
+                ? 'Claim your rewards'
+                : claimUnavailableCopy?.buttonTitle ?? 'Claim unavailable'
+            }
+            aria-describedby={
+              claimUnavailableReason === 'no-pending-rewards' ? 'claim-empty-state' : undefined
+            }
+            className={`${claimUnavailableReason === 'no-pending-rewards' ? 'mt-4' : 'mt-6'} w-full rounded-xl border py-3 text-sm font-semibold transition-colors
+              ${canClaim
+                ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30'
                 : 'cursor-not-allowed border-white/10 bg-white/5 text-gray-500'}`}
           >
             Claim Rewards
           </button>
           <p className="mt-2 text-center text-xs text-gray-400">
-            {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
+            {canClaim ? 'Ready to claim' : claimUnavailableCopy?.helperText}
           </p>
         </>
       ) : (

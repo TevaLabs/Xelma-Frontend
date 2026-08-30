@@ -137,7 +137,29 @@ describe('StatsCard', () => {
 
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
-      expect(button).toHaveAttribute('title', 'No pending rewards');
+      expect(button).toHaveAttribute('title', 'No pending rewards to claim');
+    });
+
+    it('shows a helpful empty state when connected with no pending winnings', () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      renderCard({ pendingWinnings: 0 });
+
+      const emptyState = screen.getByRole('status');
+      expect(emptyState).toHaveAttribute('id', 'claim-empty-state');
+      expect(within(emptyState).getByText('No rewards to claim')).toBeInTheDocument();
+      expect(
+        within(emptyState).getByText(/accurate predictions that settle successfully/i),
+      ).toBeInTheDocument();
+
+      const button = screen.getByRole('button', { name: /claim rewards/i });
+      expect(button).toHaveAttribute('aria-describedby', 'claim-empty-state');
+    });
+
+    it('does not show the empty state when there are pending winnings', () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      renderCard({ pendingWinnings: 1000 });
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
     it('is enabled when connected and there are pending winnings', () => {
