@@ -39,6 +39,41 @@ const en = {
   footer: {
     description: 'Collective market intelligence on Stellar',
   },
+  dashboard: {
+    refresh: 'Refresh',
+    walletPrompt: {
+      message: 'Connect your wallet to submit predictions.',
+      connectNow: 'Connect now',
+    },
+    emptyState: {
+      noActiveRounds: {
+        title: 'No Active Rounds',
+        description: 'Learn how the game works or refresh to check for new rounds.',
+      },
+      noAssetRounds: {
+        title: 'No {{asset}} Rounds Available',
+        description:
+          'There are currently no active rounds for {{assetName}}. Try selecting a different asset or check back later.',
+      },
+    },
+    sorobanInspector: {
+      title: 'Soroban Inspector',
+      description: 'Read-only wallet position and round state.',
+      loading: 'Loading…',
+      rpcFallback: 'RPC fallback: {{error}}',
+    },
+    share: {
+      button: 'Share',
+      copyAriaLabel: 'Copy share link',
+      copied: 'Link copied to clipboard',
+      copyError: 'Could not copy link',
+    },
+    assetNames: {
+      BTC: 'Bitcoin',
+      ETH: 'Ethereum',
+      XLM: 'Stellar',
+    },
+  },
   testFallback: 'Fallback test',
 };
 

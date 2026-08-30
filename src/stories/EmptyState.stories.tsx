@@ -1,6 +1,16 @@
+import type React from 'react';
 import EmptyState from '../components/EmptyState';
 
-export default { title: 'Glass Card Primitives/EmptyState' };
+export default {
+  title: 'Glass Card Primitives/EmptyState',
+  decorators: [
+    (Story: React.FC) => (
+      <div style={{ background: '#0A0F1A', padding: '24px', minHeight: '300px' }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
 
 export const Default = () => <EmptyState />;
 

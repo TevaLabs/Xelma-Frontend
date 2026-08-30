@@ -20,7 +20,7 @@ describe('Pools Page', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Pools');
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Liquidity Pools');
     });
 
     it('renders the description subtitle', async () => {
@@ -31,7 +31,7 @@ describe('Pools Page', () => {
       });
 
       expect(
-        screen.getByText(/Liquidity and round pool transparency across prediction markets/i),
+        screen.getByText(/Transparency and historical stats for all active round pools/i),
       ).toBeInTheDocument();
     });
   });
@@ -64,7 +64,9 @@ describe('Pools Page', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText(/BTC, ETH, XLM/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'BTC Pool' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'ETH Pool' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'XLM Pool' })).toBeInTheDocument();
     });
 
     it('displays total volume for each pool', async () => {
@@ -74,7 +76,7 @@ describe('Pools Page', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText(/volume/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/total volume/i).length).toBeGreaterThan(0);
     });
 
     it('renders UP/DOWN pool sections', async () => {
@@ -84,7 +86,7 @@ describe('Pools Page', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText(/UP\/DOWN split/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/UP\/DOWN Pool/i).length).toBeGreaterThan(0);
     });
 
     it('renders Precision Pool sections', async () => {
@@ -94,7 +96,7 @@ describe('Pools Page', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText(/precision pool/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/precision pool/i).length).toBeGreaterThan(0);
     });
 
     it('renders Historical Yield sections', async () => {
@@ -104,7 +106,7 @@ describe('Pools Page', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText(/yield/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/historical yield/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -116,8 +118,9 @@ describe('Pools Page', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByText(/Rebuild Pools Page/i)).toBeInTheDocument();
-      expect(screen.getByText(/BTC, ETH, XLM/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'BTC Pool' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'ETH Pool' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'XLM Pool' })).toBeInTheDocument();
     });
   });
 

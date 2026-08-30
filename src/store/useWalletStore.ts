@@ -36,6 +36,8 @@ interface WalletState {
   errorCode: WalletErrorCode | null;
   /** True when Freighter reports a network other than the configured one (still connected). */
   networkMismatch: boolean;
+  /** True when viewing an address in watch-only mode (no signing capability). */
+  isWatchOnly: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
   reset: () => void;
@@ -43,6 +45,8 @@ interface WalletState {
   /** Re-reads the native balance from Horizon for the connected address. */
   refreshBalance: () => Promise<void>;
   clearError: () => void;
+  /** Set watch-only mode with a specific address (no signing capability). */
+  setWatchOnly: (address: string) => Promise<void>;
 }
 
 /**
@@ -107,6 +111,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   errorMessage: null,
   errorCode: null,
   networkMismatch: false,
+  isWatchOnly: false,
 
   clearError: () => set({ errorMessage: null, errorCode: null }),
 
@@ -119,6 +124,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       errorMessage: null,
       errorCode: null,
       networkMismatch: false,
+      isWatchOnly: false,
     });
   },
 
@@ -131,6 +137,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       errorMessage: null,
       errorCode: null,
       networkMismatch: false,
+      isWatchOnly: false,
     });
     useAuthStore.getState().clearAuth();
     toast.success('Wallet disconnected');
@@ -221,6 +228,57 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       set({ balance: await fetchFormattedBalance(publicKey) });
     } catch {
       toast.error('Could not refresh balance. Try again in a moment.');
+    }
+  },
+
+  setWatchOnly: async (address: string) => {
+    set({
+      status: 'connecting',
+      errorMessage: null,
+      errorCode: null,
+      networkMismatch: false,
+    });
+
+    try {
+      // Validate Stellar G-address format
+      if (!address.startsWith('G') || address.length !== 56) {
+        throw new Error('Invalid Stellar address. Must be a G-address (56 characters starting with G).');
+      }
+
+      let formattedBalance: string | null = null;
+      try {
+        formattedBalance = await fetchFormattedBalance(address);
+      } catch {
+        formattedBalance = null;
+        toast.error('Could not load balance. The address may not exist on the network.');
+      }
+
+      set({
+        publicKey: address,
+        network: EXPECTED_NETWORK_LABEL.toLowerCase(),
+        balance: formattedBalance,
+        status: 'connected',
+        networkMismatch: false,
+        errorMessage: null,
+        errorCode: null,
+        isWatchOnly: true,
+      });
+
+      toast.success('Watch-only mode activated. Viewing address without signing capability.');
+    } catch (error) {
+      console.error('Watch-only setup error:', error);
+      const message = error instanceof Error ? error.message : 'Could not set up watch-only mode.';
+      set({
+        status: 'error',
+        publicKey: null,
+        network: null,
+        balance: null,
+        networkMismatch: false,
+        isWatchOnly: false,
+        errorMessage: message,
+        errorCode: 'UNKNOWN',
+      });
+      toast.error(message);
     }
   },
 
