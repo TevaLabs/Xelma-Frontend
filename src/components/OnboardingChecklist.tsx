@@ -89,6 +89,7 @@ export default function OnboardingChecklist() {
   useEffect(() => {
     const dismissed = localStorage.getItem(ONBOARDING_KEY);
     if (!dismissed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisible(true);
     }
   }, []);

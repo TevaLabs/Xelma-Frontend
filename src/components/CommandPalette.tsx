@@ -72,6 +72,7 @@ export default function CommandPalette() {
 
   // Reset selected index when filtered list changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedIndex(0);
   }, [query]);
 

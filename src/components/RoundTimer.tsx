@@ -52,6 +52,7 @@ export default function RoundTimer({
 
   useEffect(() => {
     const diff = resolveTimestamp(endTime) - Date.now();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialDurationMs(diff > 0 ? diff : 1);
   }, [endTime]);
 
