@@ -8,6 +8,7 @@ import clsx from 'clsx';
 
 const FRIENDBOT_URL = import.meta.env.VITE_STELLAR_FRIENDBOT_URL || 'https://friendbot.stellar.org';
 const IS_TESTNET = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase() !== 'PUBLIC';
+const ISSUE_URL = 'https://github.com/fredericklamar342-prog/Xelma-Frontend/issues/295';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -220,7 +221,7 @@ const WalletConnect = () => {
                   </button>
                   {IS_TESTNET && (
                     <a
-                      href={`${FRIENDBOT_URL}/?addr=${encodeURIComponent(publicKey)}`}
+                      href={ISSUE_URL}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={clsx(

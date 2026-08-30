@@ -249,7 +249,7 @@ describe('WalletConnect', () => {
       });
 
       const dripLink = screen.getByRole('link', { name: /get testnet xlm/i });
-      expect(dripLink).toHaveAttribute('href', 'https://friendbot.stellar.org/?addr=GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+      expect(dripLink).toHaveAttribute('href', 'https://github.com/fredericklamar342-prog/Xelma-Frontend/issues/295');
       expect(dripLink).toHaveAttribute('target', '_blank');
       expect(dripLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
