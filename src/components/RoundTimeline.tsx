@@ -39,9 +39,18 @@ function getCurrentRoundState(
   // Check round status if available
   if (activeRound.status) {
     const status = activeRound.status.toLowerCase();
-    if (status === 'live' || status === 'active') return 'live';
-    if (status === 'resolving' || status === 'closing') return 'resolving';
-    if (status === 'resolved' || status === 'finished') return 'finished';
+
+    if (status === 'live' || status === 'active') {
+      return 'live';
+    }
+
+    if (status === 'resolving' || status === 'closing') {
+      return 'resolving';
+    }
+
+    if (status === 'resolved' || status === 'finished') {
+      return 'finished';
+    }
   }
 
   // Fallback: use isRoundActive flag
@@ -57,6 +66,7 @@ function getCurrentRoundState(
   if (activeRound.endsAt) {
     const now = Date.now();
     const endsAt = new Date(activeRound.endsAt).getTime();
+
     if (now >= endsAt) {
       return 'resolving';
     }
@@ -105,6 +115,11 @@ const RoundTimeline: React.FC = () => {
   const prevStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
+  /*
+   * Keep the existing screen-reader announcement behavior.
+   *
+   * A state transition is announced once, rather than on every render.
+   */
   useEffect(() => {
     if (prevStateRef.current !== currentState) {
       const timer = setTimeout(() => {
@@ -285,7 +300,7 @@ const RoundTimeline: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 };
 

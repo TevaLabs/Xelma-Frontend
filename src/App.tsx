@@ -15,6 +15,7 @@ import ComingSoonPage from './pages/ComingSoonPage';
 import OnboardingChecklist from './components/OnboardingChecklist';
 import { completeOnboardingStep } from './lib/onboarding';
 import { Trophy } from 'lucide-react';
+import RouteProgressBar from './components/RouteProgressBar';
 
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
@@ -43,6 +44,7 @@ function App() {
         Skip to main content
       </a>
       <OfflineBanner />
+      <RouteProgressBar />
       <Navbar />
       <CommandPalette />
       <ErrorBoundary>
