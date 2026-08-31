@@ -1,13 +1,15 @@
 // ISSUE: Replace mock stats with live API call to backend /api/stats
 
+import { toast } from 'sonner';
 import type { MockUserStats } from '../types';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
+import { txUrl } from '../lib/explorer';
 import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
 import PanelHeader from './ui/PanelHeader';
 import GlassCard from './ui/GlassCard';
-import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
+import TxStatusTimeline, { useTxStatusMachine, formatTxHash } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 
 interface StatsCardProps {
@@ -35,6 +37,16 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
     try {
       const result = await claim_winnings(publicKey, tx.updateStatus);
       tx.succeed(result.txHash);
+
+      // Show a non-blocking toast with the truncated tx hash and a
+      // network-aware StellarExpert link.
+      toast.success('Rewards claimed!', {
+        description: `Tx: ${formatTxHash(result.txHash)}`,
+        action: {
+          label: 'View on StellarExpert',
+          onClick: () => window.open(txUrl(result.txHash), '_blank', 'noopener,noreferrer'),
+        },
+      });
 
       // Refresh wallet balance/state
       await checkConnection();
@@ -165,6 +177,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           <TxStatusTimeline
             step={tx.step}
             txHash={tx.txHash}
+            explorerUrl={tx.txHash ? txUrl(tx.txHash) : undefined}
             errorMessage={tx.errorMessage}
             successTitle="Rewards Claimed!"
             successMessage="Your pending winnings have been claimed on-chain."
