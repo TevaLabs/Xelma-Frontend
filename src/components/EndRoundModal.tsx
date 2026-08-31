@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { TrendingUp, TrendingDown, Sparkles, Share2, ArrowRight } from 'lucide-react';
 
 interface EndRoundModalProps {
   isOpen: boolean;
@@ -13,7 +14,6 @@ interface EndRoundModalProps {
     asset?: string;
     direction?: 'UP' | 'DOWN' | string;
   };
-  playResolveSound?: boolean;
 }
 
 export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModalProps) {

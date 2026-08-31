@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, humanizeContractError, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
+import PredictionHelpTooltip from './PredictionHelpTooltip';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import { completeOnboardingStep } from '../lib/onboarding';
