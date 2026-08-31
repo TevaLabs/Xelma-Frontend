@@ -199,6 +199,38 @@ describe('StatsCard', () => {
       );
     });
 
+    it('fires a non-blocking success toast with the truncated hash and a network-aware explorer link', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockResolvedValue({
+        txHash: '0123456789abcdef',
+        ledger: 1,
+      });
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+      const { toast } = await import('sonner');
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
+      });
+
+      expect(toast.success).toHaveBeenCalledWith(
+        'Rewards claimed!',
+        expect.objectContaining({
+          description: 'Tx: 012345…abcdef',
+        }),
+      );
+      const action = (toast.success as unknown as { mock: { calls: [{ 1: { action: { onClick: () => void } } }] } }).mock.calls[0][1].action;
+      action.onClick();
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining('stellar.expert/explorer/'),
+        '_blank',
+        'noopener,noreferrer',
+      );
+      openSpy.mockRestore();
+    });
+
     it('prevents double-submit while a claim is in-flight', async () => {
       setWalletState({ status: 'connected', publicKey: 'GTEST' });
       let resolveClaim!: (value: { txHash: string; ledger: number }) => void;
