@@ -161,6 +161,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   useFocusTrap(sidebarRef, {
     active: isMobileOpen,
     onEscape: () => setIsMobileOpen(false),
+    initialFocusRef: textareaRef,
     restoreFocusRef: mobileToggleRef,
   });
 
