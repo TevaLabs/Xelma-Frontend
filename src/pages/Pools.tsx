@@ -187,31 +187,18 @@ function PoolCard({ pool }: { pool: PoolStats }) {
 
 export default function Pools() {
   const [data, setData] = useState<PoolStats[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
-
-  const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoading(true);
-    setError(null);
 
     fetchPoolStats(controller.signal)
       .then((result) => setData(result))
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        setError(err instanceof Error ? err.message : 'Failed to load pools');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
       });
 
     return () => controller.abort();
-  }, [reloadToken]);
+  }, []);
 
   return (
     <main id="main-content" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
