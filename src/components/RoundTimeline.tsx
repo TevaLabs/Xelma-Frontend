@@ -14,47 +14,81 @@ const TIMELINE_STATES: TimelineState[] = [
   { label: 'Finished', key: 'finished' },
 ];
 
+type RoundTimelineState =
+  | 'upcoming'
+  | 'live'
+  | 'resolving'
+  | 'finished'
+  | 'loading'
+  | 'disconnected';
+
 function getCurrentRoundState(
   activeRound: Round | null,
   isRoundActive: boolean,
   sseStatus: string
-): 'upcoming' | 'live' | 'resolving' | 'finished' | 'loading' | 'disconnected' {
+): RoundTimelineState {
+  // Connection state takes priority so users immediately know
+  // whether live round updates are available.
   if (sseStatus === 'connecting' || sseStatus === 'reconnecting') {
     return 'loading';
   }
+
   if (sseStatus === 'disconnected') {
     return 'disconnected';
   }
+
   if (!activeRound) {
     return 'upcoming';
   }
+
   if (activeRound.status) {
     const status = activeRound.status.toLowerCase();
-    if (status === 'live' || status === 'active') return 'live';
-    if (status === 'resolving' || status === 'closing') return 'resolving';
-    if (status === 'resolved' || status === 'finished') return 'finished';
+
+    if (status === 'live' || status === 'active') {
+      return 'live';
+    }
+
+    if (status === 'resolving' || status === 'closing') {
+      return 'resolving';
+    }
+
+    if (status === 'resolved' || status === 'finished') {
+      return 'finished';
+    }
   }
+
   if (isRoundActive) {
     return 'live';
   }
+
   if (activeRound.resolvedAt) {
     return 'finished';
   }
+
   if (activeRound.endsAt) {
     const now = Date.now();
     const endsAt = new Date(activeRound.endsAt).getTime();
+
     if (now >= endsAt) {
       return 'resolving';
     }
   }
+
   return 'live';
 }
 
-/**
- * STUBBED for contributor rebuild — state machine + aria-live kept.
- * Rebuild stepper chrome for Upcoming → Live → Resolving → Finished
- * using dark glass terminal styling (not light white cards).
- */
+function getStateLabel(state: RoundTimelineState): string {
+  return (
+    TIMELINE_STATES.find((timelineState) => timelineState.key === state)
+      ?.label ??
+    (state === 'disconnected'
+      ? 'Disconnected'
+      : state === 'loading'
+        ? 'Connecting'
+        : state)
+  );
+}
+
 const RoundTimeline: React.FC = () => {
   const activeRound = useRoundStore((state) => state.activeRound);
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
@@ -71,6 +105,11 @@ const RoundTimeline: React.FC = () => {
   const previousStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
+  /*
+   * Keep the existing screen-reader announcement behavior.
+   *
+   * A state transition is announced once, rather than on every render.
+   */
   useEffect(() => {
     if (previousStateRef.current !== currentState) {
       const label =
@@ -101,13 +140,19 @@ const RoundTimeline: React.FC = () => {
           : TIMELINE_STATES.find((state) => state.key === currentState)?.label ?? currentState;
 
   return (
-    <div
+    <section
       className="w-full"
+      aria-labelledby="round-progress-heading"
       data-current-state={currentState}
       data-round-id={activeRound?.id ?? ''}
       data-round-active={String(isRoundActive)}
     >
-      <div aria-live="polite" aria-atomic="true" className="sr-only">
+      {/* Screen reader announcement */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
         {stateAnnouncement}
       </div>
       <section className="glass-card rounded-xl p-4 lg:p-6">

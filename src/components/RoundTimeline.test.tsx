@@ -16,6 +16,33 @@ vi.mock('../store/useRoundStore', () => ({
   }),
 }));
 
+// PredictionPulse (rendered inside RoundTimeline) uses useConnectionStatus and
+// useReducedMotion — mock them so the socket singleton is never touched in tests.
+vi.mock('../hooks/useConnectionStatus', () => ({
+  useConnectionStatus: () => ({
+    status: 'connected',
+    isConnected: true,
+    isConnecting: false,
+    isReconnecting: false,
+    isDisconnected: false,
+    error: null,
+    reconnectAttempts: 0,
+    lastConnected: null,
+    reconnect: vi.fn(),
+  }),
+}));
+
+vi.mock('../hooks/useReducedMotion', () => ({
+  useReducedMotion: () => ({ reduced: false, systemPreference: false, override: 'system' }),
+}));
+
+// usePredictionPulse itself calls socketService — mock the whole hook so no
+// socket side-effects leak into the timeline tests.
+vi.mock('../hooks/usePredictionPulse', () => ({
+  usePredictionPulse: () => ({ count: 0, flashing: false, isLive: true }),
+  usePredictionPulseMock: () => ({ count: 0, flashing: false, isLive: true }),
+}));
+
 import RoundTimeline from './RoundTimeline';
 
 function setRoundState(state: Partial<typeof mockRoundStore>) {

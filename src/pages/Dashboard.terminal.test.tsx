@@ -178,6 +178,44 @@ describe('Dashboard Terminal & Round Flows', () => {
       });
     });
 
+    it('re-fetches prediction history after a successful submit, so PredictionHistory reflects the confirmed prediction', async () => {
+      vi.mocked(place_bet).mockResolvedValue({ txHash: 'tx-hash-456', ledger: 101 });
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-2' });
+
+      render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      // Both Dashboard's activities feed and PredictionHistory fetch on mount.
+      await waitFor(() => {
+        expect(predictionsApi.getUserHistory).toHaveBeenCalled();
+      });
+      const callsBeforeSubmit = vi.mocked(predictionsApi.getUserHistory).mock.calls.length;
+
+      const stakeInput = screen.getByPlaceholderText('Enter amount');
+      fireEvent.change(stakeInput, { target: { value: '10' } });
+
+      const upBtn = screen.getByRole('button', { name: /predict price goes up/i });
+      fireEvent.click(upBtn);
+
+      const confirmBtn = screen.getByRole('button', { name: /confirm/i });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+
+      // Both the RecentActivity feed and PredictionHistory should have
+      // re-fetched after success — not just RecentActivity.
+      await waitFor(() => {
+        expect(vi.mocked(predictionsApi.getUserHistory).mock.calls.length).toBeGreaterThanOrEqual(
+          callsBeforeSubmit + 2
+        );
+      });
+    });
+
     it('invokes expected onSuccess callback when prediction succeeds in modal', async () => {
       vi.mocked(place_bet).mockResolvedValue({ txHash: 'tx-callback-999', ledger: 101 });
       vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-2' });

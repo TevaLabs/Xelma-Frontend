@@ -57,6 +57,17 @@ vi.mock('../../hooks/useConnectionStatus', () => ({
   useConnectionStatus: vi.fn(),
 }));
 
+// Mock wallet store
+const mockWalletState = { publicKey: 'GTEST123' };
+vi.mock('../../store/useWalletStore', () => ({
+  useWalletStore: Object.assign(
+    vi.fn((selector?: (state: typeof mockWalletState) => unknown) => {
+      return selector ? selector(mockWalletState) : mockWalletState;
+    }),
+    { getState: () => mockWalletState },
+  ),
+}));
+
 import PriceChart from '../PriceChart';
 import NotificationsBell from '../NotificationsBell';
 import { ChatSidebar } from '../ChatSidebar';
@@ -110,7 +121,7 @@ describe('Socket Integration Tests', () => {
       
       expect(socketService.connect).toHaveBeenCalledOnce();
       expect(socketService.onNotification).toHaveBeenCalledOnce();
-      expect(socketService.joinNotifications).toHaveBeenCalledWith('user');
+      expect(socketService.joinNotifications).toHaveBeenCalledWith('GTEST123');
     });
 
     it('should connect socket when ChatSidebar mounts', () => {
