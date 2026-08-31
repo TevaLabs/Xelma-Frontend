@@ -16,10 +16,11 @@ import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
 import EventLogDrawer from "../components/EventLogDrawer";
-import { Radio } from "lucide-react";
+import { Radio, MessageSquare } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { useCommandMenuStore } from "../store/useCommandMenuStore";
 import { useRoundStore } from "../store/useRoundStore";
 import type { Round, UserPrediction, UserStats } from "../lib/api-client";
 import { educationApi, statsApi, predictionsApi } from "../lib/api-client";
@@ -179,6 +180,31 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isEventLogOpen, setIsEventLogOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+
+  const registerCommand = useCommandMenuStore((s) => s.registerAction);
+
+  // Expose the dashboard's power-user flows to the global CommandPalette so
+  // they stay reachable via Cmd/Ctrl+K. Unregistered on unmount.
+  useEffect(() => {
+    const unregisterEventLog = registerCommand({
+      id: "open-event-log",
+      label: "Open event log",
+      keywords: ["events", "on-chain", "log", "ledger"],
+      icon: Radio,
+      run: () => setIsEventLogOpen(true),
+    });
+    const unregisterChat = registerCommand({
+      id: "toggle-community-chat",
+      label: "Toggle community chat",
+      keywords: ["chat", "community", "messages"],
+      icon: MessageSquare,
+      run: () => setIsChatOpen((open) => !open),
+    });
+    return () => {
+      unregisterEventLog();
+      unregisterChat();
+    };
+  }, [registerCommand]);
 
   // Latest live price from the chart, held in a ref to avoid re-renders on every tick.
   const currentPriceRef = useRef<number | null>(null);

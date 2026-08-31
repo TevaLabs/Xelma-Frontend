@@ -1,26 +1,117 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, LayoutDashboard, Trophy, BookOpen, Wallet, User, Droplets } from 'lucide-react';
+import {
+  Search,
+  LayoutDashboard,
+  Trophy,
+  BookOpen,
+  Wallet,
+  User,
+  Droplets,
+  Settings,
+  Copy,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import clsx from 'clsx';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useCommandMenuStore, type CommandMenuAction } from '../store/useCommandMenuStore';
 
 interface RouteItem {
+  kind: 'route';
   label: string;
   to: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
 }
 
+interface ActionItem {
+  kind: 'action';
+  id: string;
+  label: string;
+  keywords?: string[];
+  icon: LucideIcon;
+  run: () => void;
+}
+
+type PaletteItem = RouteItem | ActionItem;
+
 const routes: RouteItem[] = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Leaderboard', to: '/leaderboard', icon: Trophy },
-  { label: 'Learn', to: '/learn', icon: BookOpen },
-  { label: 'Connect', to: '/connect', icon: Wallet },
-  { label: 'Profile', to: '/profile', icon: User },
-  { label: 'Pools', to: '/pools', icon: Droplets },
+  { kind: 'route', label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+  { kind: 'route', label: 'Leaderboard', to: '/leaderboard', icon: Trophy },
+  { kind: 'route', label: 'Learn', to: '/learn', icon: BookOpen },
+  { kind: 'route', label: 'Connect', to: '/connect', icon: Wallet },
+  { kind: 'route', label: 'Profile', to: '/profile', icon: User },
+  { kind: 'route', label: 'Pools', to: '/pools', icon: Droplets },
+  { kind: 'route', label: 'Settings', to: '/settings', icon: Settings },
 ];
+
+async function copyDashboardUrl() {
+  const url = `${window.location.origin}/dashboard`;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    // Clipboard API can be unavailable in non-secure contexts; fall back to a
+    // textarea-based copy guarded against execCommand being removed.
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+}
+
+/** Always-available power-user actions, independent of the current page. */
+const builtInActions: ActionItem[] = [
+  {
+    kind: 'action',
+    id: 'copy-dashboard-url',
+    label: 'Copy dashboard link',
+    keywords: ['copy', 'share', 'url', 'link'],
+    icon: Copy,
+    run: () => void copyDashboardUrl(),
+  },
+];
+
+/**
+ * Simple fuzzy ranker shared by routes and actions. Returns a score (higher is
+ * better) for exact, prefix, substring and subsequence matches, or `null` when
+ * the query does not match the label or any of its keywords.
+ */
+function matchScore(query: string, label: string, keywords: string[] = []): number | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return 0;
+  const candidates = [label, ...keywords].map((candidate) => candidate.toLowerCase());
+  let best: number | null = null;
+  for (const candidate of candidates) {
+    if (candidate === q) {
+      best = 100;
+      break;
+    }
+    if (candidate.startsWith(q)) {
+      best = Math.max(best ?? 0, 90 - candidate.length);
+      continue;
+    }
+    const index = candidate.indexOf(q);
+    if (index !== -1) {
+      best = Math.max(best ?? 0, 70 - index);
+      continue;
+    }
+    let queryIndex = 0;
+    for (let i = 0; i < candidate.length && queryIndex < q.length; i += 1) {
+      if (candidate[i] === q[queryIndex]) queryIndex += 1;
+    }
+    if (queryIndex === q.length) best = Math.max(best ?? 0, 40 + q.length);
+  }
+  return best;
+}
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]';
+
+const kbd = 'rounded border border-white/10 bg-white/5 px-1 py-0.5 text-[10px]';
 
 export default function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
@@ -33,10 +124,31 @@ export default function CommandPalette() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const filtered = routes.filter((r) =>
-    r.label.toLowerCase().includes(query.toLowerCase()),
-  );
-  const safeSelectedIndex = filtered.length === 0 ? 0 : Math.min(selectedIndex, filtered.length - 1);
+  // Store the actions map (stable reference) and derive the array in a memo so
+  // the palette does not re-render in a loop on every zustand sniff.
+  const actions = useCommandMenuStore((s) => s.actions);
+
+  const items = useMemo(() => {
+    const actionList: ActionItem[] = Object.values<CommandMenuAction>(actions).map((action) => ({
+      kind: 'action',
+      id: action.id,
+      label: action.label,
+      keywords: action.keywords,
+      icon: action.icon ?? Zap,
+      run: action.run,
+    }));
+    const all = [...routes, ...builtInActions, ...actionList];
+    return all
+      .map((item) => ({
+        item,
+        score: matchScore(query, item.label, item.kind === 'action' ? item.keywords : []),
+      }))
+      .filter((entry): entry is { item: PaletteItem; score: number } => entry.score !== null)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.item);
+  }, [query, actions]);
+
+  const safeSelectedIndex = items.length === 0 ? 0 : Math.min(selectedIndex, items.length - 1);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -71,7 +183,7 @@ export default function CommandPalette() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, open, close]);
 
-  // Reset selected index when filtered list changes
+  // Reset selected index when the query changes
   useEffect(() => {
     setSelectedIndex(0);
     const reset = window.setTimeout(() => setSelectedIndex(0), 0);
@@ -81,9 +193,9 @@ export default function CommandPalette() {
   // Scroll selected item into view
   useEffect(() => {
     if (!isOpen) return;
-    const items = listRef.current?.querySelectorAll('[role="option"]');
-    items?.[selectedIndex]?.scrollIntoView({ block: 'nearest' });
-  }, [selectedIndex, isOpen]);
+    const option = listRef.current?.querySelectorAll('[role="option"]');
+    option?.[safeSelectedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [safeSelectedIndex, isOpen]);
 
   // Focus input when opened
   useEffect(() => {
@@ -95,25 +207,29 @@ export default function CommandPalette() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (filtered.length > 0) {
-        setSelectedIndex((i) => (i + 1) % filtered.length);
+      if (items.length > 0) {
+        setSelectedIndex((i) => (i + 1) % items.length);
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (filtered.length > 0) {
-        setSelectedIndex((i) => (i - 1 + filtered.length) % filtered.length);
+      if (items.length > 0) {
+        setSelectedIndex((i) => (i - 1 + items.length) % items.length);
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filtered[safeSelectedIndex]) {
-        navigate(filtered[safeSelectedIndex].to);
-        close();
+      const item = items[safeSelectedIndex];
+      if (item) {
+        handleSelect(item);
       }
     }
   };
 
-  const handleSelect = (to: string) => {
-    navigate(to);
+  const handleSelect = (item: PaletteItem) => {
+    if (item.kind === 'route') {
+      navigate(item.to);
+    } else {
+      item.run();
+    }
     close();
   };
 
@@ -158,39 +274,37 @@ export default function CommandPalette() {
                 aria-expanded={isOpen}
                 aria-controls="command-palette-listbox"
                 aria-activedescendant={
-                  filtered[safeSelectedIndex] ? `command-palette-option-${safeSelectedIndex}` : undefined
+                  items[safeSelectedIndex] ? `command-palette-option-${safeSelectedIndex}` : undefined
                 }
               />
-              <kbd className="hidden sm:inline-block rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-                ESC
-              </kbd>
+              <kbd className={`hidden sm:inline-block ${kbd} text-gray-500`}>ESC</kbd>
             </div>
 
-            {/* Route list */}
+            {/* Command list */}
             <div
               id="command-palette-listbox"
               ref={listRef}
               role="listbox"
-              aria-label="Routes"
+              aria-label="Commands"
               className="max-h-64 overflow-y-auto p-1.5"
             >
-              {filtered.length === 0 && (
+              {items.length === 0 && (
                 <p className="px-4 py-6 text-center text-sm text-gray-500">
-                  No routes match "{query}"
+                  No routes or actions match "{query}"
                 </p>
               )}
-              {filtered.map((route, index) => {
-                const Icon = route.icon;
+              {items.map((item, index) => {
+                const Icon = item.icon;
                 const isSelected = index === safeSelectedIndex;
-                const isCurrent = location.pathname === route.to;
+                const isCurrent = item.kind === 'route' && location.pathname === item.to;
                 return (
                   <button
-                    key={route.to}
+                    key={item.kind === 'route' ? item.to : `action-${item.id}`}
                     id={`command-palette-option-${index}`}
                     type="button"
                     role="option"
                     aria-selected={isSelected}
-                    onClick={() => handleSelect(route.to)}
+                    onClick={() => handleSelect(item)}
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={clsx(
                       'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors',
@@ -202,10 +316,15 @@ export default function CommandPalette() {
                     )}
                   >
                     <Icon className={clsx('w-4 h-4 shrink-0', isSelected ? 'text-[#BEC7FE]' : 'text-gray-500')} aria-hidden />
-                    <span className="flex-1 font-medium">{route.label}</span>
-                    {isCurrent && (
+                    <span className="flex-1 font-medium">{item.label}</span>
+                    {item.kind === 'route' && isCurrent && (
                       <span className="rounded-full bg-[#2C4BFD]/20 px-2 py-0.5 text-[10px] font-semibold text-[#BEC7FE]">
                         current
+                      </span>
+                    )}
+                    {item.kind === 'action' && (
+                      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-gray-400">
+                        action
                       </span>
                     )}
                   </button>
@@ -216,9 +335,16 @@ export default function CommandPalette() {
             {/* Footer hint */}
             <div className="flex items-center justify-between border-t border-white/10 px-4 py-2">
               <span className="text-[10px] text-gray-500">
-                <kbd className="rounded border border-white/10 bg-white/5 px-1 py-0.5 text-[10px]">↑↓</kbd> navigate
+                <kbd className={kbd}>↑↓</kbd> navigate
                 {' '}
-                <kbd className="rounded border border-white/10 bg-white/5 px-1 py-0.5 text-[10px]">↵</kbd> select
+                <kbd className={kbd}>↵</kbd> select
+                {' '}
+                <kbd className={kbd}>Esc</kbd> close
+                {' '}
+                <kbd className={kbd}>Ctrl K</kbd> toggle
+              </span>
+              <span className="hidden text-[10px] text-gray-600 sm:inline">
+                {items.length} {items.length === 1 ? 'command' : 'commands'}
               </span>
             </div>
           </div>
