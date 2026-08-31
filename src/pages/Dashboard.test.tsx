@@ -577,4 +577,56 @@ describe('Dashboard', () => {
       expect(screen.getByText('No hay rondas activas')).toBeInTheDocument();
     });
   });
+
+  describe('user stats panel', () => {
+    it('renders live stats when connected and API response succeeds', async () => {
+      vi.mocked(statsApi.getUserStats).mockResolvedValue({
+        balance: 999.5,
+        pendingWinnings: 50,
+        totalWins: 8,
+        totalLosses: 2,
+        currentStreak: 5,
+        xp: 1200,
+        rank: 'Analyst',
+      });
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('999.50 vXLM')).toBeInTheDocument();
+      expect(screen.getByText('5 rounds')).toBeInTheDocument();
+      expect(screen.getByText('8')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it('renders empty state without mock numbers when connected and API returns null', async () => {
+      vi.mocked(statsApi.getUserStats).mockResolvedValue(null);
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('User stats unavailable')).toBeInTheDocument();
+      expect(screen.queryByText('1000 vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+    });
+
+    it('renders error state when connected and API call fails', async () => {
+      vi.mocked(statsApi.getUserStats).mockRejectedValue(new Error('Network failure'));
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('Network failure')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    });
+
+    it('does not render stats panel when wallet is disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.queryByText('Your Record')).not.toBeInTheDocument();
+    });
+  });
 });
+

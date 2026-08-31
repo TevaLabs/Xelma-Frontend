@@ -3,6 +3,7 @@ const en = {
     nav: {
       terminal: 'Terminal',
       pools: 'Pools',
+      tournament: 'Tournament',
       leaderboard: 'Leaderboard',
       learn: 'Learn',
       profile: 'Profile',
@@ -35,9 +36,38 @@ const en = {
     roundsResolved: 'Rounds Resolved',
     practiceVolume: 'Practice Volume',
     activePredictors: 'Active Predictors',
+    howItWorksSection: {
+      title: 'How It Works',
+      subtitle: 'Start predicting market trends on Stellar in three simple steps.',
+      step1: {
+        stepNumber: '01',
+        title: 'Connect Freighter',
+        description: 'Link your Stellar Freighter wallet to access testnet predictions securely.'
+      },
+      step2: {
+        stepNumber: '02',
+        title: 'Practice vXLM',
+        description: 'Receive 1,000 practice vXLM automatically to explore predictions risk-free.'
+      },
+      step3: {
+        stepNumber: '03',
+        title: 'Submit Prediction',
+        description: 'Choose Directional or Precision mode and lock in your price forecast on-chain.'
+      }
+    },
   },
   footer: {
     description: 'Collective market intelligence on Stellar',
+  },
+  tournament: {
+    title: 'Tournaments',
+    description:
+      'Compete against other predictors in structured tournament brackets. Climb the leaderboard, earn exclusive rewards, and prove your market intuition.',
+    modesTitle: 'Tournament Formats',
+    modesSubtitle:
+      'Two competitive modes are planned, each rewarding different prediction strategies.',
+    joinCTA: 'Join Tournament',
+    ctaDisabledHint: 'Tournament mode launches after mainnet. Connect your wallet to be notified.',
   },
   dashboard: {
     refresh: 'Refresh',
@@ -51,20 +81,20 @@ const en = {
         description: 'Learn how the game works or refresh to check for new rounds.',
       },
       noAssetRounds: {
-        title: 'No {{asset}} Rounds Available',
+        title: 'No {{asset}} rounds available',
         description:
-          'There are currently no active rounds for {{assetName}}. Try selecting a different asset or check back later.',
+          'There are currently no active rounds for {{assetName}}. Try selecting another asset or check back later.',
       },
     },
     sorobanInspector: {
       title: 'Soroban Inspector',
-      description: 'Read-only wallet position and round state.',
+      description: 'Read-only wallet position & round state.',
       loading: 'Loading…',
-      rpcFallback: 'RPC fallback: {{error}}',
+      rpcFallback: 'RPC Fallback: {{error}}',
     },
     share: {
       button: 'Share',
-      copyAriaLabel: 'Copy share link',
+      copyAriaLabel: 'Copy link to share',
       copied: 'Link copied to clipboard',
       copyError: 'Could not copy link',
     },

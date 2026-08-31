@@ -3,6 +3,7 @@ const es = {
     nav: {
       terminal: 'Terminal',
       pools: 'Pools',
+      tournament: 'Torneo',
       leaderboard: 'Clasificación',
       learn: 'Aprender',
       profile: 'Perfil',
@@ -35,6 +36,35 @@ const es = {
     roundsResolved: 'Rondas resueltas',
     practiceVolume: 'Volumen de práctica',
     activePredictors: 'Predictores activos',
+    howItWorksSection: {
+      title: 'Cómo funciona',
+      subtitle: 'Comienza a predecir tendencias del mercado en Stellar en tres sencillos pasos.',
+      step1: {
+        stepNumber: '01',
+        title: 'Conectar Freighter',
+        description: 'Vincular tu cartera Stellar Freighter para acceder a predicciones en la red de prueba de forma segura.'
+      },
+      step2: {
+        stepNumber: '02',
+        title: 'Practicar vXLM',
+        description: 'Recibe 1,000 vXLM de práctica automáticamente para explorar predicciones sin riesgo.'
+      },
+      step3: {
+        stepNumber: '03',
+        title: 'Enviar predicción',
+        description: 'Elige el modo Direccional o de Precisión y asegura tu pronóstico de precio en la cadena.'
+      }
+    },
+  },
+  tournament: {
+    title: 'Torneos',
+    description:
+      'Compite contra otros predictores en brackets de torneo estructurados. Sube en la clasificación, gana recompensas exclusivas y demuestra tu intuición de mercado.',
+    modesTitle: 'Formatos de Torneo',
+    modesSubtitle:
+      'Dos modos competitivos están planeados, cada uno recompensando diferentes estrategias de predicción.',
+    joinCTA: 'Unirse al Torneo',
+    ctaDisabledHint: 'El modo torneo se lanza después del mainnet. Conecta tu billetera para ser notificado.',
   },
   footer: {
     description: 'Inteligencia colectiva de mercado en Stellar',

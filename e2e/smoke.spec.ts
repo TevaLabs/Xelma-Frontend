@@ -22,6 +22,9 @@ function mockFreighter(page: import('@playwright/test').Page) {
 
 test.describe('Smoke Tests - Critical Routes', () => {
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('xelma_onboarding_dismissed', 'true');
+    });
     await mockFreighter(page);
     await page.route('**/horizon-testnet.stellar.org/accounts/**', (route) =>
       route.fulfill({

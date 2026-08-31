@@ -5,12 +5,13 @@ import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import AssetIcon from './icons/AssetIcon';
-import { formatVXLM, formatPercent } from '../lib/utils';
+import { formatVXLM } from '../lib/utils';
 import { TRANSITION } from '../utils/motion';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useRoundCountdown } from '../hooks/useRoundCountdown';
 import { GlassCard } from './ui/GlassCard';
 import { StatusPill } from './ui/StatusPill';
+import { PoolSplitWidget } from './PoolSplitWidget';
 
 const URGENCY_THRESHOLD_SECONDS = 30;
 const URGENCY_THRESHOLD_MS = URGENCY_THRESHOLD_SECONDS * 1000;
@@ -49,9 +50,6 @@ const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
   const { isExpired, timeLeftMs } = useRoundCountdown(endTime);
   const isUrgent = !isExpired && timeLeftMs < URGENCY_THRESHOLD_MS;
   const total = poolSize(round);
-  const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
-  const upPct = Math.round(upRatio * 100);
-  const downPct = round.mode === 'updown' ? 100 - upPct : 0;
 
   const statusMeta = getStatusMeta(round, round.closesInSeconds);
   const prevStatus = useRef(statusMeta.label);
@@ -165,24 +163,7 @@ const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
         </p>
 
         {round.mode === 'updown' ? (
-          <div>
-            <div className="flex h-2 overflow-hidden rounded-full bg-gray-800">
-              <div
-                className="bg-[#2C4BFD] transition-all"
-                style={{ width: `${upPct}%` }}
-                title={`UP ${formatPercent(upPct / 100, 0)}`}
-              />
-              <div
-                className="bg-rose-500 transition-all"
-                style={{ width: `${downPct}%` }}
-                title={`DOWN ${formatPercent(downPct / 100, 0)}`}
-              />
-            </div>
-            <div className="mt-1 flex justify-between text-xs text-gray-500">
-              <span className="text-[#BEC7FE]">UP {formatPercent(upPct / 100, 0)}</span>
-              <span className="text-rose-400">DOWN {formatPercent(downPct / 100, 0)}</span>
-            </div>
-          </div>
+          <PoolSplitWidget poolUp={round.poolUp} poolDown={round.poolDown} />
         ) : (
           <p className="text-sm text-cyan-300">
             {round.predictionCount ?? 0} forecasts submitted

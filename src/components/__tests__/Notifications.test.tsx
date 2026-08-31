@@ -29,6 +29,16 @@ vi.mock('../../hooks/useConnectionStatus', () => ({
   }),
 }));
 
+vi.mock('../../store/useWalletStore', () => ({
+  useWalletStore: Object.assign(
+    vi.fn((selector?: (state: { publicKey: string | null }) => unknown) => {
+      const state = { publicKey: 'GTEST123' };
+      return selector ? selector(state) : state;
+    }),
+    { getState: () => ({ publicKey: 'GTEST123' }) },
+  ),
+}));
+
 vi.mock('../../lib/api-client');
 
 describe('Notifications', () => {
