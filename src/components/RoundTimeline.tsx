@@ -116,7 +116,7 @@ const RoundTimeline: React.FC = () => {
   }, [currentState, currentStateLabel]);
 
   return (
-    <div className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
+    <div data-current-state={currentState} className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {stateAnnouncement}
       </div>
@@ -126,6 +126,10 @@ const RoundTimeline: React.FC = () => {
           <span className="inline-block w-3 h-3 bg-blue-500 rounded-full"></span>
           Round Progress
         </h2>
+        <div className="sr-only">
+          <p>Current state is "{currentState}"</p>
+          <p>Upcoming → Live → Resolving → Finished</p>
+        </div>
       </div>
 
       {/* Loading State */}

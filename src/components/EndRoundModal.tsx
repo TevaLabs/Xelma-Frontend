@@ -116,6 +116,9 @@ export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModal
             continueButtonRef.current?.focus();
           }}
         >
+          <div aria-live="polite" aria-atomic="true" className="sr-only">
+            {`Round result: ${isWin ? 'win' : 'loss'}. ${isWin ? `Net gain plus $${Math.abs(amount).toFixed(2)}` : `Net loss minus $${Math.abs(amount).toFixed(2)}`}`}
+          </div>
           <section className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-700/80 bg-[#0a0f1a] shadow-[0_24px_80px_rgba(0,0,0,0.65)] motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200">
             <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:24px_24px]" />
             <div aria-hidden="true" className={`pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full blur-3xl ${accent === 'cyan' ? 'bg-cyan-400/15' : 'bg-amber-300/15'} motion-safe:animate-pulse`} />
