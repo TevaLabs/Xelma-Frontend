@@ -6,7 +6,7 @@ vi.mock('../../hooks/useConnectionStatus', () => ({
   useConnectionStatus: vi.fn(),
 }));
 
-import { ConnectionStatus, ConnectionIndicator } from '../ConnectionStatus';
+import { ConnectionStatus, ConnectionIndicator, NetworkHealthIndicator } from '../ConnectionStatus';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 
 describe('ConnectionStatus', () => {
@@ -254,6 +254,102 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator className="custom-class" />);
+    expect(container.firstChild).toHaveClass('custom-class');
+  });
+});
+
+const baseMock = {
+  status: 'connected',
+  error: null,
+  lastConnected: null,
+  reconnectAttempts: 0,
+  reconnect: vi.fn(),
+  isConnected: false,
+  isConnecting: false,
+  isReconnecting: false,
+  isDisconnected: false,
+  isUnhealthy: false,
+};
+
+describe('NetworkHealthIndicator', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders nothing when the socket is healthy', () => {
+    (useConnectionStatus as any).mockReturnValue({ ...baseMock, status: 'connected', isUnhealthy: false });
+
+    const { container } = render(<NetworkHealthIndicator />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing when fully disconnected (OfflineBanner handles that)', () => {
+    (useConnectionStatus as any).mockReturnValue({
+      ...baseMock,
+      status: 'disconnected',
+      isDisconnected: true,
+      isUnhealthy: false,
+    });
+
+    const { container } = render(<NetworkHealthIndicator />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders an amber dot with a tooltip while reconnecting', () => {
+    (useConnectionStatus as any).mockReturnValue({
+      ...baseMock,
+      status: 'reconnecting',
+      reconnectAttempts: 3,
+      isReconnecting: true,
+      isUnhealthy: true,
+    });
+
+    render(<NetworkHealthIndicator />);
+
+    const dot = document.querySelector('.bg-amber-400');
+    expect(dot).toBeInTheDocument();
+    expect(dot).toHaveAttribute('title', 'Reconnecting... (attempt 3)');
+  });
+
+  it('renders an amber dot with a connecting tooltip while connecting', () => {
+    (useConnectionStatus as any).mockReturnValue({
+      ...baseMock,
+      status: 'connecting',
+      isConnecting: true,
+      isUnhealthy: true,
+    });
+
+    render(<NetworkHealthIndicator />);
+
+    const dot = document.querySelector('.bg-amber-400');
+    expect(dot).toBeInTheDocument();
+    expect(dot).toHaveAttribute('title', 'Connecting to live updates...');
+  });
+
+  it('exposes the status via an accessible aria-label / sr-only text', () => {
+    (useConnectionStatus as any).mockReturnValue({
+      ...baseMock,
+      status: 'reconnecting',
+      reconnectAttempts: 1,
+      isReconnecting: true,
+      isUnhealthy: true,
+    });
+
+    render(<NetworkHealthIndicator />);
+
+    expect(screen.getByLabelText('Reconnecting... (attempt 1)')).toBeInTheDocument();
+    expect(screen.getByText('Reconnecting... (attempt 1)')).toBeInTheDocument();
+  });
+
+  it('applies a custom className to the wrapper', () => {
+    (useConnectionStatus as any).mockReturnValue({
+      ...baseMock,
+      status: 'reconnecting',
+      isReconnecting: true,
+      isUnhealthy: true,
+    });
+
+    const { container } = render(<NetworkHealthIndicator className="custom-class" />);
     expect(container.firstChild).toHaveClass('custom-class');
   });
 });

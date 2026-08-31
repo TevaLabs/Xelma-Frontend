@@ -15,6 +15,7 @@ import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';
 
 import MaskedBalance from './MaskedBalance';
+import { NetworkHealthIndicator } from './ConnectionStatus';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
 
 
@@ -190,6 +191,7 @@ export default function Navbar() {
                 <span className="text-xs">Ctrl+K</span>
               </button>
               <NetworkBadge />
+              <NetworkHealthIndicator />
               {isWatchOnly && <WatchOnlyBadge />}
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-sm text-white">
                 <label htmlFor="language-select" className="sr-only">
@@ -285,6 +287,7 @@ export default function Navbar() {
 
             <div className="mb-4 flex items-center gap-2">
               <NetworkBadge />
+              <NetworkHealthIndicator />
               {isWatchOnly && <WatchOnlyBadge />}
             </div>
 

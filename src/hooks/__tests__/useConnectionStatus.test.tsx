@@ -140,6 +140,42 @@ describe('useConnectionStatus', () => {
     expect(socketService.forceReconnect).toHaveBeenCalledOnce();
   });
 
+  it('should flag isUnhealthy for connecting and reconnecting states', () => {
+    let connectionChangeCallback: (state: ConnectionState) => void = () => {};
+
+    (socketService.onConnectionChange as any).mockImplementation((callback) => {
+      connectionChangeCallback = callback;
+      return () => {};
+    });
+
+    const { result } = renderHook(() => useConnectionStatus());
+
+    // connected is healthy, not unhealthy
+    act(() => {
+      connectionChangeCallback({ status: 'connected', error: null, lastConnected: new Date(), reconnectAttempts: 0 });
+    });
+    expect(result.current.isUnhealthy).toBe(false);
+
+    // connecting is flaky-but-not-offline
+    act(() => {
+      connectionChangeCallback({ status: 'connecting', error: null, lastConnected: null, reconnectAttempts: 0 });
+    });
+    expect(result.current.isUnhealthy).toBe(true);
+
+    // reconnecting is flaky-but-not-offline
+    act(() => {
+      connectionChangeCallback({ status: 'reconnecting', error: null, lastConnected: new Date(), reconnectAttempts: 1 });
+    });
+    expect(result.current.isUnhealthy).toBe(true);
+
+    // disconnected is fully offline, not the amber state
+    act(() => {
+      connectionChangeCallback({ status: 'disconnected', error: null, lastConnected: null, reconnectAttempts: 0 });
+    });
+    expect(result.current.isUnhealthy).toBe(false);
+    expect(result.current.isDisconnected).toBe(true);
+  });
+
   it('should handle error states', () => {
     let connectionChangeCallback: (state: ConnectionState) => void = () => {};
     

@@ -26,5 +26,9 @@ export function useConnectionStatus() {
     isConnecting: connectionState.status === 'connecting',
     isReconnecting: connectionState.status === 'reconnecting',
     isDisconnected: connectionState.status === 'disconnected',
+    // Flaky but not fully offline: socket is mid-connect / mid-reconnect.
+    // Distinct from `isDisconnected` (handled by OfflineBanner) and `isConnected`.
+    isUnhealthy:
+      connectionState.status === 'connecting' || connectionState.status === 'reconnecting',
   };
 }

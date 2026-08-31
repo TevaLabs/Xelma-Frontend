@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Navbar from './Navbar';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import { useConnectionStatus } from '../hooks/useConnectionStatus';
 import '../i18n';
 import i18n from '../i18n';
 
@@ -12,6 +13,13 @@ vi.mock('../store/useWalletStore', () => ({
   selectIsWalletConnected: vi.fn((s: { status: string; publicKey: string | null }) =>
     s.status === 'connected' && Boolean(s.publicKey),
   ),
+}));
+
+// Mock socket-backed connection hook so the Navbar test stays isolated from
+// socket.io-client (the amber health indicator should only render for flaky
+// states, which default to "healthy" here).
+vi.mock('../hooks/useConnectionStatus', () => ({
+  useConnectionStatus: vi.fn(),
 }));
 
 // Mock SVG logo import
@@ -59,6 +67,19 @@ function renderNavbar(path = '/') {
 describe('Navbar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default to a healthy connection so the amber indicator stays hidden.
+    vi.mocked(useConnectionStatus).mockReturnValue({
+      status: 'connected',
+      error: null,
+      lastConnected: null,
+      reconnectAttempts: 0,
+      reconnect: vi.fn(),
+      isConnected: true,
+      isConnecting: false,
+      isReconnecting: false,
+      isDisconnected: false,
+      isUnhealthy: false,
+    });
   });
 
   afterEach(async () => {
@@ -214,6 +235,74 @@ describe('Navbar', () => {
       fireEvent.click(menuButton);
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(menuButton).toHaveFocus();
+    });
+  });
+
+  describe('network health indicator', () => {
+    beforeEach(() => {
+      vi.mocked(useWalletStore).mockImplementation(
+        makeStoreMock({ status: 'idle' }) as Parameters<typeof vi.mocked>[0],
+      );
+    });
+
+    it('shows the amber indicator when the socket is reconnecting', () => {
+      vi.mocked(useConnectionStatus).mockReturnValue({
+        status: 'reconnecting',
+        error: null,
+        lastConnected: null,
+        reconnectAttempts: 2,
+        reconnect: vi.fn(),
+        isConnected: false,
+        isConnecting: false,
+        isReconnecting: true,
+        isDisconnected: false,
+        isUnhealthy: true,
+      });
+
+      renderNavbar();
+
+      const dot = document.querySelector('.bg-amber-400');
+      expect(dot).toBeInTheDocument();
+      expect(dot).toHaveAttribute('title', 'Reconnecting... (attempt 2)');
+    });
+
+    it('shows the amber indicator while connecting', () => {
+      vi.mocked(useConnectionStatus).mockReturnValue({
+        status: 'connecting',
+        error: null,
+        lastConnected: null,
+        reconnectAttempts: 0,
+        reconnect: vi.fn(),
+        isConnected: false,
+        isConnecting: true,
+        isReconnecting: false,
+        isDisconnected: false,
+        isUnhealthy: true,
+      });
+
+      renderNavbar();
+
+      const dot = document.querySelector('.bg-amber-400');
+      expect(dot).toHaveAttribute('title', 'Connecting to live updates...');
+    });
+
+    it('hides the amber indicator when fully disconnected', () => {
+      vi.mocked(useConnectionStatus).mockReturnValue({
+        status: 'disconnected',
+        error: null,
+        lastConnected: null,
+        reconnectAttempts: 0,
+        reconnect: vi.fn(),
+        isConnected: false,
+        isConnecting: false,
+        isReconnecting: false,
+        isDisconnected: true,
+        isUnhealthy: false,
+      });
+
+      renderNavbar();
+
+      expect(document.querySelector('.bg-amber-400')).toBeNull();
     });
   });
 });

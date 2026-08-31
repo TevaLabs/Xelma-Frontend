@@ -126,3 +126,41 @@ export function ConnectionIndicator({ className = '' }: { className?: string }) 
     </div>
   );
 }
+
+/**
+ * Amber "network unhealthy" indicator for the global navbar.
+ *
+ * Renders ONLY when the socket is flaky but not fully offline — i.e. while
+ * `connecting` or `reconnecting`. Fully offline states (`disconnected`) are the
+ * responsibility of <OfflineBanner />, so the two treatments stay visually and
+ * behaviorally distinct. When healthy (`connected`) nothing is rendered.
+ */
+interface NetworkHealthIndicatorProps {
+  className?: string;
+}
+
+export function NetworkHealthIndicator({ className = '' }: NetworkHealthIndicatorProps) {
+  const { status, isUnhealthy, reconnectAttempts } = useConnectionStatus();
+
+  if (!isUnhealthy) return null;
+
+  const isReconnecting = status === 'reconnecting';
+  const tooltip = isReconnecting
+    ? `Reconnecting... (attempt ${reconnectAttempts})`
+    : 'Connecting to live updates...';
+
+  return (
+    <div
+      className={`flex items-center ${className}`}
+      role="status"
+      aria-label={tooltip}
+    >
+      <span
+        className="h-2 w-2 animate-pulse rounded-full bg-amber-400 ring-2 ring-amber-400/30"
+        title={tooltip}
+        aria-hidden="true"
+      />
+      <span className="sr-only">{tooltip}</span>
+    </div>
+  );
+}
