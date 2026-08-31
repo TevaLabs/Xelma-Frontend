@@ -42,9 +42,9 @@ import { useWalletStore } from '../store/useWalletStore';
 
 const mockUseWalletStore = vi.mocked(useWalletStore);
 
-function mockWalletState(status: string, publicKey: string | null) {
+function mockWalletState(status: string, publicKey: string | null, isWatchOnly = false) {
   mockUseWalletStore.mockImplementation((selector: any) => {
-    const store = { status, publicKey };
+    const store = { status, publicKey, isWatchOnly, disconnect: vi.fn() };
     if (typeof selector === 'function') return selector(store);
     return store;
   });
@@ -160,6 +160,35 @@ describe('Connect Page', () => {
 
       const viewBtn = screen.getByRole('button', { name: /View in Watch-Only Mode/i });
       expect(viewBtn).toBeDisabled();
+    });
+  });
+
+  describe('watch-only connected state', () => {
+    it('renders Watch-Only Mode heading and does not render the Freighter WalletConnect', () => {
+      mockWalletState('connected', 'GTEST1234567890', true);
+      render(<Connect />);
+
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Watch-Only Mode');
+      expect(screen.queryByTestId('wallet-connect')).toBeNull();
+    });
+
+    it('shows Watch-only address active and Disconnect/Continue actions', () => {
+      mockWalletState('connected', 'GTEST1234567890', true);
+      render(<Connect />);
+
+      expect(screen.getByText(/Watch-only address active/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Disconnect/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Continue to Dashboard/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('does not show Freighter WalletConnect for a watch-only address', () => {
+      mockWalletState('connected', 'GTEST1234567890', true);
+      render(<Connect />);
+
+      // Assert the WalletConnect mock (Freighter flow) is never rendered
+      expect(screen.queryByTestId('wallet-connect')).toBeNull();
     });
   });
 

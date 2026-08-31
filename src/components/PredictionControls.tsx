@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import PredictionHelpTooltip from "./PredictionHelpTooltip";
 import "./PredictionCard.css";
 
@@ -73,8 +73,16 @@ export function PredictionControls({
   const [touchedExactPrice, setTouchedExactPrice] = useState(false);
   const [stakeError, setStakeError] = useState<string | null>(null);
 
+  // Internal idempotency guard: blocks a second prediction submit while the
+  // first is still in flight (before the parent's isSubmittingPrediction state
+  // has propagated). Prevents double-submit races on rapid/cluster clicks.
+  const inFlightRef = useRef(false);
+  const [isSubmittingInternal, setIsSubmittingInternal] = useState(false);
+
+  const isSubmitting = isSubmittingPrediction || isSubmittingInternal;
+
   const isDisabled =
-    !isWalletConnected || !isRoundActive || isConnecting || isSubmittingPrediction;
+    !isWalletConnected || !isRoundActive || isConnecting || isSubmitting;
 
   const validateExactPriceField = useCallback(() => {
     if (!isLegend) return;
@@ -107,9 +115,15 @@ export function PredictionControls({
   const handlePrediction = (direction: "UP" | "DOWN") => {
     if (isDisabled || !stake) return;
 
+    // Acquire the internal in-flight lock. If a submit is already in progress
+    // (or hasn't been released yet), drop the duplicate click immediately.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
     const stakeValidationError = validateStake(stake, walletBalance);
     if (stakeValidationError) {
       setStakeError(stakeValidationError);
+      inFlightRef.current = false;
       return;
     }
 
@@ -117,7 +131,10 @@ export function PredictionControls({
       setTouchedExactPrice(true);
       const error = validateExactPrice(exactPrice);
       setExactPriceError(error);
-      if (error) return;
+      if (error) {
+        inFlightRef.current = false;
+        return;
+      }
     }
 
     const predictionData: PredictionData = {
@@ -128,9 +145,12 @@ export function PredictionControls({
     };
 
     setSelectedDirection(direction);
+    setIsSubmittingInternal(true);
     onPrediction?.(predictionData);
 
     setTimeout(() => {
+      inFlightRef.current = false;
+      setIsSubmittingInternal(false);
       setStake("");
       setExactPrice("");
       setExactPriceError(null);
@@ -155,7 +175,7 @@ export function PredictionControls({
           Connecting wallet...
         </p>
       )}
-      {isSubmittingPrediction && !isConnecting && (
+      {isSubmitting && !isConnecting && (
         <p className="prediction-card__connecting" role="status">
           Submitting prediction...
         </p>
@@ -276,7 +296,7 @@ export function PredictionControls({
         </div>
       )}
 
-      {isDisabled && !isConnecting && !isSubmittingPrediction && (
+      {isDisabled && !isConnecting && !isSubmitting && (
         <div className="prediction-card__disabled-message">
           {!isWalletConnected && <p>Connect your wallet to make predictions</p>}
           {isWalletConnected && !isRoundActive && <p>This round is not active</p>}
