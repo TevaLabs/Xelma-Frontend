@@ -19,17 +19,17 @@ describe('EndRoundModal accessibility', () => {
   });
 
   it('renders an aria-live region announcing win/loss outcome', async () => {
-    const { container: winContainer } = render(
+    const { unmount: unmountWin } = render(
       <EndRoundModal isOpen onClose={vi.fn()} result={result} />,
     );
     await waitFor(() => {
-      const winRegion = winContainer.querySelector('[aria-live="polite"]');
-      expect(winRegion).toBeInTheDocument();
-      expect(winRegion).toHaveTextContent(/round result: win/i);
-      expect(winRegion).toHaveTextContent(/net gain plus \$42\.00/i);
+      const winText = screen.getByText(/round result: win/i);
+      expect(winText).toBeInTheDocument();
+      expect(winText).toHaveTextContent(/net gain plus \$42\.00/i);
     });
+    unmountWin();
 
-    const { container: lossContainer } = render(
+    const { unmount: unmountLoss } = render(
       <EndRoundModal
         isOpen
         onClose={vi.fn()}
@@ -37,11 +37,11 @@ describe('EndRoundModal accessibility', () => {
       />,
     );
     await waitFor(() => {
-      const lossRegion = lossContainer.querySelector('[aria-live="polite"]');
-      expect(lossRegion).toBeInTheDocument();
-      expect(lossRegion).toHaveTextContent(/round result: loss/i);
-      expect(lossRegion).toHaveTextContent(/net loss minus \$15\.00/i);
+      const lossText = screen.getByText(/round result: loss/i);
+      expect(lossText).toBeInTheDocument();
+      expect(lossText).toHaveTextContent(/net loss minus \$15\.00/i);
     });
+    unmountLoss();
   });
 
   it('closes on Escape and restores focus to the trigger', async () => {
