@@ -156,7 +156,7 @@ export default function OnboardingChecklist() {
             <span>Getting started</span>
             <span>{completedCount}/{STEPS.length} complete</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={completedCount}>
+          <div className="h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Onboarding completion progress" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={completedCount}>
             <div className="h-full rounded-full bg-gradient-to-r from-[#2C4BFD] to-cyan-400 transition-[width] duration-200" style={{ width: `${progressPercent}%` }} />
           </div>
         </div>
