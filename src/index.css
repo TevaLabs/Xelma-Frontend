@@ -193,6 +193,35 @@ body {
   scroll-margin-top: 80px;
 }
 
+/* Prediction pulse — brief glow/scale flash when a new prediction lands. */
+@keyframes prediction-pulse-count {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.25);
+    color: #22d3ee;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes prediction-pulse-icon {
+  0% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -100,6 +100,52 @@ describe('PredictionControls', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('fires a single submit per cluster of clicks while a submit is in flight (idempotency race guard)', () => {
+    const onPrediction = vi.fn();
+
+    render(
+      <PredictionControls
+        isWalletConnected={true}
+        isRoundActive={true}
+        walletBalance="50.00 XLM"
+        onPrediction={onPrediction}
+      />
+    );
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+      target: { value: '50' },
+    });
+
+    const upButton = screen.getByRole('button', { name: /UP/i });
+    // Simulate a rapid double-click before the parent's in-flight state can
+    // propagate. Only the first click should produce a prediction.
+    fireEvent.click(upButton);
+    fireEvent.click(upButton);
+    fireEvent.click(screen.getByRole('button', { name: /DOWN/i }));
+
+    expect(onPrediction).toHaveBeenCalledTimes(1);
+    expect(onPrediction).toHaveBeenCalledWith({
+      direction: 'UP',
+      stake: '50',
+      exactPrice: undefined,
+      isLegend: false,
+    });
+
+    // Controls stay disabled and pending status is shown while in flight.
+    expect(upButton).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent(/Submitting prediction/i);
+
+    // After the lock releases, a new submit can fire again.
+    vi.advanceTimersByTime(500);
+    expect(upButton).toBeDisabled(); // still no stake until re-entered
+    fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+      target: { value: '10' },
+    });
+    expect(upButton).not.toBeDisabled();
+    fireEvent.click(upButton);
+    expect(onPrediction).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects invalid stake values and displays validation messages', () => {
     render(
       <PredictionControls

@@ -134,4 +134,33 @@ describe("PredictionHistory", () => {
     clickSpy.mockRestore();
     blobSpy.mockRestore();
   });
+
+  it("shows only a small initial page and reveals more via Load more", async () => {
+    const mockHistory: UserPrediction[] = Array.from({ length: 15 }, (_, i) => ({
+      id: String(i + 1),
+      direction: i % 2 === 0 ? "UP" : "DOWN",
+      stake: 1,
+      status: "WON",
+      createdAt: `2026-07-29T10:0${i}:00.000Z`,
+    }));
+    (predictionsApi.getUserHistory as Mock).mockResolvedValue(mockHistory);
+
+    render(<PredictionHistory userId={mockUserId} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+    });
+
+    // Only first page of items rendered (10 items, each shows a status)
+    const itemTexts = screen.getAllByText(/WON/i);
+    expect(itemTexts.length).toBeLessThan(15);
+
+    fireEvent.click(screen.getByRole("button", { name: /Load more/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/end of your prediction history/i)).toBeInTheDocument();
+    });
+
+    // All items now shown after loading more
+    expect(screen.getAllByText(/WON/i).length).toBe(15);
+  });
 });

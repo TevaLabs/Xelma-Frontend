@@ -16,10 +16,13 @@ function formatStake(value?: string | number): string {
   return String(value);
 }
 
+const PAGE_SIZE = 10;
+
 export default function PredictionHistory({ userId, optimisticPrediction }: PredictionHistoryProps) {
   const [history, setHistory] = useState<UserPrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const loadHistory = useCallback(async () => {
     if (!userId) {
@@ -34,6 +37,7 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
     try {
       const predictions = await predictionsApi.getUserHistory(userId);
       setHistory(predictions);
+      setVisibleCount(PAGE_SIZE);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch prediction history");
       setHistory([]);
@@ -41,6 +45,12 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
       setIsLoading(false);
     }
   }, [userId]);
+
+  const hasMore = visibleCount < history.length;
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, history.length));
+  }, [history.length]);
 
   const handleExportCSV = useCallback(() => {
     if (history.length === 0) return;
@@ -148,7 +158,12 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
 
       {!isLoading && !error && (history.length > 0 || optimisticPrediction) && (
         <ul className="space-y-3">
-          {(optimisticPrediction ? [optimisticPrediction, ...history.filter(h => h.id !== optimisticPrediction.id)] : history).map((prediction, index) => {
+          {(() => {
+            const allPredictions = optimisticPrediction
+              ? [optimisticPrediction, ...history.filter((h) => h.id !== optimisticPrediction.id)]
+              : history;
+            const slice = hasMore ? allPredictions.slice(0, visibleCount) : allPredictions;
+            return slice.map((prediction, index) => {
             const direction = typeof prediction.direction === "string" ? prediction.direction : "UNKNOWN";
             const exactPrice =
               prediction.exactPrice === undefined || prediction.exactPrice === null
@@ -193,8 +208,27 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
                 </div>
               </li>
             );
-          })}
+            });
+          })()}
         </ul>
+      )}
+
+      {!isLoading && !error && history.length > 0 && (
+        <div className="mt-4">
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={loadMore}
+              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Load more
+            </button>
+          ) : (
+            <p className="text-center text-xs text-gray-500 dark:text-gray-400 py-1">
+              You've reached the end of your prediction history
+            </p>
+          )}
+        </div>
       )}
     </section>
   );

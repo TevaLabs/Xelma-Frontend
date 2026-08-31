@@ -41,7 +41,7 @@ import ProfileSummaryCard from '../components/ProfileSummaryCard';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
-import { mockUserStats, mockRounds } from "../data/mockData";
+import { mockRounds } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";
@@ -417,7 +417,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [resolvedRound, endRoundResult.isWin, soundEnabled]);
 
   return (
-    <div className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+    <main id="main-content" className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       {/* Opt-in community chat (ported from the legacy /play view). Self-positions
           as a fixed slide-over, so mounting it does not shift the terminal layout. */}
       {isChatOpen && <ChatSidebar />}
@@ -627,7 +627,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
 
               {isWalletConnected && (
                 <StatsCard
-                  stats={stats || mockUserStats}
+                  stats={stats}
                   isLoading={isStatsLoading}
                   error={statsError || undefined}
                   onRetry={fetchStats}
@@ -716,7 +716,7 @@ setOptimisticPrediction(null);
         result={endRoundResult}
       />
       <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
-    </div>
+    </main>
   );
 };
 
