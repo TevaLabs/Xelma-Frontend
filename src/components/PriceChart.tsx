@@ -22,7 +22,7 @@ import { ConnectionStatus } from "./ConnectionStatus";
 
 interface PriceChartProps {
   height?: number;
-asset?: Asset;
+  asset?: Asset;
   entryPrice?: number | null;
   onPriceUpdate?: (price: number) => void;
 }
@@ -37,6 +37,12 @@ type PriceUpdatePayload = {
   prices?: unknown;
   history?: unknown;
 };
+
+type Timeframe = "1m" | "5m" | "15m";
+type ChartMode = "line" | "candlestick";
+
+const TIMEFRAME_STORAGE_KEY = "xelma-price-chart-timeframe";
+const CHART_MODE_STORAGE_KEY = "xelma-price-chart-mode";
 
 function toPricePoint(value: unknown): PricePoint | null {
   if (!value || typeof value !== "object") return null;
@@ -93,10 +99,6 @@ function buildPriceLabels(points: PricePoint[]): number[] {
   return Array.from(new Set(labels.map((value) => Number(value.toFixed(6))))).sort((a, b) => b - a);
 }
 
-type ChartMode = "line" | "candlestick";
-
-const CHART_MODE_STORAGE_KEY = "xelma-price-chart-mode";
-
 function getStoredChartMode(): ChartMode {
   try {
     const stored = localStorage.getItem(CHART_MODE_STORAGE_KEY);
@@ -115,6 +117,74 @@ function persistChartMode(mode: ChartMode): void {
   }
 }
 
+function getStoredTimeframe(): Timeframe {
+  try {
+    const stored = localStorage.getItem(TIMEFRAME_STORAGE_KEY);
+    if (stored === "1m" || stored === "5m" || stored === "15m") return stored;
+  } catch {
+    // localStorage unavailable
+  }
+  return "1m";
+}
+
+function persistTimeframe(timeframe: Timeframe): void {
+  try {
+    localStorage.setItem(TIMEFRAME_STORAGE_KEY, timeframe);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+/**
+ * Remaps price data to the selected timeframe client-side.
+ * Groups points into timeframe buckets and aggregates them.
+ */
+function remapTimeframeData(data: PricePoint[], timeframe: Timeframe): PricePoint[] {
+  if (data.length === 0) return [];
+  
+  const timeframeSeconds = timeframe === "1m" ? 60 : timeframe === "5m" ? 300 : 900;
+  
+  // Sort data by time
+  const sortedData = [...data].sort((a, b) => a.time - b.time);
+  
+  // Group into buckets
+  const buckets = new Map<number, PricePoint[]>();
+  
+  for (const point of sortedData) {
+    const bucketTime = Math.floor(point.time / timeframeSeconds) * timeframeSeconds;
+    if (!buckets.has(bucketTime)) {
+      buckets.set(bucketTime, []);
+    }
+    buckets.get(bucketTime)!.push(point);
+  }
+  
+  // Aggregate each bucket
+  const result: PricePoint[] = [];
+  buckets.forEach((points, bucketTime) => {
+    if (points.length === 1) {
+      // Single point in bucket, use as-is
+      result.push({ time: bucketTime, value: points[0].value });
+    } else {
+      // Multiple points - aggregate
+      const values = points.map(p => p.value);
+      const high = Math.max(...values);
+      const low = Math.min(...values);
+      const open = points[0].value; // First point in bucket
+      const close = points[points.length - 1].value; // Last point in bucket
+      
+      // For line chart, use the average or last value
+      // For candlestick, we'd need OHLC but our PricePoint only has close
+      // We'll use the last value as it represents the most recent price
+      result.push({ 
+        time: bucketTime, 
+        value: close
+      });
+    }
+  });
+  
+  return result.sort((a, b) => a.time - b.time);
+}
+
 const ASSET_COLORS: Record<string, string> = {
   BTC: "#F7931A",
   ETH: "#627EEA",
@@ -131,7 +201,8 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Line"> | ISeriesApi<"Candlestick"> | null>(null);
-  const [data, setData] = useState<PricePoint[]>([]);
+  const [rawData, setRawData] = useState<PricePoint[]>([]);
+  const [timeframe, setTimeframe] = useState<Timeframe>(getStoredTimeframe);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
@@ -152,7 +223,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const lineColor = ASSET_COLORS[asset] ?? "#FFFFFF";
 
   // Refs for performance optimization
-  const dataRef = useRef<PricePoint[]>([]);
+  const rawDataRef = useRef<PricePoint[]>([]);
   const updatePositionsRef = useRef<(() => void) | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
@@ -168,10 +239,33 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
     onPriceUpdateRef.current = onPriceUpdate;
   }, [onPriceUpdate]);
 
-  // Keep dataRef in sync with data
+  // Keep rawDataRef in sync with rawData
+  useEffect(() => {
+    rawDataRef.current = rawData;
+  }, [rawData]);
+
+  // Memoized timeframe-mapped data
+  const data = useMemo(() => {
+    return remapTimeframeData(rawData, timeframe);
+  }, [rawData, timeframe]);
+
+  // Keep data in a ref for use in effects
+  const dataRef = useRef<PricePoint[]>(data);
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
+
+  // Ref for timeframe to use in effects without adding as dependency
+  const timeframeRef = useRef(timeframe);
+  useEffect(() => {
+    timeframeRef.current = timeframe;
+  }, [timeframe]);
+
+  // Ref for chartMode to use in effects without adding as dependency
+  const chartModeRef = useRef(chartMode);
+  useEffect(() => {
+    chartModeRef.current = chartMode;
+  }, [chartMode]);
 
   // Memoize priceLabels with stable dependency
   const priceLabels = useMemo(() => buildPriceLabels(data), [data]);
@@ -287,12 +381,6 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [height]);
 
-  // Ref for chartMode to use in effects without adding as dependency
-  const chartModeRef = useRef(chartMode);
-  useEffect(() => {
-    chartModeRef.current = chartMode;
-  }, [chartMode]);
-
   // Handle chart mode switching — replace series without recreating the chart
   useEffect(() => {
     if (!chartRef.current) return;
@@ -357,7 +445,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
         updatePositionsRef.current();
       }
     });
-  }, [chartMode]);  
+  }, [chartMode]);
 
   // Stable updatePositions function using ref to avoid subscription cycles
   const updatePositions = useCallback(() => {
@@ -511,7 +599,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
 
     try {
       const prices = await priceApi.getPriceSeries();
-      setData(prices);
+      setRawData(prices);
       setLastUpdatedAt(new Date());
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Failed to load price data");
@@ -567,10 +655,10 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
         pendingDataRef.current = [];
         socketUpdateTimeoutRef.current = null;
 
-        const merged = mergePricePoints(dataRef.current, pending);
-        if (merged === dataRef.current) return;
+        const merged = mergePricePoints(rawDataRef.current, pending);
+        if (merged === rawDataRef.current) return;
 
-        setData(merged);
+        setRawData(merged);
         setLoadError(null);
         setLastUpdatedAt(new Date());
       }, 50); // 50ms throttle - batch rapid updates
@@ -591,6 +679,11 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       persistChartMode(next);
       return next;
     });
+  }, []);
+
+  const handleTimeframeChange = useCallback((newTimeframe: Timeframe) => {
+    setTimeframe(newTimeframe);
+    persistTimeframe(newTimeframe);
   }, []);
 
   const { isConnected } = useConnectionStatus();
@@ -654,6 +747,29 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
           </div>
         }
       />
+
+      {/* Timeframe selector */}
+      <div className="flex items-center gap-2 px-2 mb-3">
+        <span className="text-xs text-gray-400 dark:text-gray-500">Timeframe:</span>
+        <div className="flex items-center rounded-full bg-[#1e3a5f]/60 p-0.5">
+          {(["1m", "5m", "15m"] as Timeframe[]).map((tf) => (
+            <button
+              key={tf}
+              type="button"
+              onClick={() => handleTimeframeChange(tf)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 ${
+                timeframe === tf
+                  ? "bg-white text-[#0a1929] shadow-sm"
+                  : "text-white/70 hover:text-white"
+              }`}
+              aria-pressed={timeframe === tf}
+              aria-label={`Switch to ${tf} timeframe`}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Chart area wrapper with padded border */}
       <div className="relative w-full flex-1 rounded-2xl border-[3px]" style={{ minHeight: height, borderColor, background: bgGradient }}>
