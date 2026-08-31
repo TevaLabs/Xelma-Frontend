@@ -44,6 +44,14 @@ export interface WalletAdapter {
   readonly isImplemented: boolean;
 
   /**
+   * Extra context shown as a tooltip / screen-reader hint on "Coming soon"
+   * rows, so users understand *why* the wallet is disabled instead of
+   * assuming the app is broken. Only meaningful when `isImplemented` is
+   * `false`; implemented adapters leave this unset.
+   */
+  readonly comingSoonHint?: string;
+
+  /**
    * Whether this wallet can be used right now — typically an extension-presence
    * check. Must not prompt the user.
    */

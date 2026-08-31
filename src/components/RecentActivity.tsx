@@ -7,6 +7,12 @@ type FilterOption = 'all' | 'correct' | 'incorrect';
 
 const FILTER_OPTIONS: FilterOption[] = ['all', 'correct', 'incorrect'];
 
+const FILTER_LABELS: Record<FilterOption, string> = {
+  all: 'All',
+  correct: 'Correct',
+  incorrect: 'Incorrect',
+};
+
 interface RecentActivityProps {
   items: RecentActivityItem[];
   isLoading?: boolean;
@@ -23,6 +29,15 @@ export default function RecentActivity({ items, isLoading, error, onRetry }: Rec
       : items.filter((item) =>
           activeFilter === 'correct' ? item.result === 'Won' : item.result === 'Lost',
         );
+
+  // Counts are always derived from the full item set (not filteredItems) so
+  // every chip shows its own total regardless of which filter is active.
+  const filterCounts: Record<FilterOption, number> = {
+    all: items.length,
+    correct: items.filter((item) => item.result === 'Won').length,
+    incorrect: items.filter((item) => item.result === 'Lost').length,
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -91,15 +106,25 @@ export default function RecentActivity({ items, isLoading, error, onRetry }: Rec
             type="button"
             role="tab"
             aria-selected={activeFilter === opt}
+            aria-label={`${FILTER_LABELS[opt]} (${filterCounts[opt]})`}
             onClick={() => setActiveFilter(opt)}
             className={cn(
-              'rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',
+              'inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',
               activeFilter === opt
                 ? 'bg-cyan-500 text-white shadow-[0_0_12px_rgba(6,182,212,0.5)]'
                 : 'glass-card text-gray-400 hover:text-white hover:border-cyan-500/40',
             )}
           >
             {opt}
+            <span
+              aria-hidden="true"
+              className={cn(
+                'inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal',
+                activeFilter === opt ? 'bg-black/20' : 'bg-white/10',
+              )}
+            >
+              {filterCounts[opt]}
+            </span>
           </button>
         ))}
       </div>

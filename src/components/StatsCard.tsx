@@ -1,16 +1,16 @@
-// ISSUE: Replace mock stats with live API call to backend /api/stats
-
 import type { MockUserStats } from '../types';
+import type { UserStats } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
 import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
-import PanelHeader from './PanelHeader';
+import PanelHeader from './ui/PanelHeader';
+import GlassCard from './ui/GlassCard';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 
 interface StatsCardProps {
-  stats: MockUserStats;
+  stats: UserStats | MockUserStats | null;
   isLoading?: boolean;
   error?: string;
   onRetry?: () => void;
@@ -24,7 +24,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   // Shared transaction status machine (preparing → signing → submitting)
   const tx = useTxStatusMachine();
 
-  const pendingWinnings = stats.pendingWinnings || 0;
+  const pendingWinnings = stats?.pendingWinnings || 0;
   const canClaim = isWalletConnected && pendingWinnings > 0 && !tx.isInFlight;
 
   const handleClaim = async () => {
@@ -47,7 +47,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   // Loading state
   if (isLoading) {
     return (
-      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title" aria-busy="true">
+      <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title" aria-busy="true">
         <h2 id="your-stats-title" className="text-lg font-bold text-white animate-pulse">
           Your Record
         </h2>
@@ -71,14 +71,14 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           </div>
           <div className="h-11 w-full rounded-xl bg-white/5 border border-white/5 animate-pulse mt-6" />
         </div>
-      </section>
+      </GlassCard>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
+      <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
         <p className="text-red-500 mb-2">{error}</p>
         {onRetry && (
           <button
@@ -89,12 +89,33 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
             Retry
           </button>
         )}
+      </GlassCard>
+    );
+  }
+
+  // Empty / unavailable stats state
+  if (!stats) {
+    return (
+      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
+        <PanelHeader title="Your Record" />
+        <div className="mt-6 flex flex-col items-center gap-3 py-6 text-center">
+          <p className="text-sm font-medium text-gray-400">User stats unavailable</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-2 w-full rounded-xl border py-2 text-sm font-semibold text-cyan-200 bg-cyan-500/20 border-cyan-400/50 hover:bg-cyan-500/30"
+            >
+              Retry
+            </button>
+          )}
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
+    <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
       <PanelHeader title="Your Record" />
 
       <dl className="mt-5 space-y-4">
@@ -177,6 +198,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           />
         </div>
       )}
-    </section>
+    </GlassCard>
   );
 }
+

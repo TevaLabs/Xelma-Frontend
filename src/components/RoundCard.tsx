@@ -1,17 +1,19 @@
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
+import AssetIcon from './icons/AssetIcon';
 import { formatVXLM, formatPercent } from '../lib/utils';
 import { TRANSITION } from '../utils/motion';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useRoundCountdown } from '../hooks/useRoundCountdown';
+import { GlassCard } from './ui/GlassCard';
+import { StatusPill } from './ui/StatusPill';
 
-const ASSET_ICONS: Record<string, string> = {
-  BTC: '₿',
-  ETH: 'Ξ',
-  XLM: '✦',
-};
+const URGENCY_THRESHOLD_SECONDS = 30;
+const URGENCY_THRESHOLD_MS = URGENCY_THRESHOLD_SECONDS * 1000;
 
 interface RoundCardProps {
   round: MockRound;
@@ -36,8 +38,16 @@ function poolSize(round: MockRound): number {
   return round.totalPool ?? 0;
 }
 
-export default function RoundCard({ round, onSubmitPrediction, isHighlighted = false }: RoundCardProps) {
+const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
+  { round, onSubmitPrediction, isHighlighted = false },
+  ref,
+) {
+  const { reduced } = useReducedMotion();
   const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
+  // Live ticking countdown so the urgency state (secondsLeft < 30) updates
+  // between server round refreshes, matching the displayed countdown timer.
+  const { isExpired, timeLeftMs } = useRoundCountdown(endTime);
+  const isUrgent = !isExpired && timeLeftMs < URGENCY_THRESHOLD_MS;
   const total = poolSize(round);
   const upRatio = round.mode === 'updown' && total > 0 ? (round.poolUp ?? 0) / total : 0;
   const upPct = Math.round(upRatio * 100);
@@ -66,25 +76,42 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
     return () => window.clearTimeout(timer);
   }, [round.closesInSeconds, statusMeta.label]);
 
+  const prevUrgent = useRef(isUrgent);
+  const [urgencyAnnouncement, setUrgencyAnnouncement] = useState('');
+
+  // Announce the urgency state transition (under 30s) politely, distinct from
+  // the CLOSING SOON status announcement above.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (prevUrgent.current !== isUrgent) {
+        prevUrgent.current = isUrgent;
+        setUrgencyAnnouncement(isUrgent ? 'Round closing in under 30 seconds' : '');
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isUrgent]);
+
   return (
-    <article
-      className={`glass-card flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION} ${
+    <GlassCard
+      as="article"
+      ref={ref}
+      className={`flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION} ${
         isHighlighted ? 'accent-border-teal' : ''
-      }`}
+      } ${isHighlighted && !reduced ? 'accent-pulse' : ''}`}
       data-testid="round-card"
       data-highlighted={isHighlighted ? 'true' : 'false'}
     >
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {statusAnnouncement}
+        {[statusAnnouncement, urgencyAnnouncement].filter(Boolean).join(' ')}
       </div>
 
       <header className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-lg font-bold text-[#BEC7FE]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2C4BFD]/15 text-[#BEC7FE]"
             aria-hidden
           >
-            {ASSET_ICONS[round.asset]}
+            <AssetIcon asset={round.asset} size={24} />
           </span>
           <div className="min-w-0 flex-1">
             <h3 className="text-lg font-bold text-white">{round.asset}/USD</h3>
@@ -94,15 +121,12 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
           </div>
         </div>
 
-        <span
-          className={`self-start rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto ${
-            round.mode === 'updown'
-              ? 'bg-[#2C4BFD]/15 text-[#BEC7FE]'
-              : 'bg-cyan-500/15 text-cyan-300'
-          }`}
+        <StatusPill
+          tone={round.mode === 'updown' ? 'blue' : 'cyan'}
+          className="self-start px-3 py-1 text-xs font-bold uppercase tracking-wide sm:self-auto"
         >
           {round.mode === 'updown' ? 'UP/DOWN' : 'PRECISION'}
-        </span>
+        </StatusPill>
       </header>
 
       <div
@@ -117,6 +141,17 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
           <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
             {getStatusMeta(round, round.closesInSeconds).label}
           </span>
+          {isUrgent && (
+            <StatusPill
+              tone="rose"
+              dot
+              dotClassName="status-dot status-dot-urgent"
+              className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
+              data-testid="round-card-urgency"
+            >
+              Under 30s
+            </StatusPill>
+          )}
         </div>
         <div className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-400">
           <span>Resolves in</span>
@@ -124,44 +159,48 @@ export default function RoundCard({ round, onSubmitPrediction, isHighlighted = f
         </div>
       </div>
 
-      <p className="break-words mt-4 text-sm font-semibold text-gray-300" data-testid="round-card-pool">
-        Pool: {formatVXLM(total)}
-      </p>
-
-      {round.mode === 'updown' ? (
-        <div className="mt-1">
-          <div className="flex h-2 overflow-hidden rounded-full bg-gray-800">
-            <div
-              className="bg-[#2C4BFD] transition-all"
-              style={{ width: `${upPct}%` }}
-              title={`UP ${formatPercent(upPct / 100, 0)}`}
-            />
-            <div
-              className="bg-rose-500 transition-all"
-              style={{ width: `${downPct}%` }}
-              title={`DOWN ${formatPercent(downPct / 100, 0)}`}
-            />
-          </div>
-          <div className="mt-1 flex justify-between text-xs text-gray-500">
-            <span className="text-[#BEC7FE]">UP {formatPercent(upPct / 100, 0)}</span>
-            <span className="text-rose-400">DOWN {formatPercent(downPct / 100, 0)}</span>
-          </div>
-        </div>
-      ) : (
-        <p className="mt-1 text-sm text-cyan-300">
-          {round.predictionCount ?? 0} forecasts submitted
+      <div className="flex flex-col gap-1.5">
+        <p className="break-words text-sm font-semibold text-gray-300" data-testid="round-card-pool">
+          Pool: {formatVXLM(total)}
         </p>
-      )}
+
+        {round.mode === 'updown' ? (
+          <div>
+            <div className="flex h-2 overflow-hidden rounded-full bg-gray-800">
+              <div
+                className="bg-[#2C4BFD] transition-all"
+                style={{ width: `${upPct}%` }}
+                title={`UP ${formatPercent(upPct / 100, 0)}`}
+              />
+              <div
+                className="bg-rose-500 transition-all"
+                style={{ width: `${downPct}%` }}
+                title={`DOWN ${formatPercent(downPct / 100, 0)}`}
+              />
+            </div>
+            <div className="mt-1 flex justify-between text-xs text-gray-500">
+              <span className="text-[#BEC7FE]">UP {formatPercent(upPct / 100, 0)}</span>
+              <span className="text-rose-400">DOWN {formatPercent(downPct / 100, 0)}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-cyan-300">
+            {round.predictionCount ?? 0} forecasts submitted
+          </p>
+        )}
+      </div>
 
       <button
         type="button"
         disabled={round.closesInSeconds <= 0}
         onClick={() => onSubmitPrediction(round)}
-        className="btn-primary mt-2 flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+        className="btn-primary flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="round-card-submit"
       >
         Submit Prediction
       </button>
-    </article>
+    </GlassCard>
   );
-}
+});
+
+export default RoundCard;

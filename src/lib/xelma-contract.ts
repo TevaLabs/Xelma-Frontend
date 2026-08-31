@@ -1,4 +1,4 @@
-import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
+import { rpc, Contract, TransactionBuilder, BASE_FEE, Networks, Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { signTransaction } from '@stellar/freighter-api';
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
@@ -37,10 +37,100 @@ export interface FeeEstimate {
 export interface SorobanInspectorSnapshot {
   source: 'rpc' | 'mock';
   status?: 'ok' | 'error';
+  /** Raw, undecoded position ScVal — kept for the "View raw JSON" disclosure. */
   position?: unknown;
+  /** Raw, undecoded round ScVal — kept for the "View raw JSON" disclosure. */
   round?: unknown;
+  /** Structured fields decoded from `position`/`round`, when recognizable. */
+  fields?: SorobanInspectorFields;
   error?: string;
   inspectedAt?: string;
+}
+
+/** Structured, human-readable fields decoded from the raw position/round ScVals. */
+export interface SorobanInspectorFields {
+  positionSide?: string;
+  stake?: string;
+  roundId?: string;
+  poolSplit?: string;
+}
+
+/** Decodes an ScVal-shaped value, returning null when it cannot be converted. */
+function decodeScVal(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  try {
+    return scValToNative(value as xdr.ScVal);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads a field off a decoded map/object by trying several plausible key
+ * spellings (contracts vary in whether they use snake_case, camelCase, or
+ * short aliases) — mirrors the defensive lookup used for round ids in
+ * prediction-events.ts.
+ */
+function pickField(record: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    if (record[key] !== undefined && record[key] !== null) return record[key];
+  }
+  return undefined;
+}
+
+function stringifyFieldValue(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'number' || typeof value === 'string') return String(value);
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  try {
+    return JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Best-effort extraction of structured, human-readable fields (position side,
+ * stake, round id, pool split) from the decoded position/round contract
+ * return values. Field names are not guaranteed by the contract ABI, so every
+ * lookup tries multiple plausible key spellings and simply omits a field it
+ * cannot find rather than throwing — callers should treat any field as
+ * optional and fall back to the raw JSON disclosure when nothing is found.
+ */
+export function extractInspectorFields(position: unknown, round: unknown): SorobanInspectorFields {
+  const decodedPosition = decodeScVal(position);
+  const decodedRound = decodeScVal(round);
+
+  const positionRecord =
+    decodedPosition && typeof decodedPosition === 'object' && !Array.isArray(decodedPosition)
+      ? (decodedPosition as Record<string, unknown>)
+      : {};
+  const roundRecord =
+    decodedRound && typeof decodedRound === 'object' && !Array.isArray(decodedRound)
+      ? (decodedRound as Record<string, unknown>)
+      : {};
+
+  const side = pickField(positionRecord, ['side', 'position_side', 'positionSide', 'direction']);
+  const stake = pickField(positionRecord, ['stake', 'amount', 'wager']);
+  const roundId = pickField(roundRecord, ['round_id', 'roundId', 'id', 'round']) ?? pickField(positionRecord, ['round_id', 'roundId', 'round']);
+  const poolUp = pickField(roundRecord, ['pool_up', 'poolUp', 'up_pool']);
+  const poolDown = pickField(roundRecord, ['pool_down', 'poolDown', 'down_pool']);
+  const poolSplitRaw = pickField(roundRecord, ['pool_split', 'poolSplit']);
+
+  let poolSplit = stringifyFieldValue(poolSplitRaw);
+  if (!poolSplit && (poolUp !== undefined || poolDown !== undefined)) {
+    const up = stringifyFieldValue(poolUp) ?? '0';
+    const down = stringifyFieldValue(poolDown) ?? '0';
+    poolSplit = `${up} / ${down}`;
+  }
+
+  return {
+    positionSide: stringifyFieldValue(side),
+    stake: stringifyFieldValue(stake),
+    roundId: stringifyFieldValue(roundId),
+    poolSplit,
+  };
 }
 
 const STROOPS_PER_XLM = 10_000_000;
@@ -121,6 +211,7 @@ export async function inspectSorobanState(userAddress: string): Promise<SorobanI
       status: 'ok',
       position: positionResult,
       round: roundResult,
+      fields: extractInspectorFields(positionResult, roundResult),
       inspectedAt: new Date().toISOString(),
     };
   } catch (err) {
@@ -130,6 +221,107 @@ export async function inspectSorobanState(userAddress: string): Promise<SorobanI
       error: err instanceof Error ? err.message : 'RPC unavailable',
     };
   }
+}
+
+/**
+ * Safe fallback copy shown when a contract error doesn't match any known
+ * case. Deliberately generic and actionable — never leaks raw SDK / HostError
+ * internals to players.
+ */
+export const CONTRACT_ERROR_FALLBACK =
+  'Something went wrong while submitting your prediction. Please try again.';
+
+interface ErrorMapping {
+  /** Regex tested against the raw error message (case-insensitive). */
+  test: RegExp;
+  /** Player-friendly copy to show in the modal. */
+  message: string;
+}
+
+/**
+ * Raw → friendly translations for common Soroban simulation and Freighter
+ * signing failures. Order matters: more specific patterns are listed first so
+ * e.g. `Transaction rejected by network: tx_insufficient_balance` maps to the
+ * balance case rather than the generic contract-rejection case.
+ */
+const ERROR_MAPPINGS: ErrorMapping[] = [
+  {
+    // Wallet doesn't have enough XLM for the stake + fees.
+    test: /insufficient (balance|funds)|tx_insufficient_balance|not enough xlm|balance too low/i,
+    message:
+      "You don't have enough XLM in your wallet to cover this prediction and its fees. Fund your wallet and try again.",
+  },
+  {
+    // Soroban resource budget exceeded (CPU / ledger footprint too large).
+    test: /\bbudget\b|resource (limit|usage)|exceeded.*(limit|maximum)|instructions.*exceed|failed to (assemble|prepare)/i,
+    message:
+      'This prediction would use more network resources than allowed. Try a smaller stake.',
+  },
+  {
+    // Contract no longer accepts bets for the current round.
+    test: /round.*(closed|ended|not open)|betting.*(closed|ended)|no active round|market closed/i,
+    message:
+      'The current round has closed and is no longer accepting predictions. Try again in the next round.',
+  },
+  {
+    // User declined / cancelled the Freighter signature prompt.
+    test: /signing (cancelled|rejected)|user (cancelled|rejected|declined)|cancelled or rejected|cancelled.*(request|signature)|rejected the (request|signature|transaction)/i,
+    message: 'You cancelled the request in your wallet. No transaction was sent.',
+  },
+  {
+    // Wallet couldn't produce a valid signature.
+    test: /failed to sign|sign.*failed|wallet.*(error|failed)/i,
+    message: "Your wallet couldn't sign this transaction. Please try again.",
+  },
+  {
+    // Soroban authentication / invoker verification failure.
+    test: /authentication|invalid invoker|soroban.*auth/i,
+    message:
+      "Your wallet couldn't be verified for this transaction. Approve it in Freighter and try again.",
+  },
+  {
+    // Account doesn't exist or has never been funded on the network.
+    test: /unfunded|not found or unfunded|fund your (account|address)|account.*doesn'?t exist/i,
+    message: 'Your Stellar account is not funded yet. Add XLM before placing a prediction.',
+  },
+  {
+    // Network / RPC hiccups and long-running polling timeouts.
+    test: /network|timeout|timed out|unavailable|offline|failed to (broadcast|connect)|fetch failed|rpc|connection/i,
+    message: "The Stellar network didn't respond. Check your connection and try again.",
+  },
+  {
+    // Any other on-chain rejection or contract panic (catch-all).
+    test: /panicked|hosterror|contract (error|invocation)|invocation.*failed|tx_failed|failed on-chain|rejected by network/i,
+    message: 'The prediction contract rejected this request. Review your details and try again.',
+  },
+];
+
+/**
+ * Maps a raw Soroban simulation / Freighter signing error to player-friendly
+ * copy safe to show in the BetModal.
+ *
+ * The raw error is always logged to the console (with `[xelma-contract]`
+ * prefix) for debugging, and unknown errors fall back to
+ * {@link CONTRACT_ERROR_FALLBACK} instead of surfacing internals to the user.
+ */
+export function humanizeContractError(error: unknown, context = 'contract call'): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : '';
+
+  // Keep the full raw error (message + stack) in the console for debugging.
+  console.error(`[xelma-contract:${context}] raw error:`, error);
+
+  if (!raw) return CONTRACT_ERROR_FALLBACK;
+
+  for (const mapping of ERROR_MAPPINGS) {
+    if (mapping.test.test(raw)) return mapping.message;
+  }
+
+  return CONTRACT_ERROR_FALLBACK;
 }
 
 /**

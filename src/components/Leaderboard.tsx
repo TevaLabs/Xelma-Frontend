@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, type KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
@@ -68,6 +68,43 @@ const Leaderboard = () => {
     [setSearchParams]
   );
 
+  // ── #429: keyboard-roving filter tabs (WAI-ARIA Tabs pattern, automatic
+  // activation) — exactly one tab is tabbable (the active one) at a time;
+  // Left/Right (and Up/Down) rove focus and select, Home/End jump to the
+  // first/last tab. Mouse clicks are untouched (still call setFilter directly).
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleTabKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+      let nextIndex: number | null = null;
+
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+          nextIndex = (index + 1) % FILTER_OPTIONS.length;
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          nextIndex = (index - 1 + FILTER_OPTIONS.length) % FILTER_OPTIONS.length;
+          break;
+        case 'Home':
+          nextIndex = 0;
+          break;
+        case 'End':
+          nextIndex = FILTER_OPTIONS.length - 1;
+          break;
+        default:
+          return;
+      }
+
+      event.preventDefault();
+      const nextOption = FILTER_OPTIONS[nextIndex];
+      setFilter(nextOption);
+      tabRefs.current[nextIndex]?.focus();
+    },
+    [setFilter]
+  );
+
   // ── Data fetch ─────────────────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(async () => {
     setLoading(true);
@@ -111,10 +148,16 @@ const Leaderboard = () => {
   const topThree = sortedUsers.slice(0, 3);
   const restUsers = sortedUsers.slice(3);
   const [rank1, rank2, rank3] = topThree;
+  const podiumSlots = [
+    { rank: 2, user: rank2, order: 'order-2 md:order-1', medal: 'Silver', avatarSize: 'w-24 h-24', border: 'border-4 border-[#C0C0C0]', barHeight: 'h-28' },
+    { rank: 1, user: rank1, order: 'order-1 md:order-2 -mt-6 md:-mt-12 z-10', medal: 'Gold', avatarSize: 'w-32 h-32', border: 'border-[5px] border-[#FFD700]', barHeight: 'h-36' },
+    { rank: 3, user: rank3, order: 'order-3 md:order-3', medal: 'Bronze', avatarSize: 'w-24 h-24', border: 'border-4 border-[#CD7F32]', barHeight: 'h-20' },
+  ] as const;
 
   // ── #202: Virtualizer setup ────────────────────────────────────────────────
   const listRef = useRef<HTMLDivElement | null>(null);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- useVirtualizer intentionally returns functions; React Compiler memoization skip is expected
   const rowVirtualizer = useVirtualizer({
     count: restUsers.length,
     getScrollElement: () => listRef.current,
@@ -171,13 +214,18 @@ const Leaderboard = () => {
               aria-label="Time range filter"
               className="flex justify-center gap-2 flex-wrap"
             >
-              {FILTER_OPTIONS.map((opt) => (
+              {FILTER_OPTIONS.map((opt, index) => (
                 <button
                   key={opt}
+                  ref={(el) => {
+                    tabRefs.current[index] = el;
+                  }}
                   type="button"
                   role="tab"
                   aria-selected={activeFilter === opt}
+                  tabIndex={activeFilter === opt ? 0 : -1}
                   onClick={() => setFilter(opt)}
+                  onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={clsx(
                     'rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',
                     activeFilter === opt
@@ -229,75 +277,30 @@ const Leaderboard = () => {
         )}
 
         {/* ── Podium ── */}
-        <div className="flex flex-col md:flex-row items-end justify-center gap-6 mb-16 mt-24">
-          {/* Rank 2 (Silver) */}
-          {rank2 && (
-            <div className="order-2 md:order-1 flex flex-col items-center w-full md:w-1/3 group">
-              <div className={`relative mb-4 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
-                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#C0C0C0] shadow-[0_0_20px_rgba(192,192,192,0.2)] z-10 relative bg-[#111827] ring-2 ring-[#C0C0C0]/25 ring-offset-2 ring-offset-[#0A0F1A]">
-                  <img src={rank2.avatar} alt={rank2.name} className="w-full h-full object-cover" />
+        <div
+          className="flex flex-col md:flex-row items-end justify-center gap-6 mb-16 mt-24"
+          aria-label="Top three leaderboard podium"
+        >
+          {podiumSlots.map(({ rank, user, order, medal, avatarSize, border, barHeight }) => user && (
+            <div key={rank} className={`${order} flex flex-col items-center w-full md:w-1/3 group`}>
+              <div className={`relative ${rank === 1 ? 'mb-5' : 'mb-4'} ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
+                <div className={`${avatarSize} ${border} rounded-full overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.2)] z-10 relative bg-[#111827] ring-2 ring-cyan-400/20 ring-offset-2 ring-offset-[#0A0F1A]`}>
+                  <img src={user.avatar} alt={`${medal} medal: ${user.name}`} className="w-full h-full object-cover" />
                 </div>
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#C0C0C0] to-[#E0E0E0] text-gray-900 text-sm font-extrabold py-1 px-3.5 rounded-full shadow-md z-20 whitespace-nowrap min-w-[32px] text-center border-2 border-[#0A0F1A]">
-                  #2
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-cyan-500 text-white text-sm font-extrabold py-1 px-3.5 rounded-full shadow-[0_0_14px_rgba(6,182,212,0.45)] z-20 whitespace-nowrap min-w-[32px] text-center border-2 border-[#0A0F1A]">
+                  #{rank}
                 </div>
+                {rank === 1 && <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-4xl" aria-hidden="true">👑</div>}
               </div>
-              <p className={`font-bold text-white text-lg mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
-                {rank2.name}
+              <p className={`font-bold text-white ${rank === 1 ? 'text-2xl' : 'text-lg'} mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
+                {user.name}
               </p>
-              <p className="text-[#C0C0C0] font-bold text-sm bg-slate-500/10 border border-slate-500/20 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(192,192,192,0.05)]">
-                {formatVXLM(rank2.xlm)}
+              <p className="text-cyan-300 font-bold text-sm bg-cyan-500/10 border border-cyan-500/25 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.08)]">
+                {formatVXLM(user.xlm)}
               </p>
-              <div className="w-full h-28 glass-card bg-gradient-to-t from-slate-500/15 via-slate-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-slate-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(192,192,192,0.05)]" />
+              <div className={`w-full ${barHeight} glass-card bg-gradient-to-t from-cyan-500/20 via-cyan-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-cyan-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(6,182,212,0.08)]`} />
             </div>
-          )}
-
-          {/* Rank 1 (Gold) */}
-          {rank1 && (
-            <div className="order-1 md:order-2 flex flex-col items-center w-full md:w-1/3 -mt-6 md:-mt-12 z-10 group">
-              <div className={`relative mb-5 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
-                <div className="w-32 h-32 rounded-full overflow-hidden border-[5px] border-[#FFD700] shadow-[0_0_30px_rgba(255,215,0,0.3)] z-10 relative bg-[#111827] ring-2 ring-[#FFD700]/30 ring-offset-2 ring-offset-[#0A0F1A]">
-                  <img src={rank1.avatar} alt={rank1.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#FFD700] to-[#FDB931] text-gray-900 text-base font-extrabold py-1.5 px-4.5 rounded-full shadow-lg z-20 whitespace-nowrap min-w-[40px] text-center border-2 border-[#0A0F1A]">
-                  #1
-                </div>
-                <div
-                  className="absolute -top-8 left-1/2 -translate-x-1/2 text-4xl animate-bounce drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]"
-                  aria-hidden="true"
-                >
-                  👑
-                </div>
-              </div>
-              <p className={`font-bold text-white text-2xl mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
-                {rank1.name}
-              </p>
-              <p className="text-[#FDB931] font-extrabold text-base bg-amber-500/15 border border-amber-500/25 px-4 py-1.5 rounded-full shadow-md shadow-amber-500/5">
-                {formatVXLM(rank1.xlm)}
-              </p>
-              <div className="w-full h-36 glass-card bg-gradient-to-t from-amber-500/20 via-amber-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-amber-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(251,191,36,0.05)]" />
-            </div>
-          )}
-
-          {/* Rank 3 (Bronze) */}
-          {rank3 && (
-            <div className="order-3 md:order-3 flex flex-col items-center w-full md:w-1/3 group">
-              <div className={`relative mb-4 ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
-                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-[#CD7F32] shadow-[0_0_20px_rgba(205,127,50,0.2)] z-10 relative bg-[#111827] ring-2 ring-[#CD7F32]/25 ring-offset-2 ring-offset-[#0A0F1A]">
-                  <img src={rank3.avatar} alt={rank3.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#CD7F32] to-[#B87333] text-white text-sm font-extrabold py-1 px-3.5 rounded-full shadow-md z-20 whitespace-nowrap min-w-[32px] text-center border-2 border-[#0A0F1A]">
-                  #3
-                </div>
-              </div>
-              <p className={`font-bold text-white text-lg mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
-                {rank3.name}
-              </p>
-              <p className="text-[#CD7F32] font-bold text-sm bg-amber-700/10 border border-amber-700/20 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(205,127,50,0.05)]">
-                {formatVXLM(rank3.xlm)}
-              </p>
-              <div className="w-full h-20 glass-card bg-gradient-to-t from-amber-800/15 via-amber-800/5 to-slate-900/40 rounded-t-2xl border-b-0 border-amber-800/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(180,83,9,0.05)]" />
-            </div>
-          )}
+          ))}
         </div>
 
         {/* ── #202: Virtualised ranked list ── */}

@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import '../i18n';
 import Dashboard from './Dashboard';
 import RoundCard from '../components/RoundCard';
 import BetModal from '../components/BetModal';

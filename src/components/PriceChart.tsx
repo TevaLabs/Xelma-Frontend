@@ -144,6 +144,10 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   // y-coordinates for each price label
   const [labelYs, setLabelYs] = useState<number[]>([]);
 
+  // Accessibility: Screen reader announcements
+  const [announcement, setAnnouncement] = useState("");
+  const lastAnnouncedRef = useRef<{ price: number, time: number } | null>(null);
+
   // Asset-aware styling (hoisted for use in effects below)
   const lineColor = ASSET_COLORS[asset] ?? "#FFFFFF";
 
@@ -177,6 +181,37 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const priceChangePercent = firstPrice !== 0 ? (priceChange / firstPrice) * 100 : 0;
   const isPositive = priceChange >= 0;
   const hasData = data.length > 0;
+
+  useEffect(() => {
+    if (!latestPrice || !hasData) return;
+    const now = Date.now();
+    const last = lastAnnouncedRef.current;
+    
+    const THROTTLE_MS = 5000; // 5 seconds
+    const MATERIAL_PCT = 0.001; // 0.1% change is material
+
+    let shouldAnnounce = false;
+    let directionText = "";
+
+    if (!last) {
+      shouldAnnounce = true;
+    } else {
+      const timePassed = (now - last.time) >= THROTTLE_MS;
+      const pctChange = Math.abs((latestPrice - last.price) / last.price);
+      
+      if (timePassed || pctChange >= MATERIAL_PCT) {
+        if (latestPrice !== last.price) {
+          shouldAnnounce = true;
+          directionText = latestPrice > last.price ? "increased to" : "decreased to";
+        }
+      }
+    }
+
+    if (shouldAnnounce) {
+      setAnnouncement(`${asset} price ${directionText ? directionText : 'is'} $${latestPrice.toFixed(4)}`);
+      lastAnnouncedRef.current = { price: latestPrice, time: now };
+    }
+  }, [latestPrice, asset, hasData]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -487,22 +522,24 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
 
   // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setData([]);
-    setIsLoading(true);
-    setLoadError(null);
+    const timer = setTimeout(() => {
+      setData([]);
+      setIsLoading(true);
+      setLoadError(null);
 
-    // Use mock data directly for instant visual feedback per asset
-    const mockData = mockPriceData[asset];
-    if (mockData && mockData.length > 0) {
-      setData(mockData);
-      setLastUpdatedAt(new Date());
-      setIsLoading(false);
-    }
+      // Use mock data directly for instant visual feedback per asset
+      const mockData = mockPriceData[asset];
+      if (mockData && mockData.length > 0) {
+        setData(mockData);
+        setLastUpdatedAt(new Date());
+        setIsLoading(false);
+      }
 
-    // Also attempt to fetch live data from API
-    void loadInitialPrices();
-  }, [asset]); // eslint-disable-line react-hooks/exhaustive-deps
+      // Also attempt to fetch live data from API
+      void loadInitialPrices();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [asset, loadInitialPrices]);
 
   // Update chart line color when asset changes
   useEffect(() => {
@@ -638,7 +675,12 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
             }}
           />
           {/* Chart — leaves space on the right so line terminates exactly at the badge */}
-          <div ref={chartContainerRef} className="absolute inset-y-0 left-0 right-[105px]" />
+          <div 
+            ref={chartContainerRef} 
+            className="absolute inset-y-0 left-0 right-[105px]" 
+            role="img" 
+            aria-label={`${asset} Price Chart`} 
+          />
 
           {/* Custom price labels on the right */}
           <div className="pointer-events-none absolute top-0 right-0 h-full w-[105px] flex flex-col">
@@ -739,6 +781,11 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       <div className="flex items-center justify-between mt-3 px-2 text-xs text-gray-400 dark:text-gray-500">
         <span>Last update: {lastUpdatedAt ? lastUpdatedAt.toLocaleTimeString() : "Waiting for live data"}</span>
         <span>Live market feed</span>
+      </div>
+
+      {/* Visually hidden aria-live region for price announcements */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
       </div>
     </div>
   );
