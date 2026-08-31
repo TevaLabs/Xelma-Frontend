@@ -6,18 +6,18 @@
 
 # Test info
 
-- Name: wallet-connect.spec.ts >> Wallet Connect – Freighter Mocked >> Dashboard shows wallet prompt when not connected, then connects via Freighter
-- Location: e2e\wallet-connect.spec.ts:53:3
+- Name: accessibility.spec.ts >> E2E accessibility scan >> Dashboard has no serious axe violations
+- Location: e2e/accessibility.spec.ts:17:5
 
 # Error details
 
 ```
-Error: browserType.launch: Executable doesn't exist at C:\Users\JOTEL\AppData\Local\ms-playwright\chromium_headless_shell-1234\chrome-headless-shell-win64\chrome-headless-shell.exe
+Error: browserType.launch: Executable doesn't exist at /Users/apple/Library/Caches/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-mac-x64/chrome-headless-shell
 ╔════════════════════════════════════════════════════════════╗
 ║ Looks like Playwright was just installed or updated.       ║
 ║ Please run the following command to download new browsers: ║
 ║                                                            ║
-║     pnpm exec playwright install                           ║
+║     npx playwright install                                 ║
 ║                                                            ║
 ║ <3 Playwright Team                                         ║
 ╚════════════════════════════════════════════════════════════╝

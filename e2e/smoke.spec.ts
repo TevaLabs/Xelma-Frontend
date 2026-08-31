@@ -21,7 +21,12 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(ctaButton).toBeVisible();
   });
 
-  test('Dashboard page loads and renders correctly', async ({ page }) => {
+  test('Dashboard page loads and renders correctly', async ({ page }, testInfo) => {
+    await page.context().clearCookies();
+    await page.addInitScript(() => {
+      localStorage.clear();
+    });
+
     await page.goto('/dashboard');
 
     // Verify page title
@@ -30,6 +35,13 @@ test.describe('Smoke Tests - Critical Routes', () => {
     // Verify dashboard content is present
     // The dashboard shows wallet connection prompt when not connected
     const walletPrompt = page.locator('[data-testid="dashboard-wallet-prompt"]');
+    try {
+      await page.waitForSelector('[data-testid="dashboard-wallet-prompt"]', { timeout: 15000 });
+    } catch (err) {
+      await testInfo.attach('page-screenshot', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+      await testInfo.attach('page-html', { body: await page.content(), contentType: 'text/html' });
+      throw err;
+    }
     await expect(walletPrompt).toBeVisible();
     await expect(walletPrompt).toContainText('Connect your wallet');
 

@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: smoke.spec.ts >> Smoke Tests - Critical Routes >> Landing page loads and renders correctly
-- Location: e2e/smoke.spec.ts:4:3
+- Name: wallet-connect.spec.ts >> Wallet Connect – Freighter Mocked >> Dashboard shows wallet prompt when not connected, then navigates to connect page
+- Location: e2e/wallet-connect.spec.ts:56:3
 
 # Error details
 

@@ -53,8 +53,12 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
     await expect(connectButton).toBeVisible();
   });
 
-  test('Dashboard shows wallet prompt when not connected, then navigates to connect page', async ({ page }) => {
+  test('Dashboard shows wallet prompt when not connected, then navigates to connect page', async ({ page }, testInfo) => {
     await mockFreighter(page);
+    await page.context().clearCookies();
+    await page.addInitScript(() => {
+      localStorage.clear();
+    });
 
     // Mock Horizon balance request
     await page.route('**/horizon-testnet.stellar.org/accounts/**', (route) =>
@@ -80,6 +84,13 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
 
     // Should show wallet prompt when not connected
     const walletPrompt = page.locator('[data-testid="dashboard-wallet-prompt"]');
+    try {
+      await page.waitForSelector('[data-testid="dashboard-wallet-prompt"]', { timeout: 15000 });
+    } catch (err) {
+      await testInfo.attach('page-screenshot', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+      await testInfo.attach('page-html', { body: await page.content(), contentType: 'text/html' });
+      throw err;
+    }
     await expect(walletPrompt).toBeVisible();
     await expect(walletPrompt).toContainText('Connect your wallet');
 
