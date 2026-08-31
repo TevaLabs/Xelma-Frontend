@@ -14,7 +14,6 @@ interface EndRoundModalProps {
     asset?: string;
     direction?: 'UP' | 'DOWN' | string;
   };
-  playResolveSound?: boolean;
 }
 
 export default function EndRoundModal({ isOpen, onClose, result }: EndRoundModalProps) {
