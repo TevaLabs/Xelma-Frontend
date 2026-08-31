@@ -541,3 +541,82 @@
     width: 100%;
   }
 }
+
+/* Colorblind-safe button icons */
+.prediction-card__button-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.prediction-card__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shape differentiation - UP button gets a subtle border pattern */
+.prediction-card__button--up {
+  border: 2px solid transparent;
+}
+
+.prediction-card__button--up:not(:disabled) {
+  border-image: repeating-linear-gradient(
+    45deg,
+    #2C4BFD 0px,
+    #2C4BFD 4px,
+    transparent 4px,
+    transparent 8px
+  ) 1;
+}
+
+/* Shape differentiation - DOWN button gets dashed border */
+.prediction-card__button--down {
+  border: 2px dashed transparent;
+}
+
+.prediction-card__button--down:not(:disabled) {
+  border-color: #EC4899;
+}
+
+/* Active states with clear shape indicators */
+.prediction-card__button--active.prediction-card__button--up {
+  box-shadow: 0 0 0 3px rgba(44, 75, 253, 0.4);
+  transform: translateY(-2px);
+}
+
+.prediction-card__button--active.prediction-card__button--down {
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Icon animations for better visual feedback */
+.prediction-card__button:not(:disabled):hover .prediction-card__button-icon {
+  transform: scale(1.1);
+}
+
+.prediction-card__button--up:not(:disabled):active .prediction-card__button-icon {
+  transform: translateY(-3px) scale(1.1);
+}
+
+.prediction-card__button--down:not(:disabled):active .prediction-card__button-icon {
+  transform: translateY(3px) scale(1.1);
+}
+
+/* Disabled state */
+.prediction-card__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}

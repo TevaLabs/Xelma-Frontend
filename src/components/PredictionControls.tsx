@@ -190,8 +190,44 @@ export function PredictionControls({
           onClick={() => handlePrediction("UP")}
           disabled={isDisabled || !canSubmit}
           aria-label="Predict price goes UP"
+          aria-pressed={selectedDirection === "UP"}
         >
-          <span className="prediction-card__button-arrow">↑</span>
+          <svg 
+            className="prediction-card__button-icon" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            aria-hidden="true"
+          >
+            {/* Triangle pointing UP - shape indicator */}
+            <path 
+              d="M12 4L20 18H4L12 4Z" 
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            {/* Arrow shaft */}
+            <line 
+              x1="12" 
+              y1="10" 
+              x2="12" 
+              y2="17" 
+              stroke="white" 
+              strokeWidth="2.5" 
+              strokeLinecap="round"
+            />
+            {/* Arrow head */}
+            <path 
+              d="M9 14L12 17L15 14" 
+              stroke="white" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
           <span className="prediction-card__button-text">UP</span>
         </button>
 
@@ -203,8 +239,44 @@ export function PredictionControls({
           onClick={() => handlePrediction("DOWN")}
           disabled={isDisabled || !canSubmit}
           aria-label="Predict price goes DOWN"
+          aria-pressed={selectedDirection === "DOWN"}
         >
-          <span className="prediction-card__button-arrow">↓</span>
+          <svg 
+            className="prediction-card__button-icon" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            aria-hidden="true"
+          >
+            {/* Triangle pointing DOWN - shape indicator */}
+            <path 
+              d="M12 20L4 6H20L12 20Z" 
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            {/* Arrow shaft */}
+            <line 
+              x1="12" 
+              y1="7" 
+              x2="12" 
+              y2="14" 
+              stroke="white" 
+              strokeWidth="2.5" 
+              strokeLinecap="round"
+            />
+            {/* Arrow head */}
+            <path 
+              d="M9 10L12 7L15 10" 
+              stroke="white" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
           <span className="prediction-card__button-text">DOWN</span>
         </button>
       </div>
