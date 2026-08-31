@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Smoke Tests - Critical Routes', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('xelma_onboarding_dismissed', 'true');
+    });
+  });
+
   test('Landing page loads and renders correctly', async ({ page }) => {
     await page.goto('/');
 

@@ -60,10 +60,11 @@ test.describe('E2E accessibility scan', () => {
         contentType: 'application/json',
       });
 
-      // persist full results to disk as well
+      // persist full results for triage
       const outputPath = path.join(RESULTS_DIR, `${route.name.replace(/\s+/g, '_')}.axe.json`);
       fs.writeFileSync(outputPath, JSON.stringify(results, null, 2), 'utf8');
-
+      testInfo.attachments = testInfo.attachments || [];
+      testInfo.attachments.push({ name: `axe-${route.name}`, path: outputPath, contentType: 'application/json' });
       const seriousViolations = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
 
       // Filter baseline-allowed violations (if baseline present)
