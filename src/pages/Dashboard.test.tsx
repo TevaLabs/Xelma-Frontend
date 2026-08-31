@@ -73,6 +73,7 @@ const mockRoundStore = {
 const mockWalletStore = {
   status: 'connected' as const,
   publicKey: 'GTEST123',
+  balance: '100.00 XLM',
 };
 
 // Mock the stores with proper Zustand-like behavior
@@ -330,7 +331,7 @@ describe('Dashboard', () => {
   });
 
   describe('wallet connection states', () => {
-    it('handles disconnected wallet', () => {
+    it('keeps chart and timeline visible while gating prediction behind connection', () => {
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
         const store = { ...mockWalletStore, status: 'idle', publicKey: null };
         return selectFromStore(selector, store);
@@ -340,12 +341,27 @@ describe('Dashboard', () => {
 
       const predictionCard = screen.getByTestId('prediction-card');
       expect(predictionCard).toHaveAttribute('data-wallet-connected', 'false');
+      expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('round-timeline')).toBeInTheDocument();
 
       const predictionHistory = screen.getByTestId('prediction-history');
       expect(predictionHistory).toBeInTheDocument();
 
       expect(screen.getByTestId('dashboard-wallet-prompt')).toBeInTheDocument();
       expect(screen.getByTestId('dashboard-connect-now')).toBeInTheDocument();
+    });
+
+    it('does not crash when the connected wallet balance is missing', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, balance: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('prediction-card')).toBeInTheDocument();
+      expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('round-timeline')).toBeInTheDocument();
     });
 
     it('handles connecting wallet state', () => {
