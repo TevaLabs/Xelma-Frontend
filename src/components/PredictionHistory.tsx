@@ -7,6 +7,14 @@ import { formatVXLM, formatRelativeTime } from "../lib/utils";
 interface PredictionHistoryProps {
   userId: string | null;
   optimisticPrediction?: UserPrediction | null;
+  /**
+   * Bump this (e.g. a counter or timestamp) whenever a prediction resolves
+   * elsewhere in the app to trigger a re-fetch of history. Without this,
+   * a successful submission clears the optimistic row but the confirmed
+   * prediction never appears until the panel is unmounted/remounted or
+   * the user clicks Refresh manually.
+   */
+  refreshSignal?: number;
 }
 
 function formatStake(value?: string | number): string {
@@ -16,9 +24,68 @@ function formatStake(value?: string | number): string {
   return String(value);
 }
 
-const PAGE_SIZE = 10;
+function renderPredictionRow(prediction: UserPrediction, key: string) {
+  const direction = typeof prediction.direction === "string" ? prediction.direction : "UNKNOWN";
+  const exactPrice =
+    prediction.exactPrice === undefined || prediction.exactPrice === null
+      ? null
+      : String(prediction.exactPrice);
+  const status = typeof prediction.status === "string" ? prediction.status : null;
+  const roundId =
+    prediction.roundId === undefined || prediction.roundId === null
+      ? null
+      : String(prediction.roundId);
+  const isPending = status === 'PENDING';
+  const isFailed = status === 'FAILED';
 
-export default function PredictionHistory({ userId, optimisticPrediction }: PredictionHistoryProps) {
+  return (
+    <li
+      key={key}
+      className={`rounded-lg border p-3 bg-gray-50 dark:bg-gray-900/30 ${isPending ? 'border-yellow-400/50 opacity-80' : isFailed ? 'border-red-400/50 opacity-50' : 'border-gray-100 dark:border-gray-700'}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <span className={direction === "UP" ? "text-green-600" : "text-pink-600"}>{direction}</span>
+          {" "}
+          • Stake: {formatStake(prediction.stake)}
+          {isPending && (
+            <span
+              className="ml-2 inline-flex items-center gap-1 rounded-full bg-yellow-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-yellow-600 dark:text-yellow-400 animate-pulse"
+              data-testid="prediction-pending-badge"
+            >
+              Pending
+            </span>
+          )}
+          {isFailed && (
+            <span
+              className="ml-2 inline-flex items-center gap-1 rounded-full bg-red-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400"
+              data-testid="prediction-failed-badge"
+            >
+              Failed
+            </span>
+          )}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {(() => {
+            const raw = prediction.createdAt;
+            if (typeof raw !== "string") return "Unknown time";
+            const date = new Date(raw);
+            if (Number.isNaN(date.getTime())) return "Unknown time";
+            return formatRelativeTime(date);
+          })()}
+        </p>
+      </div>
+
+      <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 flex flex-wrap gap-x-4 gap-y-1">
+        {roundId && <span>Round: {roundId}</span>}
+        {exactPrice && <span>Exact price: {exactPrice}</span>}
+        {status && <span>Status: {status}</span>}
+      </div>
+    </li>
+  );
+}
+
+export default function PredictionHistory({ userId, optimisticPrediction, refreshSignal }: PredictionHistoryProps) {
   const [history, setHistory] = useState<UserPrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,11 +159,11 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
   }, [history, userId]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void loadHistory();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [loadHistory]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadHistory();
+    // refreshSignal is intentionally included so a change re-triggers the
+    // fetch even though loadHistory's own identity doesn't depend on it.
+  }, [loadHistory, refreshSignal]);
 
   if (!userId) {
     return (
@@ -139,6 +206,12 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
         }
       />
 
+      {optimisticPrediction && (
+        <ul className="space-y-3 mb-3" data-testid="prediction-optimistic-list">
+          {renderPredictionRow(optimisticPrediction, `optimistic-${String(optimisticPrediction.id)}`)}
+        </ul>
+      )}
+
       {isLoading && (
         <LoadingState message="Loading prediction history..." variant="skeleton" skeletonLines={5} className="min-h-[200px]" />
       )}
@@ -156,60 +229,11 @@ export default function PredictionHistory({ userId, optimisticPrediction }: Pred
         />
       )}
 
-      {!isLoading && !error && (history.length > 0 || optimisticPrediction) && (
+      {!isLoading && !error && history.length > 0 && (
         <ul className="space-y-3">
-          {(() => {
-            const allPredictions = optimisticPrediction
-              ? [optimisticPrediction, ...history.filter((h) => h.id !== optimisticPrediction.id)]
-              : history;
-            const slice = hasMore ? allPredictions.slice(0, visibleCount) : allPredictions;
-            return slice.map((prediction, index) => {
-            const direction = typeof prediction.direction === "string" ? prediction.direction : "UNKNOWN";
-            const exactPrice =
-              prediction.exactPrice === undefined || prediction.exactPrice === null
-                ? null
-                : String(prediction.exactPrice);
-            const status = typeof prediction.status === "string" ? prediction.status : null;
-            const roundId =
-              prediction.roundId === undefined || prediction.roundId === null
-                ? null
-                : String(prediction.roundId);
-            const key =
-              `${String(prediction.id)}-${index}`;
-            const isPending = status === 'PENDING';
-            const isFailed = status === 'FAILED';
-
-            return (
-              <li
-                key={key}
-                className={`rounded-lg border p-3 bg-gray-50 dark:bg-gray-900/30 ${isPending ? 'border-yellow-400/50 opacity-80' : isFailed ? 'border-red-400/50 opacity-50' : 'border-gray-100 dark:border-gray-700'}`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    <span className={direction === "UP" ? "text-green-600" : "text-pink-600"}>{direction}</span>
-                    {" "}
-                    • Stake: {formatStake(prediction.stake)}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {(() => {
-  const raw = prediction.createdAt;
-  if (typeof raw !== "string") return "Unknown time";
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "Unknown time";
-  return formatRelativeTime(date);
-})()}
-                  </p>
-                </div>
-
-                <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 flex flex-wrap gap-x-4 gap-y-1">
-                  {roundId && <span>Round: {roundId}</span>}
-                  {exactPrice && <span>Exact price: {exactPrice}</span>}
-                  {status && <span>Status: {status}</span>}
-                </div>
-              </li>
-            );
-            });
-          })()}
+          {history
+            .filter((h) => !optimisticPrediction || h.id !== optimisticPrediction.id)
+            .map((prediction, index) => renderPredictionRow(prediction, `${String(prediction.id)}-${index}`))}
         </ul>
       )}
 

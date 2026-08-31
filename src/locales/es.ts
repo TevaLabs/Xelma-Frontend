@@ -3,6 +3,7 @@ const es = {
     nav: {
       terminal: 'Terminal',
       pools: 'Pools',
+      tournament: 'Torneo',
       leaderboard: 'Clasificación',
       learn: 'Aprender',
       profile: 'Perfil',
@@ -54,6 +55,16 @@ const es = {
         description: 'Elige el modo Direccional o de Precisión y asegura tu pronóstico de precio en la cadena.'
       }
     },
+  },
+  tournament: {
+    title: 'Torneos',
+    description:
+      'Compite contra otros predictores en brackets de torneo estructurados. Sube en la clasificación, gana recompensas exclusivas y demuestra tu intuición de mercado.',
+    modesTitle: 'Formatos de Torneo',
+    modesSubtitle:
+      'Dos modos competitivos están planeados, cada uno recompensando diferentes estrategias de predicción.',
+    joinCTA: 'Unirse al Torneo',
+    ctaDisabledHint: 'El modo torneo se lanza después del mainnet. Conecta tu billetera para ser notificado.',
   },
   footer: {
     description: 'Inteligencia colectiva de mercado en Stellar',

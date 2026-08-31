@@ -135,32 +135,119 @@ describe("PredictionHistory", () => {
     blobSpy.mockRestore();
   });
 
-  it("shows only a small initial page and reveals more via Load more", async () => {
-    const mockHistory: UserPrediction[] = Array.from({ length: 15 }, (_, i) => ({
-      id: String(i + 1),
-      direction: i % 2 === 0 ? "UP" : "DOWN",
-      stake: 1,
-      status: "WON",
-      createdAt: `2026-07-29T10:0${i}:00.000Z`,
-    }));
-    (predictionsApi.getUserHistory as Mock).mockResolvedValue(mockHistory);
+  describe("optimistic pending prediction", () => {
+    it("shows the pending row and badge immediately, before any history has loaded", async () => {
+      // getUserHistory intentionally never resolves in this test — the pending
+      // row must appear from optimisticPrediction alone, not from a fetch.
+      (predictionsApi.getUserHistory as Mock).mockReturnValue(new Promise(() => {}));
 
-    render(<PredictionHistory userId={mockUserId} />);
+      const pending: UserPrediction = {
+        id: "pending-123",
+        direction: "UP",
+        stake: "10",
+        status: "PENDING",
+        createdAt: "2026-08-25T10:00:00.000Z",
+      };
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+      render(<PredictionHistory userId={mockUserId} optimisticPrediction={pending} />);
+
+      expect(screen.getByTestId("prediction-pending-badge")).toBeInTheDocument();
+      expect(screen.getByText(/Stake: 10/i)).toBeInTheDocument();
     });
 
-    // Only first page of items rendered (10 items, each shows a status)
-    const itemTexts = screen.getAllByText(/WON/i);
-    expect(itemTexts.length).toBeLessThan(15);
+    it("lists the pending row ahead of already-loaded history items", async () => {
+      const mockHistory: UserPrediction[] = [
+        { id: "1", direction: "UP", stake: 10, status: "WON", createdAt: "2026-07-29T10:00:00.000Z" },
+      ];
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue(mockHistory);
 
-    fireEvent.click(screen.getByRole("button", { name: /Load more/i }));
-    await waitFor(() => {
-      expect(screen.getByText(/end of your prediction history/i)).toBeInTheDocument();
+      const pending: UserPrediction = {
+        id: "pending-456",
+        direction: "DOWN",
+        stake: "5",
+        status: "PENDING",
+        createdAt: "2026-08-25T10:00:00.000Z",
+      };
+
+      render(<PredictionHistory userId={mockUserId} optimisticPrediction={pending} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/WON/i)).toBeInTheDocument();
+      });
+
+      const items = screen.getAllByRole("listitem");
+      expect(items).toHaveLength(2);
+      expect(items[0]).toHaveTextContent("Pending");
+      expect(items[1]).toHaveTextContent("WON");
     });
 
-    // All items now shown after loading more
-    expect(screen.getAllByText(/WON/i).length).toBe(15);
+    it("does not duplicate a row once the optimistic id matches a real history entry", async () => {
+      const mockHistory: UserPrediction[] = [
+        { id: "pending-789", direction: "UP", stake: 10, status: "WON", createdAt: "2026-07-29T10:00:00.000Z" },
+      ];
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue(mockHistory);
+
+      const pending: UserPrediction = {
+        id: "pending-789",
+        direction: "UP",
+        stake: "10",
+        status: "PENDING",
+        createdAt: "2026-08-25T10:00:00.000Z",
+      };
+
+      render(<PredictionHistory userId={mockUserId} optimisticPrediction={pending} />);
+
+      await waitFor(() => {
+        expect(screen.getAllByRole("listitem")).toHaveLength(1);
+      });
+    });
+
+    it("shows the failed badge when the optimistic prediction's status is FAILED", async () => {
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue([]);
+
+      const failed: UserPrediction = {
+        id: "pending-999",
+        direction: "UP",
+        stake: "10",
+        status: "FAILED",
+        createdAt: "2026-08-25T10:00:00.000Z",
+      };
+
+      render(<PredictionHistory userId={mockUserId} optimisticPrediction={failed} />);
+
+      expect(screen.getByTestId("prediction-failed-badge")).toBeInTheDocument();
+      expect(screen.queryByTestId("prediction-pending-badge")).not.toBeInTheDocument();
+
+      // Let the underlying history fetch settle so it doesn't leak into other tests.
+      await waitFor(() => {
+        expect(predictionsApi.getUserHistory).toHaveBeenCalled();
+      });
+    });
+
+    it("re-fetches history when refreshSignal changes, so a confirmed prediction replaces the cleared optimistic row", async () => {
+      (predictionsApi.getUserHistory as Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: "1", direction: "UP", stake: 10, status: "WON", createdAt: "2026-07-29T10:00:00.000Z" },
+        ]);
+
+      const { rerender } = render(
+        <PredictionHistory userId={mockUserId} optimisticPrediction={null} refreshSignal={0} />
+      );
+
+      await waitFor(() => {
+        expect(predictionsApi.getUserHistory).toHaveBeenCalledTimes(1);
+      });
+
+      rerender(<PredictionHistory userId={mockUserId} optimisticPrediction={null} refreshSignal={1} />);
+
+      await waitFor(() => {
+        expect(predictionsApi.getUserHistory).toHaveBeenCalledTimes(2);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/WON/i)).toBeInTheDocument();
+      });
+    });
   });
 });

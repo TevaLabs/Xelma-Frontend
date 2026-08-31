@@ -28,6 +28,7 @@ interface NavLinkItem {
 const navLinks: NavLinkItem[] = [
   { labelKey: 'navbar.nav.terminal', to: '/dashboard' },
   { labelKey: 'navbar.nav.pools', to: '/pools' },
+  { labelKey: 'navbar.nav.tournament', to: '/tournament', tooltip: 'Coming Soon' },
   { labelKey: 'navbar.nav.leaderboard', to: '/leaderboard' },
   { labelKey: 'navbar.nav.learn', to: '/learn' },
   { labelKey: 'navbar.nav.profile', to: '/profile' },
@@ -156,13 +157,18 @@ export default function Navbar() {
                 <li key={item.labelKey}>
                   <Link
                     to={item.to}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                       isActive
                         ? 'bg-[#2C4BFD]/20 text-[#BEC7FE]'
                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                     }`}
                   >
                     {t(item.labelKey)}
+                    {item.tooltip && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                        {item.tooltip}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
@@ -300,13 +306,18 @@ export default function Navbar() {
                     key={item.labelKey}
                     to={item.to}
                     onClick={closeMenu}
-                    className={`rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
                       isActive
                         ? 'bg-[#2C4BFD]/20 text-[#BEC7FE]'
                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                     }`}
                   >
                     {t(item.labelKey)}
+                    {item.tooltip && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                        {item.tooltip}
+                      </span>
+                    )}
                   </Link>
                 );              })}
             </nav>
