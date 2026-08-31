@@ -189,7 +189,7 @@ describe('BetModal — transaction pending state (#163)', () => {
       const liveRegion = container.querySelector('[aria-live="assertive"]');
       expect(liveRegion).toBeInTheDocument();
       expect(liveRegion).toHaveTextContent(/transaction failed/i);
-      expect(liveRegion).toHaveTextContent(/user rejected/i);
+      expect(liveRegion).toHaveTextContent(/cancelled/i);
     });
   });
 

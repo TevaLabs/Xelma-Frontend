@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowRight, Share2, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
 
 interface EndRoundModalProps {
   isOpen: boolean;

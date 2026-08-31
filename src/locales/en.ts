@@ -35,6 +35,25 @@ const en = {
     roundsResolved: 'Rounds Resolved',
     practiceVolume: 'Practice Volume',
     activePredictors: 'Active Predictors',
+    howItWorksSection: {
+      title: 'How It Works',
+      subtitle: 'Start predicting market trends on Stellar in three simple steps.',
+      step1: {
+        stepNumber: '01',
+        title: 'Connect Freighter',
+        description: 'Link your Stellar Freighter wallet to access testnet predictions securely.'
+      },
+      step2: {
+        stepNumber: '02',
+        title: 'Practice vXLM',
+        description: 'Receive 1,000 practice vXLM automatically to explore predictions risk-free.'
+      },
+      step3: {
+        stepNumber: '03',
+        title: 'Submit Prediction',
+        description: 'Choose Directional or Precision mode and lock in your price forecast on-chain.'
+      }
+    },
   },
   footer: {
     description: 'Collective market intelligence on Stellar',
