@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowUp, ArrowDown, Target, TrendingUp, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowDown, ArrowUp, Target, TrendingUp } from 'lucide-react';
 import { AssetIcon } from '../components/icons';
-import EmptyState from '../components/EmptyState';
-import { Spinner } from '../components/ui/Spinner';
 import Sparkline from '../components/Sparkline';
 import { getTrendLabel } from '../components/Sparkline.helpers';
 import { formatCompactNumber } from '../lib/utils';
@@ -193,76 +191,32 @@ function PoolCard({ pool }: { pool: PoolStats }) {
 
 export default function Pools() {
   const [data, setData] = useState<PoolStats[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadToken, setReloadToken] = useState(0);
-
-  const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoading(true);
-    setError(null);
 
     fetchPoolStats(controller.signal)
       .then((result) => setData(result))
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return;
-        setError(err instanceof Error ? err.message : 'Failed to load pools');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
       });
 
     return () => controller.abort();
-  }, [reloadToken]);
+  }, []);
 
   return (
     <main id="main-content" className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold text-white">Liquidity Pools</h1>
-      <p className="mt-2 text-sm text-gray-400">
-        Transparency and historical stats for all active round pools.
-      </p>
-
-      {isLoading && (
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-white">Liquidity Pools</h1>
+        <p className="mt-2 text-gray-400">Transparency and historical stats for all active round pools.</p>
+      </header>
+      {data === null ? (
         <div className="flex min-h-[40vh] items-center justify-center">
-          <Spinner label="Loading pools" size="lg" />
+          <div role="status" aria-label="Loading pools" className="h-8 w-8 animate-spin rounded-full border-4 border-[#2C4BFD] border-t-transparent" />
         </div>
-      )}
-
-      {!isLoading && error && (
-        <EmptyState
-          className="mt-10"
-          title="Couldn't load pools"
-          description={error}
-          action={
-            <button
-              type="button"
-              onClick={reload}
-              className="btn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-            >
-              <RefreshCw className="h-4 w-4" aria-hidden />
-              Retry
-            </button>
-          }
-        />
-      )}
-
-      {!isLoading && !error && data && data.length === 0 && (
-        <EmptyState
-          className="mt-10"
-          title="No pools available"
-          description="There are no active round pools right now. Check back once a round opens."
-        />
-      )}
-
-      {!isLoading && !error && data && data.length > 0 && (
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {data.map((pool) => (
-            <PoolCard key={pool.asset} pool={pool} />
-          ))}
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {data.map((pool) => <PoolCard key={pool.asset} pool={pool} />)}
         </div>
       )}
     </main>
