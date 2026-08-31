@@ -210,9 +210,15 @@ export default function Pools() {
         <h1 className="text-3xl font-bold tracking-tight text-white">Liquidity Pools</h1>
         <p className="mt-2 text-gray-400">Transparency and historical stats for all active round pools.</p>
       </header>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {data?.map((pool) => <PoolCard key={pool.asset} pool={pool} />)}
-      </div>
+      {data === null ? (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <div role="status" aria-label="Loading pools" className="h-8 w-8 animate-spin rounded-full border-4 border-[#2C4BFD] border-t-transparent" />
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {data.map((pool) => <PoolCard key={pool.asset} pool={pool} />)}
+        </div>
+      )}
     </main>
   );
 }
