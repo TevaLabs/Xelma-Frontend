@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: wallet-connect.spec.ts >> Wallet Connect – Freighter Mocked >> Dashboard shows wallet prompt when not connected, then connects via Freighter
-- Location: e2e/wallet-connect.spec.ts:52:3
+- Name: accessibility.spec.ts >> E2E accessibility scan >> Landing has no serious axe violations
+- Location: e2e/accessibility.spec.ts:17:5
 
 # Error details
 

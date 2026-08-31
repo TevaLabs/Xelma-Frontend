@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 import type { Round } from '../lib/api-client';
 import { useRoundStore } from '../store/useRoundStore';
-import PredictionPulse from './PredictionPulse';
 
 interface TimelineState {
   label: string;
@@ -9,27 +8,21 @@ interface TimelineState {
 }
 
 const TIMELINE_STATES: TimelineState[] = [
-  { label: 'Upcoming', key: 'upcoming' },
+  { label: 'Next Round', key: 'upcoming' },
   { label: 'Live', key: 'live' },
   { label: 'Resolving', key: 'resolving' },
   { label: 'Finished', key: 'finished' },
 ];
 
-type RoundTimelineState =
-  | 'upcoming'
-  | 'live'
-  | 'resolving'
-  | 'finished'
-  | 'loading'
-  | 'disconnected';
-
+/**
+ * Determines the current round state based on the active round and SSE connection
+ */
 function getCurrentRoundState(
   activeRound: Round | null,
   isRoundActive: boolean,
   sseStatus: string
-): RoundTimelineState {
-  // Connection state takes priority so users immediately know
-  // whether live round updates are available.
+): 'upcoming' | 'live' | 'resolving' | 'finished' | 'loading' | 'disconnected' {
+  // Handle loading/disconnected states
   if (sseStatus === 'connecting' || sseStatus === 'reconnecting') {
     return 'loading';
   }
@@ -38,10 +31,12 @@ function getCurrentRoundState(
     return 'disconnected';
   }
 
+  // If there's no active round, it's upcoming
   if (!activeRound) {
     return 'upcoming';
   }
 
+  // Check round status if available
   if (activeRound.status) {
     const status = activeRound.status.toLowerCase();
 
@@ -58,10 +53,12 @@ function getCurrentRoundState(
     }
   }
 
+  // Fallback: use isRoundActive flag
   if (isRoundActive) {
     return 'live';
   }
 
+  // If we have a round but it's not active, check timestamps
   if (activeRound.resolvedAt) {
     return 'finished';
   }
@@ -78,18 +75,10 @@ function getCurrentRoundState(
   return 'live';
 }
 
-function getStateLabel(state: RoundTimelineState): string {
-  return (
-    TIMELINE_STATES.find((timelineState) => timelineState.key === state)
-      ?.label ??
-    (state === 'disconnected'
-      ? 'Disconnected'
-      : state === 'loading'
-        ? 'Connecting'
-        : state)
-  );
-}
-
+/**
+ * RoundTimeline Component
+ * Displays the progression of round states with visual indicators
+ */
 const RoundTimeline: React.FC = () => {
   const activeRound = useRoundStore((state) => state.activeRound);
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
@@ -101,8 +90,29 @@ const RoundTimeline: React.FC = () => {
     sseConnection?.status || 'disconnected'
   );
 
-  const [previousState, setPreviousState] =
-    useState<RoundTimelineState>(currentState);
+  const getStateIndex = (state: string): number => {
+    const index = TIMELINE_STATES.findIndex((s) => s.key === state);
+    return index !== -1 ? index : -1;
+  };
+
+  const currentIndex = getStateIndex(
+    currentState as 'upcoming' | 'live' | 'resolving' | 'finished'
+  );
+
+  const isLoading = currentState === 'loading';
+  const isDisconnected = currentState === 'disconnected';
+  const isCurrentLive = currentState === 'live';
+  const isCurrentAdvanced = currentState === 'resolving' || currentState === 'finished';
+  const currentStateLabel =
+    currentState === 'upcoming'
+      ? 'Upcoming'
+      : currentState === 'disconnected'
+        ? 'Unknown'
+        : currentState === 'loading'
+          ? 'Connecting'
+          : TIMELINE_STATES.find((s) => s.key === currentState)?.label || currentState;
+
+  const prevStateRef = useRef(currentState);
   const [stateAnnouncement, setStateAnnouncement] = useState('');
 
   /*
@@ -111,252 +121,182 @@ const RoundTimeline: React.FC = () => {
    * A state transition is announced once, rather than on every render.
    */
   useEffect(() => {
-    if (previousState === currentState) {
-      return;
+    if (prevStateRef.current !== currentState) {
+      const timer = setTimeout(() => {
+        setStateAnnouncement(`Round is now ${currentStateLabel}`);
+      }, 0);
+      prevStateRef.current = currentState;
+      return () => clearTimeout(timer);
     }
-
-    const label = getStateLabel(currentState);
-
-    const timer = window.setTimeout(() => {
-      setStateAnnouncement(`Round is now ${label}`);
-      setPreviousState(currentState);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [currentState, previousState]);
-
-  /*
-   * Loading/disconnected are connection states, not timeline steps.
-   *
-   * When either occurs, keep the visual timeline anchored to the
-   * last meaningful round state where possible. For the initial
-   * connection state, Upcoming is the safest visual baseline.
-   */
-  const timelineState =
-    currentState === 'loading' || currentState === 'disconnected'
-      ? previousState === 'loading' || previousState === 'disconnected'
-        ? 'upcoming'
-        : previousState
-      : currentState;
-
-  const currentIndex = Math.max(
-    0,
-    TIMELINE_STATES.findIndex((state) => state.key === timelineState)
-  );
-
-  const isConnectionIssue =
-    currentState === 'loading' || currentState === 'disconnected';
+  }, [currentState, currentStateLabel]);
 
   return (
-    <section
-      className="w-full"
-      aria-labelledby="round-progress-heading"
-      data-current-state={currentState}
-      data-round-id={activeRound?.id ?? ''}
-      data-round-active={String(isRoundActive)}
-    >
-      {/* Screen reader announcement */}
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+    <div data-current-state={currentState} className="w-full bg-white dark:bg-gray-800 p-4 lg:p-6 shadow-sm rounded-xl border border-gray-100 dark:border-gray-700">
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
         {stateAnnouncement}
       </div>
-
       {/* Header */}
-      <div className="mb-4">
-        <h2
-          id="round-progress-heading"
-          className="text-lg font-bold tracking-tight text-white"
-        >
+      <div className="mb-6">
+        <h2 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <span className="inline-block w-3 h-3 bg-blue-500 rounded-full"></span>
           Round Progress
         </h2>
-
-        <p className="mt-1 text-sm text-slate-400">
-          Follow the current round state.
-        </p>
+        <div className="sr-only">
+          <p>Current state is "{currentState}"</p>
+          <p>Upcoming → Live → Resolving → Finished</p>
+        </div>
       </div>
 
-      {/* Loading banner */}
-      {currentState === 'loading' && (
-        <div
-          role="status"
-          className="mb-4 flex items-center gap-3 rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 text-sm text-cyan-200 backdrop-blur-md"
-        >
-          <span
-            aria-hidden="true"
-            className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-cyan-400"
-          />
-
-          <span>
-            Connecting to live round updates…
-          </span>
-        </div>
-      )}
-
-      {/* Disconnected banner */}
-      {currentState === 'disconnected' && (
-        <div
-          role="alert"
-          className="mb-4 flex items-center gap-3 rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-sm text-red-200 backdrop-blur-md"
-        >
-          <span
-            aria-hidden="true"
-            className="h-2 w-2 shrink-0 rounded-full bg-red-400"
-          />
-
-          <span>
-            Live round updates are currently unavailable.
-          </span>
-        </div>
-      )}
-
-      {/* Dark glass timeline */}
-      <div
-        className={`rounded-2xl border border-slate-700/50 bg-slate-950/70 p-4 shadow-xl shadow-black/20 backdrop-blur-xl sm:p-6 ${
-          isConnectionIssue
-            ? 'ring-1 ring-slate-800/50'
-            : ''
-        }`}
-      >
-        {/* Accessible description of the sequence */}
-        <p className="sr-only">
-          Round stages: Upcoming, Live, Resolving, Finished.
-          Current stage: {getStateLabel(timelineState)}.
-        </p>
-
-        {/* Timeline */}
-        <div className="overflow-x-auto pb-2">
-          <div className="min-w-[440px]">
-            <div className="relative">
-              {/* Base connecting line */}
-              <div
-                aria-hidden="true"
-                className="absolute left-[12.5%] right-[12.5%] top-4 h-px bg-slate-700"
+      {/* Loading State */}
+      {isLoading && (
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
+            <svg
+              className="w-4 h-4 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
               />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            Connecting to live updates...
+          </p>
+        </div>
+      )}
 
-              {/* Completed connecting line */}
-              {currentIndex > 0 && (
+      {/* Disconnected State */}
+      {isDisconnected && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm text-red-800 dark:text-red-200 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Connection lost - Timeline may not update in real-time
+          </p>
+        </div>
+      )}
+
+      {/* Timeline Container */}
+      <div className="flex items-center justify-between gap-2 lg:gap-4">
+        {TIMELINE_STATES.map((state, index) => {
+          const isActive = currentIndex === index;
+          const isCompleted = currentIndex > index;
+          const isUpcoming = currentIndex < index;
+
+          return (
+            <Fragment key={state.key}>
+              {/* State Node */}
+              <div className="flex flex-col items-center flex-1">
+                {/* Circle Indicator */}
                 <div
-                  aria-hidden="true"
-                  className="absolute left-[12.5%] top-4 h-px bg-cyan-500/70 transition-all duration-500"
-                  style={{
-                    width: `${Math.min(
-                      75,
-                      currentIndex * 25
-                    )}%`,
-                  }}
+                  className={`
+                    w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center 
+                    font-bold text-sm lg:text-base mb-2 transition-all duration-300
+                    ${
+                      isActive
+                        ? 'bg-blue-500 text-white scale-110 shadow-lg shadow-blue-500/50'
+                        : isCompleted
+                          ? 'bg-green-500 text-white'
+                          : isUpcoming
+                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    }
+                  `}
+                >
+                  {isCompleted ? (
+                    <svg
+                      className="w-5 h-5 lg:w-6 lg:h-6"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <span>{index + 1}</span>
+                  )}
+                </div>
+
+                {/* Label */}
+                <span
+                  className={`
+                    text-xs lg:text-sm font-semibold text-center
+                    ${
+                      isActive
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : isCompleted
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-gray-600 dark:text-gray-400'
+                    }
+                  `}
+                >
+                  {state.label}
+                </span>
+              </div>
+
+              {/* Connector Line (between nodes) */}
+              {index < TIMELINE_STATES.length - 1 && (
+                <div
+                  className={`
+                    flex-1 h-1 mb-6 rounded-full transition-all duration-300
+                    ${isCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}
+                  `}
                 />
               )}
+            </Fragment>
+          );
+        })}
+      </div>
 
-              <ol
-                aria-label="Round progress"
-                className="relative grid grid-cols-4"
-              >
-                {TIMELINE_STATES.map((state, index) => {
-                  const isCurrent = index === currentIndex;
-                  const isCompleted = index < currentIndex;
-
-                  return (
-                    <li
-                      key={state.key}
-                      className="flex min-w-0 flex-col items-center text-center"
-                    >
-                      {/* Step indicator */}
-                      <div
-                        aria-current={
-                          isCurrent ? 'step' : undefined
-                        }
-                        className={[
-                          'relative z-10 flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-300',
-                          isCurrent
-                            ? 'border-cyan-300 bg-cyan-400 text-slate-950 shadow-[0_0_20px_rgba(34,211,238,0.35)]'
-                            : isCompleted
-                              ? 'border-cyan-500/60 bg-cyan-500/20 text-cyan-300'
-                              : 'border-slate-700 bg-slate-900 text-slate-600',
-                        ].join(' ')}
-                      >
-                        {isCompleted ? (
-                          <svg
-                            aria-hidden="true"
-                            viewBox="0 0 16 16"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path
-                              d="M3 8.5 6.5 12 13 4.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        ) : (
-                          <span
-                            aria-hidden="true"
-                            className={[
-                              'h-2 w-2 rounded-full',
-                              isCurrent
-                                ? 'bg-slate-950'
-                                : 'bg-current',
-                            ].join(' ')}
-                          />
-                        )}
-                      </div>
-
-                      {/* Step label */}
-                      <span
-                        className={[
-                          'mt-3 text-xs font-semibold uppercase tracking-wide transition-colors duration-300 sm:text-sm',
-                          isCurrent
-                            ? 'text-cyan-300'
-                            : isCompleted
-                              ? 'text-slate-300'
-                              : 'text-slate-600',
-                        ].join(' ')}
-                      >
-                        {state.label}
-                      </span>
-
-                      {/* Current-state indicator */}
-                      {isCurrent && (
-                        <span className="mt-1 text-[10px] font-medium uppercase tracking-widest text-cyan-500/80">
-                          Current
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          </div>
+      {/* Status Info */}
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-600 dark:text-gray-400">Current State:</span>
+          <span
+            className={`
+              px-3 py-1 rounded-full font-semibold text-white text-xs lg:text-sm
+              ${
+                isCurrentLive
+                  ? 'bg-blue-500'
+                  : isCurrentAdvanced
+                    ? 'bg-green-500'
+                    : 'bg-gray-500'
+              }
+            `}
+          >
+            {currentStateLabel || 'Unknown'}
+          </span>
         </div>
 
-        {/* Current state summary */}
-        <div className="mt-6 border-t border-slate-800/80 pt-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              Current stage
-            </span>
-
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/5 px-3 py-1 text-xs font-semibold text-cyan-300">
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 rounded-full bg-cyan-400"
-              />
-              {getStateLabel(timelineState)}
-            </span>
-          </div>
-        </div>
-
-        {/* Prediction pulse — shown when round is live or resolving */}
-        {(currentState === 'live' || currentState === 'resolving') && (
-          <div className="mt-4 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
-              Predictions
-            </span>
-            <PredictionPulse />
+        {/* Additional Round Info */}
+        {activeRound && (
+          <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+            {activeRound.startsAt && (
+              <p>
+                Starts: {new Date(activeRound.startsAt).toLocaleTimeString()}
+              </p>
+            )}
+            {activeRound.endsAt && (
+              <p>Ends: {new Date(activeRound.endsAt).toLocaleTimeString()}</p>
+            )}
           </div>
         )}
       </div>

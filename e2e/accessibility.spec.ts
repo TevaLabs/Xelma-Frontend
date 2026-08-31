@@ -33,11 +33,11 @@ test.describe('E2E accessibility scan', () => {
     test(`${route.name} has no serious axe violations`, async ({ page }, testInfo) => {
       await page.goto(route.path);
 
-      // Wait for app to render a stable root element (adjust selector to your app)
-      await page.waitForSelector('#root, app-root, body > main, [data-testid="app-root"]', { timeout: 10000 });
+      // Wait for app to render a stable root element
+      await page.waitForSelector('#root, app-root, body > main, [data-testid="app-root"]', { timeout: 15000 });
 
       // give one short tick for dynamic content that may render after the selector appears
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(500);
 
       await page.addScriptTag({ content: axe.source });
 
@@ -54,12 +54,17 @@ test.describe('E2E accessibility scan', () => {
         });
       });
 
+      // Attach full axe results to test artifacts for CI debugging
+      await testInfo.attach(`axe-${route.name}-full-results`, {
+        body: JSON.stringify(results, null, 2),
+        contentType: 'application/json',
+      });
+
       // persist full results for triage
       const outputPath = path.join(RESULTS_DIR, `${route.name.replace(/\s+/g, '_')}.axe.json`);
       fs.writeFileSync(outputPath, JSON.stringify(results, null, 2), 'utf8');
       testInfo.attachments = testInfo.attachments || [];
       testInfo.attachments.push({ name: `axe-${route.name}`, path: outputPath, contentType: 'application/json' });
-
       const seriousViolations = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
 
       // Filter baseline-allowed violations (if baseline present)

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
@@ -13,6 +13,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import Footer from './components/Footer';
 import ComingSoonPage from './pages/ComingSoonPage';
 import OnboardingChecklist from './components/OnboardingChecklist';
+import { completeOnboardingStep } from './lib/onboarding';
 import { Trophy } from 'lucide-react';
 import RouteProgressBar from './components/RouteProgressBar';
 
@@ -27,6 +28,9 @@ const Settings = lazy(() => import('./pages/Settings'));
 
 function App() {
   const { pathname } = useLocation();
+  useEffect(() => {
+    if (pathname === '/learn') completeOnboardingStep('fund');
+  }, [pathname]);
   // Landing renders its own Footer at the bottom of its bespoke layout.
   // All other routes share the global session footer for consistent branding.
   const showGlobalFooter = pathname !== '/';
