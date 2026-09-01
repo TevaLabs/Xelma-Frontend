@@ -154,6 +154,10 @@ const Leaderboard = () => {
     { rank: 3, user: rank3, order: 'order-3 md:order-3', medal: 'Bronze', avatarSize: 'w-24 h-24', border: 'border-4 border-[#CD7F32]', barHeight: 'h-20' },
   ] as const;
 
+  const gapToFirst = currentUser && rank1 && currentUser.id !== rank1.id
+    ? Math.max(0, rank1.xlm - currentUser.xlm)
+    : null;
+
   // ── #202: Virtualizer setup ────────────────────────────────────────────────
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -268,10 +272,18 @@ const Leaderboard = () => {
                 </p>
               </div>
             </div>
-            <div className="mt-4 text-xs text-gray-400 border-t border-white/5 pt-3">
-              {currentUser
-                ? 'Keep making accurate predictions to move up the leaderboard.'
-                : 'Your connected wallet has not yet appeared on the leaderboard. Continue playing to earn a rank.'}
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-400 border-t border-white/5 pt-3">
+              <p>
+                {currentUser
+                  ? 'Keep making accurate predictions to move up the leaderboard.'
+                  : 'Your connected wallet has not yet appeared on the leaderboard. Continue playing to earn a rank.'}
+              </p>
+              {gapToFirst !== null && gapToFirst > 0 && (
+                <div className="font-medium text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-md border border-amber-400/20 whitespace-nowrap">
+                  <span className="sr-only">Gap to first place:</span>
+                  {formatVXLM(gapToFirst)} to #1
+                </div>
+              )}
             </div>
           </div>
         )}

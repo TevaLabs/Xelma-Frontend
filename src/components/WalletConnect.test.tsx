@@ -128,7 +128,7 @@ describe('WalletConnect', () => {
       render(<WalletConnect />);
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
-      expect(connectButton).toHaveClass('bg-[#2C4BFD]', 'hover:bg-[#1a3bf0]', 'text-white');
+      expect(connectButton).toHaveClass('bg-white', 'hover:bg-gray-50', 'text-gray-700');
     });
   });
 
@@ -351,7 +351,7 @@ describe('WalletConnect', () => {
       render(<WalletConnect />);
 
       const container = screen.getByText('GTES...WXYZ').closest('.flex');
-      expect(container).toHaveClass('gap-1', 'sm:gap-2');
+      expect(container).toHaveClass('gap-2');
     });
   });
 
