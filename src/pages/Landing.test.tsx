@@ -109,4 +109,41 @@ describe('Landing Page', () => {
     // Check if the #how-it-works anchor exists
     expect(container.querySelector('#how-it-works')).toBeInTheDocument();
   });
+
+  it('shows final stat values immediately when prefers-reduced-motion is true', () => {
+    const originalMatchMedia = window.matchMedia;
+    
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    render(
+      <MemoryRouter>
+        <Landing />
+      </MemoryRouter>
+    );
+
+    // mockLandingStats has totalRounds: 1247
+    // formatStat formats it as 1,247
+    expect(screen.getByText('1,247')).toBeInTheDocument();
+    
+    // mockLandingStats has vXlmDistributed: 4200000
+    // formatStat formats it as 4.2M
+    expect(screen.getByText(/4\.2M/i)).toBeInTheDocument();
+    
+    // mockLandingStats has activePlayers: 893
+    expect(screen.getByText('893')).toBeInTheDocument();
+
+    window.matchMedia = originalMatchMedia;
+  });
 });
