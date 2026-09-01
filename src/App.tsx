@@ -23,6 +23,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Pools = lazy(() => import('./pages/Pools'));
 const Tournament = lazy(() => import(/* webpackChunkName: "tournament" */ './pages/Tournament'));
 const Settings = lazy(() => import('./pages/Settings'));
+const PublicProfileCard = lazy(() => import('./pages/PublicProfileCard'));
 
 function App() {
   const { pathname } = useLocation();
