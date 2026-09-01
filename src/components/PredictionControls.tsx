@@ -12,6 +12,16 @@ function parseBalance(balance: string | null | undefined): number {
   return parseFloat(numericPart) || 0;
 }
 
+function computePresetStake(balanceStr: string | null | undefined, percentage: number): string {
+  const available = parseBalance(balanceStr);
+  if (available <= 0) return '';
+  const raw = available * percentage;
+  const factor = 10000;
+  const truncated = Math.floor(raw * factor + 1e-9) / factor;
+  const safeAmount = Math.min(truncated, available);
+  return Number(safeAmount.toFixed(4)).toString();
+}
+
 function validateStake(value: string, walletBalance: string | null | undefined): string | null {
   if (!value.trim()) return 'Enter a stake amount';
   const amount = Number(value);
@@ -30,6 +40,10 @@ export interface PredictionData {
   stake: string;
   exactPrice?: string;
   isLegend: boolean;
+  /** Share of the UP/DOWN pool held by each side (0-100). Present only for
+   *  UP/DOWN rounds; lets the BetModal surface the pool-imbalance warning. */
+  poolUpPct?: number;
+  poolDownPct?: number;
 }
 
 export interface PredictionControlsProps {
@@ -83,6 +97,8 @@ export function PredictionControls({
 
   const isDisabled =
     !isWalletConnected || !isRoundActive || isConnecting || isSubmitting;
+  const availableBalance = parseBalance(walletBalance);
+  const arePresetsDisabled = isDisabled || !isWalletConnected || availableBalance <= 0;
 
   const validateExactPriceField = useCallback(() => {
     if (!isLegend) return;
@@ -108,8 +124,9 @@ export function PredictionControls({
     setStakeError(error);
   };
 
-  const handleFillClick = () => {
-    setStake("1000");
+  const handlePresetClick = (percentage: number) => {
+    const calculatedStake = computePresetStake(walletBalance, percentage);
+    handleStakeChange(calculatedStake);
   };
 
   const handlePrediction = (direction: "UP" | "DOWN") => {
@@ -225,15 +242,35 @@ export function PredictionControls({
             min="0"
             step="0.01"
           />
-          <button
-            type="button"
-            className="prediction-card__fill-button"
-            onClick={handleFillClick}
-            disabled={isDisabled}
-            title="Fill with wallet balance"
-          >
-            Fill
-          </button>
+          <div className="prediction-card__preset-buttons" role="group" aria-label="Stake presets">
+            <button
+              type="button"
+              className="prediction-card__preset-button"
+              onClick={() => handlePresetClick(0.25)}
+              disabled={arePresetsDisabled}
+              aria-label="Set stake to 25% of balance"
+            >
+              25%
+            </button>
+            <button
+              type="button"
+              className="prediction-card__preset-button"
+              onClick={() => handlePresetClick(0.5)}
+              disabled={arePresetsDisabled}
+              aria-label="Set stake to 50% of balance"
+            >
+              50%
+            </button>
+            <button
+              type="button"
+              className="prediction-card__preset-button"
+              onClick={() => handlePresetClick(1.0)}
+              disabled={arePresetsDisabled}
+              aria-label="Set stake to Max available balance"
+            >
+              Max
+            </button>
+          </div>
         </div>
         {stakeError && (
           <p className="prediction-card__exact-price-error" role="alert">

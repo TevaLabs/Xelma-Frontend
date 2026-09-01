@@ -161,7 +161,7 @@ const RoundTimeline: React.FC = () => {
         aria-atomic="true"
         className="sr-only"
       >
-        {stateAnnouncement}
+        Current state is &quot;{currentState}&quot;. Sequence: Upcoming &rarr; Live &rarr; Resolving &rarr; Finished. {stateAnnouncement}
       </div>
 
       {/* Header */}

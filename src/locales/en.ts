@@ -59,6 +59,49 @@ const en = {
   footer: {
     description: 'Collective market intelligence on Stellar',
   },
+  dashboard: {
+    refresh: 'Refresh',
+    walletPrompt: {
+      message: 'Connect your wallet to make predictions.',
+      connectNow: 'Connect Now',
+    },
+    emptyState: {
+      noActiveRounds: {
+        title: 'No Active Rounds',
+        description: 'Learn how the game works or refresh to check for new rounds.',
+      },
+      noAssetRounds: {
+        title: 'No {{asset}} rounds available',
+        description:
+          'There are currently no active prediction rounds for {{assetName}}. Try selecting another asset or check back soon.',
+      },
+    },
+    sorobanInspector: {
+      title: 'Soroban Inspector',
+      description: 'Read-only wallet position and round state.',
+      loading: 'Loading…',
+      rpcFallback: 'RPC Fallback: {{error}}',
+    },
+    share: {
+      button: 'Share',
+      copyAriaLabel: 'Copy share link',
+      copied: 'Link copied to clipboard',
+      copyError: 'Failed to copy link',
+    },
+    assetNames: {
+      BTC: 'Bitcoin',
+      ETH: 'Ethereum',
+      XLM: 'Stellar',
+    },
+    modeToggle: {
+      label: 'Trading mode',
+      practice: 'Practice',
+      practiceSubtitle: 'virtual xLM, no on-chain risk',
+      onChain: 'On-Chain',
+      onChainSubtitle: 'Live Stellar smart contracts',
+      connectRequired: 'Connect wallet to switch to On-Chain mode',
+    },
+  },
   tournament: {
     title: 'Tournaments',
     description:

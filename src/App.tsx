@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import Navbar from './components/Navbar';
 import CommandPalette from './components/CommandPalette';
 import PageSkeleton from './components/PageSkeleton';
+import RouteProgressBar from './components/RouteProgressBar';
 import Landing from './pages/Landing';
 import RouteFallback from './components/RouteFallback';
 import RouteTransition from './components/RouteTransition';
@@ -43,21 +44,20 @@ function App() {
       <ErrorBoundary>
         <LazyBoundary>
           <Suspense fallback={<RouteFallback />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
-              {/* /play is deprecated: its high-value panels (price chart, round
-                  timeline, chat, end-round modal) now live in /dashboard. */}
-              <Route path="/play" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
-              <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
-              <Route path="/connect" element={<Connect />} />
-              <Route path="/pools" element={<Pools />} />
-              <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-
+            <RouteTransition>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/dashboard" element={<Suspense fallback={<PageSkeleton type="dashboard" />}><Dashboard /></Suspense>} />
+                {/* /play is deprecated: its high-value panels (price chart, round
+                    timeline, chat, end-round modal) now live in /dashboard. */}
+                <Route path="/play" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/leaderboard" element={<Suspense fallback={<PageSkeleton type="leaderboard" />}><Leaderboard /></Suspense>} />
+                <Route path="/learn" element={<Suspense fallback={<PageSkeleton type="learn" />}><LearnPage /></Suspense>} />
+                <Route path="/connect" element={<Connect />} />
+                <Route path="/pools" element={<Pools />} />
+                <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </RouteTransition>

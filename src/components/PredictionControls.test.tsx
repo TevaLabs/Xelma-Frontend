@@ -261,6 +261,77 @@ describe('PredictionControls', () => {
     expect(onPrediction).not.toHaveBeenCalled();
   });
 
+  describe('Stake Presets (25% / 50% / Max)', () => {
+    it('calculates and populates stake input correctly for 25%, 50%, and Max presets', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+        />
+      );
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake Amount/i }) as HTMLInputElement;
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 25% of balance/i }));
+      expect(stakeInput.value).toBe('25');
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 50% of balance/i }));
+      expect(stakeInput.value).toBe('50');
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to Max available balance/i }));
+      expect(stakeInput.value).toBe('100');
+    });
+
+    it('clamps preset values safely for fractional balance amounts', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="33.33 XLM"
+        />
+      );
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake Amount/i }) as HTMLInputElement;
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 25% of balance/i }));
+      expect(stakeInput.value).toBe('8.3325');
+      expect(Number(stakeInput.value)).toBeLessThanOrEqual(33.33);
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to Max available balance/i }));
+      expect(stakeInput.value).toBe('33.33');
+      expect(Number(stakeInput.value)).toBeLessThanOrEqual(33.33);
+    });
+
+    it('disables preset buttons when wallet is disconnected', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={false}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /Set stake to 25% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to 50% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to Max available balance/i })).toBeDisabled();
+    });
+
+    it('disables preset buttons when balance is zero or missing', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="0.00 XLM"
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /Set stake to 25% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to 50% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to Max available balance/i })).toBeDisabled();
+    });
+  });
+
   describe('Help Tooltip', () => {
     it('renders the help icon button with correct aria attributes', () => {
       render(<PredictionControls />);

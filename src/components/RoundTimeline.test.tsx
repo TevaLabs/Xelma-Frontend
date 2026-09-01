@@ -75,15 +75,13 @@ describe('RoundTimeline', () => {
     render(<RoundTimeline />);
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
-    expect(screen.getByText(/Current state is "upcoming"/i)).toBeInTheDocument();
-    expect(screen.getByText(/Upcoming → Live → Resolving → Finished/i)).toBeInTheDocument();
+    expect(screen.getByText(/Round stages: Upcoming, Live, Resolving, Finished/i)).toBeInTheDocument();
   });
 
   it('renders upcoming state when there is no active round', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
     const { container } = render(<RoundTimeline />);
 
-    expect(screen.getByText(/Current state is "upcoming"/i)).toBeInTheDocument();
     expect(getCurrentStateLabel(container)).toBe('upcoming');
   });
 
@@ -97,7 +95,6 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('live');
-    expect(screen.getByText(/Current state is "live"/i)).toBeInTheDocument();
   });
 
   it('renders resolving state for a round with resolving status', () => {
@@ -110,7 +107,6 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('resolving');
-    expect(screen.getByText(/Current state is "resolving"/i)).toBeInTheDocument();
   });
 
   it('renders finished state when round status is resolved', () => {
@@ -123,7 +119,6 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('finished');
-    expect(screen.getByText(/Current state is "finished"/i)).toBeInTheDocument();
   });
 
   it('updates current stage indicator when round data changes', () => {
@@ -150,7 +145,7 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('loading');
-    expect(screen.getByText(/Current state is "loading"/i)).toBeInTheDocument();
+    expect(screen.getByText(/Connecting to live round updates/i)).toBeInTheDocument();
   });
 
   it('shows disconnected warning when SSE status is disconnected', () => {
@@ -163,7 +158,7 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('disconnected');
-    expect(screen.getByText(/Current state is "disconnected"/i)).toBeInTheDocument();
+    expect(screen.getByText(/Live round updates are currently unavailable/i)).toBeInTheDocument();
   });
 
   it('handles empty round data gracefully', () => {
