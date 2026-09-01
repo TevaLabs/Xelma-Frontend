@@ -31,10 +31,23 @@ vi.mock('../hooks/useConnectionStatus', () => ({
   useConnectionStatus: vi.fn(),
 }));
 
+// Deterministic seed data — the component also loads mockPriceData on mount, so
+// keep the mock series identical to the API series to avoid an artificial
+// mock→API price transition flashing on initial load.
+vi.mock('../data/mockData', () => ({
+  mockPriceData: {
+    XLM: [
+      { time: 1, value: 100 },
+      { time: 2, value: 101 },
+    ],
+  },
+}));
+
 import { createChart } from 'lightweight-charts';
 import { priceApi } from '../lib/api-client';
 import { socketService } from '../lib/socket';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 describe('PriceChart', () => {
   const mockChartApi = {
@@ -57,8 +70,39 @@ describe('PriceChart', () => {
 
   const mockUnsubscribe = vi.fn();
 
+  // Captured socket price-update handler so tests can push live ticks.
+  let priceUpdateHandler: ((payload: unknown) => void) | undefined;
+
+  const initialSeries = [
+    { time: 1, value: 100 },
+    { time: 2, value: 101 },
+  ];
+
+  /** Render the chart with initial data loaded and wait for it to settle. */
+  async function renderLoadedChart() {
+    (priceApi.getPriceSeries as any).mockResolvedValue(initialSeries);
+    render(<PriceChart height={300} />);
+    await vi.waitFor(() => {
+      expect(priceApi.getPriceSeries).toHaveBeenCalled();
+    });
+    await vi.waitFor(() => {
+      expect(screen.getByText('$101.000000')).toBeInTheDocument();
+    });
+  }
+
+  /** Push a live price tick through the (mocked) socket and flush the throttle. */
+  async function pushLiveTick(payload: unknown) {
+    await act(async () => {
+      priceUpdateHandler?.(payload);
+      // The socket handler batches updates through a 50ms throttle timer.
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    });
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
+    priceUpdateHandler = undefined;
+    useSettingsStore.setState({ motionPreference: 'system' });
     
     // Mock requestAnimationFrame to execute immediately
     global.requestAnimationFrame = (callback: FrameRequestCallback) => {
@@ -67,13 +111,19 @@ describe('PriceChart', () => {
     };
     global.cancelAnimationFrame = vi.fn();
     
+    // jsdom has no Web Animations API — stub it so flash calls are observable.
+    Element.prototype.animate = vi.fn() as any;
+    
     // Setup lightweight-charts mocks
     (createChart as any).mockReturnValue(mockChartApi);
     mockChartApi.addSeries.mockReturnValue(mockSeriesApi);
     
     // Setup socket service mocks
     (socketService.connect as any).mockClear();
-    (socketService.onPriceUpdate as any).mockReturnValue(mockUnsubscribe);
+    (socketService.onPriceUpdate as any).mockImplementation((handler: (payload: unknown) => void) => {
+      priceUpdateHandler = handler;
+      return mockUnsubscribe;
+    });
     
     // Setup priceApi mock
     (priceApi.getPriceSeries as any).mockResolvedValue([]);
@@ -282,6 +332,76 @@ describe('PriceChart', () => {
       render(<PriceChart height={300} />);
       
       expect(screen.getByText(/Loading live price data/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Last-tick Price Flash', () => {
+    it('does not flash on initial load', async () => {
+      await renderLoadedChart();
+
+      expect(Element.prototype.animate).not.toHaveBeenCalled();
+    });
+
+    it('flashes green when the last price ticks up', async () => {
+      await renderLoadedChart();
+
+      await pushLiveTick({ time: 3, value: 102 });
+
+      const flash = screen.getByTestId('price-flash');
+      expect(flash.dataset.direction).toBe('up');
+      expect(flash.style.background).toBe('rgba(34, 197, 94, 0.45)');
+      expect(Element.prototype.animate).toHaveBeenCalled();
+    });
+
+    it('flashes red when the last price ticks down', async () => {
+      await renderLoadedChart();
+
+      await pushLiveTick({ time: 3, value: 100.5 });
+
+      const flash = screen.getByTestId('price-flash');
+      expect(flash.dataset.direction).toBe('down');
+      expect(flash.style.background).toBe('rgba(239, 68, 68, 0.45)');
+      expect(Element.prototype.animate).toHaveBeenCalled();
+    });
+
+    it('does not flash when the latest price is unchanged', async () => {
+      await renderLoadedChart();
+
+      await pushLiveTick({ time: 3, value: 101 });
+
+      const flash = screen.getByTestId('price-flash');
+      expect(flash.dataset.direction).toBeUndefined();
+      expect(Element.prototype.animate).not.toHaveBeenCalled();
+    });
+
+    it('does not flash when reduced motion is preferred', async () => {
+      useSettingsStore.setState({ motionPreference: 'reduce' });
+      await renderLoadedChart();
+
+      await pushLiveTick({ time: 3, value: 102 });
+
+      const flash = screen.getByTestId('price-flash');
+      expect(flash.dataset.direction).toBeUndefined();
+      expect(Element.prototype.animate).not.toHaveBeenCalled();
+    });
+
+    it('coalesces rapid ticks so a high-frequency feed does not strobe', async () => {
+      await renderLoadedChart();
+
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      try {
+        await pushLiveTick({ time: 3, value: 102 });
+        // One flash = overlay + badge animations.
+        expect(Element.prototype.animate).toHaveBeenCalledTimes(2);
+
+        // Second tick arrives 50ms later — inside the flash cooldown → skipped.
+        nowSpy.mockReturnValue(1_000_050);
+        await pushLiveTick({ time: 4, value: 103 });
+
+        expect(Element.prototype.animate).toHaveBeenCalledTimes(2);
+      } finally {
+        nowSpy.mockRestore();
+      }
     });
   });
 

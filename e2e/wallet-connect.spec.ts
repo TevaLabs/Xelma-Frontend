@@ -1,8 +1,18 @@
 import { test, expect } from '@playwright/test';
 
 const MOCK_ADDRESS = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
+const ONBOARDING_KEY = 'xelma_onboarding_dismissed';
 
-/** Inject a fake Freighter wallet object before any app code runs. */
+/**
+ * Emulate the Freighter extension inside the page.
+ *
+ * The app talks to `@stellar/freighter-api` v6, which does not call
+ * `window.freighter.*` methods — it exchanges `postMessage` events with the
+ * extension (`FREIGHTER_EXTERNAL_MSG_REQUEST` / `..._RESPONSE`). The mock below
+ * answers those requests the way the real extension would: the wallet is
+ * installed (`window.freighter` exists) but the account is only revealed after
+ * `REQUEST_ACCESS`, mirroring the user granting access in the picker.
+ */
 function mockFreighter(page: import('@playwright/test').Page) {
   return page.addInitScript(() => {
     localStorage.setItem('xelma_onboarding_dismissed', 'true');
@@ -24,6 +34,7 @@ function mockFreighter(page: import('@playwright/test').Page) {
 test.describe('Wallet Connect – Freighter Mocked', () => {
   test('Connect page shows wallet prompt and Connect Wallet button', async ({ page }) => {
     await mockFreighter(page);
+    await dismissOnboarding(page);
 
     // Mock Horizon balance request
     await page.route('**/horizon-testnet.stellar.org/accounts/**', (route) =>
@@ -54,6 +65,7 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
 
   test('Dashboard shows wallet prompt when not connected, then navigates to connect page', async ({ page }) => {
     await mockFreighter(page);
+    await dismissOnboarding(page);
 
     // Mock Horizon balance request
     await page.route('**/horizon-testnet.stellar.org/accounts/**', (route) =>

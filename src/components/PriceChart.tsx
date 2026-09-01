@@ -18,6 +18,7 @@ import { socketService } from "../lib/socket";
 import { LoadingState, ErrorState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 import { ConnectionStatus } from "./ConnectionStatus";
 
 interface PriceChartProps {
@@ -127,6 +128,18 @@ const ASSET_BG: Record<string, string> = {
   XLM: "linear-gradient(135deg, #1e3a5f, #0a1929)",
 };
 
+// ── Last-tick price flash ──
+// The chart area briefly flashes green/red when the latest price ticks up/down.
+// The overlay only animates opacity (compositor-friendly) and the color is set
+// imperatively, so a high-tick-rate feed never triggers React re-renders.
+const FLASH_DURATION_MS = 400;
+// Minimum gap between flashes so a high-frequency feed pulses instead of strobing.
+const FLASH_MIN_INTERVAL_MS = 300;
+const FLASH_UP_BG = "rgba(34, 197, 94, 0.45)";
+const FLASH_DOWN_BG = "rgba(239, 68, 68, 0.45)";
+const FLASH_UP_GLOW = "rgba(34, 197, 94, 0.95)";
+const FLASH_DOWN_GLOW = "rgba(239, 68, 68, 0.95)";
+
 const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: PriceChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -147,6 +160,14 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   // Accessibility: Screen reader announcements
   const [announcement, setAnnouncement] = useState("");
   const lastAnnouncedRef = useRef<{ price: number, time: number } | null>(null);
+
+  const { reduced: prefersReducedMotion } = useReducedMotion();
+
+  // Last-tick price flash refs — imperative DOM animation, no state churn per tick.
+  const flashOverlayRef = useRef<HTMLDivElement>(null);
+  const flashBadgeRef = useRef<HTMLDivElement>(null);
+  const lastPriceRef = useRef<number | null>(null);
+  const lastFlashAtRef = useRef(0);
 
   // Asset-aware styling (hoisted for use in effects below)
   const lineColor = ASSET_COLORS[asset] ?? "#FFFFFF";
@@ -212,6 +233,56 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       lastAnnouncedRef.current = { price: latestPrice, time: now };
     }
   }, [latestPrice, asset, hasData]);
+
+  /**
+   * Briefly flash the chart area and the latest-price badge when the last price
+   * ticks up (green) or down (red). Runs imperatively on the DOM via the Web
+   * Animations API so per-tick updates never re-render React, and it is skipped
+   * entirely for users who prefer reduced motion.
+   */
+  const triggerFlash = useCallback((direction: "up" | "down") => {
+    const overlay = flashOverlayRef.current;
+    if (overlay && typeof overlay.animate === "function") {
+      overlay.dataset.direction = direction;
+      overlay.style.background = direction === "up" ? FLASH_UP_BG : FLASH_DOWN_BG;
+      overlay.animate(
+        [{ opacity: 1 }, { opacity: 0 }],
+        { duration: FLASH_DURATION_MS, easing: "ease-out", fill: "forwards" },
+      );
+    }
+
+    const badge = flashBadgeRef.current;
+    if (badge && typeof badge.animate === "function") {
+      const glow = direction === "up" ? FLASH_UP_GLOW : FLASH_DOWN_GLOW;
+      badge.animate(
+        [
+          { boxShadow: `0 0 0 3px ${glow}, 0 0 14px ${glow}` },
+          { boxShadow: "0 0 0 0 rgba(0,0,0,0)" },
+        ],
+        { duration: FLASH_DURATION_MS, easing: "ease-out" },
+      );
+    }
+  }, []);
+
+  // Watch the latest price and flash when it ticks up/down.
+  useEffect(() => {
+    if (!hasData || !Number.isFinite(latestPrice) || latestPrice <= 0) return;
+
+    const previous = lastPriceRef.current;
+    lastPriceRef.current = latestPrice;
+
+    // First data point or an unchanged price → nothing to flash.
+    if (previous === null || previous === latestPrice) return;
+
+    if (prefersReducedMotion) return;
+
+    // Coalesce bursts so a high-tick-rate feed flashes briefly instead of constantly.
+    const now = Date.now();
+    if (now - lastFlashAtRef.current < FLASH_MIN_INTERVAL_MS) return;
+    lastFlashAtRef.current = now;
+
+    triggerFlash(latestPrice > previous ? "up" : "down");
+  }, [latestPrice, hasData, prefersReducedMotion, triggerFlash]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -674,6 +745,14 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
               background: "linear-gradient(180deg, rgba(30, 58, 95, 0.45) 0%, rgba(19, 39, 79, 0.5) 50%, rgba(10, 25, 41, 0.55) 100%)",
             }}
           />
+          {/* Price-tick flash overlay — flashes green/red briefly when the last price moves */}
+          <div
+            ref={flashOverlayRef}
+            data-testid="price-flash"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-10 rounded-xl"
+            style={{ opacity: 0 }}
+          />
           {/* Chart — leaves space on the right so line terminates exactly at the badge */}
           <div 
             ref={chartContainerRef} 
@@ -725,6 +804,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
               />
               {/* The badge box */}
               <div
+                ref={flashBadgeRef}
                 className="font-bold text-xs px-2 py-1 rounded shadow-sm tabular-nums whitespace-nowrap relative"
                 style={{
                   background: "rgba(255,255,255,0.98)",
