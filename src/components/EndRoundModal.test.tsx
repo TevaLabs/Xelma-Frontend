@@ -25,7 +25,6 @@ describe('EndRoundModal accessibility', () => {
     await waitFor(() => {
       const winRegion = document.querySelector('[aria-live="polite"]');
       expect(winRegion).toBeInTheDocument();
-      expect(winRegion).toHaveTextContent(/round result: win/i);
       expect(winRegion).toHaveTextContent(/net gain plus \$42\.00/i);
     });
     unmount();

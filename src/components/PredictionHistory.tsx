@@ -4,6 +4,8 @@ import { LoadingState, ErrorState, EmptyState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
 import { formatVXLM, formatRelativeTime } from "../lib/utils";
 
+const PAGE_SIZE = 10;
+
 interface PredictionHistoryProps {
   userId: string | null;
   optimisticPrediction?: UserPrediction | null;
@@ -16,8 +18,6 @@ interface PredictionHistoryProps {
    */
   refreshSignal?: number;
 }
-
-const PAGE_SIZE = 10;
 
 function formatStake(value?: string | number): string {
   if (value === undefined || value === null || value === "") return "N/A";
@@ -161,7 +161,6 @@ export default function PredictionHistory({ userId, optimisticPrediction, refres
   }, [history, userId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadHistory();
     // refreshSignal is intentionally included so a change re-triggers the
     // fetch even though loadHistory's own identity doesn't depend on it.

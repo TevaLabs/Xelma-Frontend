@@ -367,6 +367,18 @@ describe('Dashboard', () => {
       expect(mockWalletStore.connect).toHaveBeenCalledTimes(1);
       expect(screen.getByTestId('mode-practice-btn')).toHaveAttribute('aria-checked', 'true');
     });
+
+    it('opens the open positions drawer from the dashboard entry point', () => {
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('open-positions-trigger'));
+
+      expect(screen.getByRole('dialog', { name: /open positions/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'No open positions' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close open positions' }));
+      expect(screen.queryByRole('dialog', { name: /open positions/i })).not.toBeInTheDocument();
+    });
   });
 
   describe('wallet connection states', () => {

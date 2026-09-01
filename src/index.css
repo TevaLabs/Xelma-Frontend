@@ -9,6 +9,7 @@
   --color-xelma-blue: #2c4bfd;
   --color-xelma-blue-dark: #1e3fd4;
   --color-xelma-teal: #06b6d4;
+  --color-xelma-teal-dark: #0e7490;
   --color-xelma-teal-bright: #22d3ee;
   --duration-fast: 150ms;
   --duration-normal: 200ms;
@@ -86,7 +87,7 @@ body {
 
 /* Primary CTA */
 .btn-primary {
-  background: linear-gradient(135deg, #2c4bfd 0%, #1e3fd4 50%, #0891b2 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 50%, #0e7490 100%);
   color: #fff;
   transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
   box-shadow: 0 4px 24px rgba(44, 75, 253, 0.3);

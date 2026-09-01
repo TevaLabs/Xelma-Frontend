@@ -5,16 +5,15 @@ import Navbar from './components/Navbar';
 import CommandPalette from './components/CommandPalette';
 import PageSkeleton from './components/PageSkeleton';
 import RouteProgressBar from './components/RouteProgressBar';
-import Landing from './pages/Landing';
-import RouteFallback from './components/RouteFallback';
 import RouteTransition from './components/RouteTransition';
+import Landing from './pages/Landing';
+import NotFound from './pages/NotFound';
+import RouteFallback from './components/RouteFallback';
 import LazyBoundary from './components/LazyBoundary';
 import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import Footer from './components/Footer';
 import OnboardingChecklist from './components/OnboardingChecklist';
-
-const NotFound = lazy(() => import('./pages/NotFound'));
 const Dashboard = lazy(() => import(/* webpackChunkName: "dashboard" */ './pages/Dashboard'));
 const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './components/Leaderboard'));
 const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));
@@ -59,8 +58,7 @@ function App() {
                 <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+                <Route path="*" element={<NotFound />} />                </Routes>
             </RouteTransition>
           </Suspense>
         </LazyBoundary>

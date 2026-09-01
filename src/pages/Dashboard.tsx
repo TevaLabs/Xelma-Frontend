@@ -48,6 +48,38 @@ import { mockRounds } from "../data/mockData";
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
+import OpenPositionsDrawer, { type OpenPosition } from "../components/OpenPositionsDrawer";
+
+const OPEN_PREDICTION_STATUSES = new Set(["open", "pending", "active", "placed", "unresolved"]);
+
+function isOpenPrediction(pred: UserPrediction, activeRoundId?: string | number | null): boolean {
+  const status = String(pred.status ?? "").toLowerCase();
+  if (status) return OPEN_PREDICTION_STATUSES.has(status);
+
+  return (
+    activeRoundId !== undefined &&
+    activeRoundId !== null &&
+    pred.roundId !== undefined &&
+    pred.roundId !== null &&
+    String(pred.roundId) === String(activeRoundId)
+  );
+}
+
+function mapPredictionToOpenPosition(pred: UserPrediction): OpenPosition {
+  return {
+    id: pred.id,
+    asset: typeof pred.asset === "string" ? pred.asset : undefined,
+    direction: typeof pred.direction === "string" ? pred.direction : undefined,
+    stake: pred.stake,
+    exactPrice: pred.exactPrice,
+    roundId: pred.roundId,
+    potentialPayout:
+      typeof pred.potentialPayout === "string" || typeof pred.potentialPayout === "number"
+        ? pred.potentialPayout
+        : undefined,
+    createdAt: pred.createdAt,
+  };
+}
 
 /**
  * Issue #413 — derive the UP/DOWN pool split (0-100) for a round so the
@@ -185,7 +217,8 @@ const Dashboard = () => {
   const publicKey = useWalletStore((s) => s.publicKey);
   const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
-  const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
+  const activeRound = useRoundStore((state) => state.activeRound);
+  const activeRoundId = activeRound?.id ?? null;
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
@@ -230,7 +263,9 @@ const Dashboard = () => {
   const [statsError, setStatsError] = useState<string | null>(null);
 
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
+  const [openPositions, setOpenPositions] = useState<OpenPosition[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
+  const [isOpenPositionsOpen, setIsOpenPositionsOpen] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
   const [inspector, setInspector] = useState<SorobanInspectorSnapshot | null>(null);
   const [isInspectorLoading, setIsInspectorLoading] = useState(false);
@@ -319,6 +354,7 @@ const Dashboard = () => {
   const fetchActivities = useCallback(async () => {
     if (!isWalletConnected || !publicKey) {
       setActivities([]);
+      setOpenPositions([]);
       return;
     }
     setIsActivitiesLoading(true);
@@ -326,13 +362,19 @@ const Dashboard = () => {
     try {
       const data = await predictionsApi.getUserHistory(publicKey);
       setActivities(data.map(mapPredictionToActivityItem));
+      setOpenPositions(
+        data
+          .filter((prediction) => isOpenPrediction(prediction, activeRoundId))
+          .map(mapPredictionToOpenPosition),
+      );
     } catch (err) {
       console.error("Failed to fetch predictions:", err);
+      setOpenPositions([]);
       setActivitiesError(err instanceof Error ? err.message : "Failed to load predictions");
     } finally {
       setIsActivitiesLoading(false);
     }
-  }, [isWalletConnected, publicKey]);
+  }, [activeRoundId, isWalletConnected, publicKey]);
 
   useEffect(() => {
     // Deferred through a promise chain so the effect performs no synchronous
@@ -516,7 +558,15 @@ const Dashboard = () => {
         {/* Round lifecycle timeline, ported from /play. */}
         {!isLoading && (
           <div className="mb-6">
-            <div className="mb-3 flex justify-end">
+            <div className="mb-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsOpenPositionsOpen(true)}
+                data-testid="open-positions-trigger"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-[#2C4BFD]/40 hover:text-white"
+              >
+                Open positions{openPositions.length > 0 ? ` (${openPositions.length})` : ''}
+              </button>
               <button
                 type="button"
                 onClick={() => setIsEventLogOpen(true)}
@@ -711,6 +761,13 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      <OpenPositionsDrawer
+        isOpen={isOpenPositionsOpen}
+        onClose={() => setIsOpenPositionsOpen(false)}
+        positions={openPositions}
+        activeRound={activeRound}
+      />
 
       {/* Mobile sticky predict action bar — visible only on small screens */}
       {!isLoading && isRoundActive && (

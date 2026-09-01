@@ -42,8 +42,6 @@ export function usePredictionPulse(): PredictionPulseState {
       unsub();
       if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
     };
-  // triggerFlash is stable (defined outside), eslint is fine with this
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { count, flashing, isLive: isConnected };
@@ -74,7 +72,6 @@ export function usePredictionPulseMock(): PredictionPulseState {
       clearInterval(id);
       if (flashTimerRef.current !== null) clearTimeout(flashTimerRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { count, flashing, isLive: true };
