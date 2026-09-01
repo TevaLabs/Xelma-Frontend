@@ -13,7 +13,7 @@
     "orientationAngle": 0,
     "orientationType": "landscape-primary"
   },
-  "timestamp": "2026-08-31T15:39:04.465Z",
+  "timestamp": "2026-08-31T14:21:56.135Z",
   "url": "http://localhost:5173/",
   "toolOptions": {
     "runOnly": {
@@ -2154,7 +2154,7 @@
           "impact": null,
           "html": "<span aria-hidden=\"true\">→</span>",
           "target": [
-            ".text-gray-950 > span"
+            ".text-slate-950 > span"
           ]
         },
         {
@@ -3148,7 +3148,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" class=\"btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60\" disabled=\"\">Connecting…</button>",
+          "html": "<button type=\"button\" class=\"btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60\">Connect Wallet</button>",
           "target": [
             ".disabled\\:opacity-60"
           ]
@@ -3923,7 +3923,7 @@
           "impact": null,
           "html": "<a class=\"mt-6 inline-flex w-f...\" href=\"/dashboard\" data-discover=\"true\">",
           "target": [
-            ".text-gray-950"
+            ".text-slate-950"
           ]
         },
         {
@@ -4540,7 +4540,7 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button type=\"button\" class=\"btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60\" disabled=\"\">Connecting…</button>",
+          "html": "<button type=\"button\" class=\"btn-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60\">Connect Wallet</button>",
           "target": [
             ".disabled\\:opacity-60"
           ]

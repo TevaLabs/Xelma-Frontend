@@ -12,7 +12,7 @@ function mockFreighter(page: import('@playwright/test').Page) {
         return Promise.resolve({ address: mockAddress, error: null });
       },
       getAddress: () =>
-        Promise.resolve({ address: mockAddress, error: null }),
+        Promise.resolve({ address: connected ? mockAddress : '', error: null }),
       getNetwork: () => Promise.resolve({ network: 'TESTNET', error: null }),
       signMessage: (message: string) =>
         Promise.resolve({ signedMessage: `mocked_signature_${message}`, error: null }),
@@ -22,11 +22,27 @@ function mockFreighter(page: import('@playwright/test').Page) {
 
 test.describe('Smoke Tests - Critical Routes', () => {
   test.beforeEach(async ({ page }) => {
+    page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
+    page.on('pageerror', (err) => console.log('PAGE ERROR:', err.message, err.stack));
+
     await page.addInitScript(() => {
-      localStorage.setItem('xelma_onboarding_dismissed', 'true');
+      window.localStorage.setItem('xelma_onboarding_dismissed', 'true');
+      let connected = false;
+      (window as unknown as Record<string, unknown>).freighter = {
+        isConnected: () => Promise.resolve({ isConnected: connected }),
+        requestAccess: () => {
+          connected = true;
+          return Promise.resolve({ address: 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE', error: null });
+        },
+        getAddress: () =>
+          Promise.resolve({ address: 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE', error: null }),
+        getNetwork: () => Promise.resolve({ network: 'TESTNET', error: null }),
+        signMessage: (message: string) =>
+          Promise.resolve({ signedMessage: `mocked_signature_${message}`, error: null }),
+      };
     });
-    await mockFreighter(page);
-    await page.route('**/horizon-testnet.stellar.org/accounts/**', (route) =>
+
+    await page.route('**/horizon-testnet.stellar.org/**', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -35,13 +51,7 @@ test.describe('Smoke Tests - Critical Routes', () => {
         }),
       }),
     );
-    await page.route('**/api/rounds/active', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: 'null',
-      }),
-    );
+
     await page.route('**/api/auth/**', (route) =>
       route.fulfill({
         status: 200,
@@ -49,10 +59,17 @@ test.describe('Smoke Tests - Critical Routes', () => {
         body: JSON.stringify({ challenge: 'mock_challenge', token: 'mock_jwt_token' }),
       }),
     );
+    await page.route('**/api/rounds/active', (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'No active round' }),
+      }),
+    );
   });
-
   test('Landing page loads and renders correctly', async ({ page }) => {
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
 
     // Verify page title
     await expect(page).toHaveTitle(/Xelma/i);
@@ -72,7 +89,15 @@ test.describe('Smoke Tests - Critical Routes', () => {
   });
 
   test('Dashboard page loads and renders correctly', async ({ page }) => {
+    await mockFreighter(page);
     await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // Close any modal overlay that might be present (e.g., onboarding checklist)
+    const modalOverlay = page.locator('.fixed.inset-0');
+    if (await modalOverlay.first().isVisible().catch(() => false)) {
+      await page.keyboard.press('Escape');
+    }
 
     // Verify page title
     await expect(page).toHaveTitle(/Xelma/i);
@@ -90,6 +115,7 @@ test.describe('Smoke Tests - Critical Routes', () => {
 
   test('Leaderboard page loads and renders correctly', async ({ page }) => {
     await page.goto('/leaderboard');
+    await page.waitForLoadState('networkidle');
 
     // Verify page title
     await expect(page).toHaveTitle(/Xelma/i);

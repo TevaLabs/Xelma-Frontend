@@ -151,7 +151,7 @@ export default function Footer({
                     <Github className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span className="truncate">GitHub</span>
                     <ExternalLink
-                      className="h-3 w-3 shrink-0 text-gray-400"
+                      className="h-3 w-3 shrink-0 text-gray-500"
                       aria-hidden="true"
                     />
                   </a>
@@ -165,7 +165,7 @@ export default function Footer({
                     <BookOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span className="truncate">Documentation</span>
                     <ExternalLink
-                      className="h-3 w-3 shrink-0 text-gray-400"
+                      className="h-3 w-3 shrink-0 text-gray-500"
                       aria-hidden="true"
                     />
                   </a>

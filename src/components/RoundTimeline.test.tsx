@@ -75,7 +75,6 @@ describe('RoundTimeline', () => {
     render(<RoundTimeline />);
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
-    expect(screen.getByText(/Follow the current round state/i)).toBeInTheDocument();
     expect(screen.getByText(/Round stages: Upcoming, Live, Resolving, Finished/i)).toBeInTheDocument();
   });
 

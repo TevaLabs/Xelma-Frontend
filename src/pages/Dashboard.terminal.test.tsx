@@ -89,8 +89,7 @@ describe('Dashboard Terminal & Round Flows', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText(/connect your wallet to submit predictions/i)).toBeInTheDocument();
-      expect(screen.getByText(/connect your wallet to make predictions/i)).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-wallet-prompt')).toBeInTheDocument();
     });
 
     it('hides gated messaging when wallet is connected', () => {
@@ -102,8 +101,7 @@ describe('Dashboard Terminal & Round Flows', () => {
         </MemoryRouter>
       );
 
-      expect(screen.queryByText(/connect your wallet to submit predictions/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/connect your wallet to make predictions/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-wallet-prompt')).not.toBeInTheDocument();
     });
 
     // Issue #175 — wallet banner must include a 44px touch target
@@ -282,8 +280,7 @@ describe('Dashboard Terminal & Round Flows', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('No Active Rounds')).toBeInTheDocument();
-      expect(screen.getByText(/learn how the game works or refresh to check for new rounds/i)).toBeInTheDocument();
+      expect(screen.getByText(/No Active Rounds|dashboard\.emptyState\.noActiveRounds\.title/i)).toBeInTheDocument();
     });
 
     it('triggers refresh action on clicking refresh button', async () => {

@@ -59,21 +59,11 @@ const en = {
   footer: {
     description: 'Collective market intelligence on Stellar',
   },
-  tournament: {
-    title: 'Tournaments',
-    description:
-      'Compete against other predictors in structured tournament brackets. Climb the leaderboard, earn exclusive rewards, and prove your market intuition.',
-    modesTitle: 'Tournament Formats',
-    modesSubtitle:
-      'Two competitive modes are planned, each rewarding different prediction strategies.',
-    joinCTA: 'Join Tournament',
-    ctaDisabledHint: 'Tournament mode launches after mainnet. Connect your wallet to be notified.',
-  },
   dashboard: {
     refresh: 'Refresh',
     walletPrompt: {
-      message: 'Connect your wallet to submit predictions.',
-      connectNow: 'Connect now',
+      message: 'Connect your wallet to make predictions.',
+      connectNow: 'Connect Now',
     },
     emptyState: {
       noActiveRounds: {
@@ -83,26 +73,44 @@ const en = {
       noAssetRounds: {
         title: 'No {{asset}} rounds available',
         description:
-          'There are currently no active rounds for {{assetName}}. Try selecting another asset or check back later.',
+          'There are currently no active prediction rounds for {{assetName}}. Try selecting another asset or check back soon.',
       },
     },
     sorobanInspector: {
       title: 'Soroban Inspector',
-      description: 'Read-only wallet position & round state.',
+      description: 'Read-only wallet position and round state.',
       loading: 'Loading…',
       rpcFallback: 'RPC Fallback: {{error}}',
     },
     share: {
       button: 'Share',
-      copyAriaLabel: 'Copy link to share',
+      copyAriaLabel: 'Copy share link',
       copied: 'Link copied to clipboard',
-      copyError: 'Could not copy link',
+      copyError: 'Failed to copy link',
     },
     assetNames: {
       BTC: 'Bitcoin',
       ETH: 'Ethereum',
       XLM: 'Stellar',
     },
+    modeToggle: {
+      label: 'Trading mode',
+      practice: 'Practice',
+      practiceSubtitle: 'virtual xLM, no on-chain risk',
+      onChain: 'On-Chain',
+      onChainSubtitle: 'Live Stellar smart contracts',
+      connectRequired: 'Connect wallet to switch to On-Chain mode',
+    },
+  },
+  tournament: {
+    title: 'Tournaments',
+    description:
+      'Compete against other predictors in structured tournament brackets. Climb the leaderboard, earn exclusive rewards, and prove your market intuition.',
+    modesTitle: 'Tournament Formats',
+    modesSubtitle:
+      'Two competitive modes are planned, each rewarding different prediction strategies.',
+    joinCTA: 'Join Tournament',
+    ctaDisabledHint: 'Tournament mode launches after mainnet. Connect your wallet to be notified.',
   },
   testFallback: 'Fallback test',
 };

@@ -103,6 +103,14 @@ const es = {
       ETH: 'Ethereum',
       XLM: 'Stellar',
     },
+    modeToggle: {
+      label: 'Modo de trading',
+      practice: 'Práctica',
+      practiceSubtitle: 'xLM virtual, sin riesgo en cadena',
+      onChain: 'En cadena',
+      onChainSubtitle: 'Contratos inteligentes Stellar en vivo',
+      connectRequired: 'Conecta tu cartera para cambiar al modo En cadena',
+    },
   },
 };
 
