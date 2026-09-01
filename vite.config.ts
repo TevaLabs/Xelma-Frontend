@@ -13,6 +13,7 @@ export default defineConfig({
       includeAssets: [
         'branding/favicon.svg',
         'branding/concept-a/xelma-logo-concept-a-64.png',
+        'branding/concept-a/xelma-logo-concept-a-192.png',
         'branding/concept-a/xelma-logo-concept-a-256.png',
         'branding/concept-a/xelma-logo-concept-a-512.png',
         'manifest.webmanifest',
