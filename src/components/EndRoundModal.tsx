@@ -29,6 +29,12 @@ export default function EndRoundModal({
     tip = 'Stay tuned for the next round.',
   } = result ?? {};
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const formattedAmount = Math.abs(amount).toFixed(2);
+  const resultAnnouncement = isOpen
+    ? isWin
+      ? `Round result: win. Net gain plus $${formattedAmount}. ${tip}`
+      : `Round result: loss. Net loss minus $${formattedAmount}. ${tip}`
+    : '';
 
   useEffect(() => {
     if (!isOpen || !playResolveSound) return;
@@ -64,6 +70,11 @@ export default function EndRoundModal({
           aria-label={isWin ? 'Spectacular Win!' : 'Tough Break'}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 focus:outline-none"
         >
+          {resultAnnouncement && (
+            <div aria-live="polite" aria-atomic="true" className="sr-only" role="status">
+              {resultAnnouncement}
+            </div>
+          )}
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0A0F1A] p-6">
             <Dialog.Title className="text-2xl font-black text-white">
               {isWin ? 'Spectacular Win!' : 'Tough Break'}

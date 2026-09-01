@@ -41,6 +41,9 @@ vi.mock('lucide-react', () => ({
   Wallet: ({ className, ...props }: any) => <div data-testid="wallet-icon" className={className} {...props} />,
   ShieldCheck: ({ className, ...props }: any) => <div data-testid="shield-icon" className={className} {...props} />,
   RefreshCw: ({ className, ...props }: any) => <div data-testid="refresh-icon" className={className} {...props} />,
+  AlertTriangle: ({ className, ...props }: any) => <div data-testid="alert-triangle-icon" className={className} {...props} />,
+  Download: ({ className, ...props }: any) => <div data-testid="download-icon" className={className} {...props} />,
+  ExternalLink: ({ className, ...props }: any) => <div data-testid="external-link-icon" className={className} {...props} />,
   // Used by the WalletPicker rendered alongside the connect button.
   X: ({ className, ...props }: any) => <div data-testid="close-icon" className={className} {...props} />,
 }));
@@ -269,34 +272,44 @@ describe('WalletConnect', () => {
   });
 
   describe('error state', () => {
-    beforeEach(() => {
+    it('shows FreighterMissingCard when extension is missing', () => {
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = {
           ...mockWalletStore,
           status: 'error',
-          errorMessage: 'Freighter is not installed',
+          errorCode: 'FREIGHTER_UNAVAILABLE',
+          errorMessage: 'Freighter is not installed or not unlocked.',
         };
         return typeof selector === 'function' ? selector(store) : store;
       });
+
+      render(<WalletConnect />);
+
+      expect(screen.getByTestId('freighter-missing-card')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /freighter extension required/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /install freighter extension/i })).toBeInTheDocument();
+
+      const retryButton = screen.getByRole('button', { name: /re-check connection/i });
+      fireEvent.click(retryButton);
+      expect(mockWalletStore.clearError).toHaveBeenCalledTimes(1);
+      expect(mockWalletStore.checkConnection).toHaveBeenCalled();
     });
 
-    it('shows error message', () => {
+    it('shows generic connection error and retry button for other errors', () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'error',
+          errorCode: 'ACCESS_DENIED',
+          errorMessage: 'User denied access',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
       render(<WalletConnect />);
 
       const errorAlert = screen.getByRole('alert');
-      expect(errorAlert).toHaveTextContent('Freighter is not installed');
-    });
-
-    it('shows retry button', () => {
-      render(<WalletConnect />);
-
-      const retryButton = screen.getByRole('button', { name: /retry/i });
-      expect(retryButton).toBeInTheDocument();
-      expect(screen.getByTestId('refresh-icon')).toBeInTheDocument();
-    });
-
-    it('clears error and reconnects when retry is clicked', () => {
-      render(<WalletConnect />);
+      expect(errorAlert).toHaveTextContent('User denied access');
 
       const retryButton = screen.getByRole('button', { name: /retry/i });
       fireEvent.click(retryButton);

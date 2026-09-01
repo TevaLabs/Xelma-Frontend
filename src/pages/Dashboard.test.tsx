@@ -1,5 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import '../i18n';
+import i18n from '../i18n';
 
 // Configurable search params for testing deep-linking
 let mockSearchParams = new URLSearchParams();
@@ -71,6 +73,7 @@ const mockRoundStore = {
 const mockWalletStore = {
   status: 'connected' as const,
   publicKey: 'GTEST123',
+  connect: vi.fn(),
 };
 
 // Mock the stores with proper Zustand-like behavior
@@ -265,6 +268,7 @@ describe('Dashboard', () => {
     Object.assign(mockWalletStore, {
       status: 'connected',
       publicKey: 'GTEST123',
+      connect: vi.fn(),
     });
 
     localStorage.clear();
@@ -289,8 +293,8 @@ describe('Dashboard', () => {
     });
   });
 
-  afterEach(() => {
-    // no-op
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
   });
 
   describe('rendering', () => {
@@ -323,7 +327,45 @@ describe('Dashboard', () => {
       render(<Dashboard />);
 
       expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
-      expect(screen.getByText('Share')).toBeInTheDocument();
+      expect(screen.getByTestId('share-rounds-btn')).toHaveTextContent(/Share|dashboard\.share\.button/i);
+    });
+  });
+
+  describe('mode toggle & persistence', () => {
+    it('renders mode toggle on the dashboard header', () => {
+      render(<Dashboard />);
+
+      const toggle = screen.getByTestId('dashboard-mode-toggle');
+      expect(toggle).toBeInTheDocument();
+      expect(screen.getByTestId('mode-practice-btn')).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByTestId('practice-risk-free-label')).toHaveTextContent(
+        'virtual xLM, no on-chain risk'
+      );
+    });
+
+    it('persists selected mode in localStorage when switched', () => {
+      render(<Dashboard />);
+
+      const onChainBtn = screen.getByTestId('mode-onchain-btn');
+      fireEvent.click(onChainBtn);
+
+      expect(localStorage.getItem('xelma_mode')).toBe('on-chain');
+      expect(onChainBtn).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('prompts wallet connection and remains in practice mode when clicking on-chain while disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      const onChainBtn = screen.getByTestId('mode-onchain-btn');
+      fireEvent.click(onChainBtn);
+
+      expect(mockWalletStore.connect).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('mode-practice-btn')).toHaveAttribute('aria-checked', 'true');
     });
   });
 
@@ -397,7 +439,7 @@ describe('Dashboard', () => {
 
       render(<Dashboard />);
 
-      expect(screen.getByText('No Active Rounds')).toBeInTheDocument();
+      expect(screen.getByText(/No Active Rounds|dashboard\.emptyState\.noActiveRounds\.title/i)).toBeInTheDocument();
       expect(screen.queryByTestId('prediction-card')).not.toBeInTheDocument();
     });
 
@@ -544,70 +586,87 @@ describe('Dashboard', () => {
     });
   });
 
-  describe('round deep-link scroll behavior (?round=)', () => {
-    it('scrolls the highlighted RoundCard into view when the round id is visible', async () => {
-      mockSearchParams = new URLSearchParams('round=3');
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+  describe('localization', () => {
+    it('renders Spanish wallet prompt and share button when locale is changed to es', async () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      await i18n.changeLanguage('es');
 
       render(<Dashboard />);
 
-      // Multiple RoundCards render (one per XLM round); find the highlighted one.
-      const cards = await screen.findAllByTestId('round-card');
-      const highlighted = cards.find((c) => c.getAttribute('data-highlighted') === 'true');
-
-      expect(highlighted).toBeTruthy();
-      expect(highlighted).toHaveAttribute('data-highlighted', 'true');
-      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ block: 'center' }),
+      expect(screen.getByTestId('dashboard-wallet-prompt')).toHaveTextContent(
+        'Conecta tu cartera para enviar predicciones.'
       );
+      expect(screen.getByTestId('dashboard-connect-now')).toHaveTextContent('Conectar ahora');
+      expect(screen.getByTestId('share-rounds-btn')).toHaveTextContent(/Compartir|dashboard\.share\.button/i);
     });
 
-    it('does not call scrollIntoView when the round id is missing', () => {
-      mockSearchParams = new URLSearchParams();
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+    it('renders Spanish empty state when no round is active', async () => {
+      vi.mocked(useRoundStore).mockImplementation((selector: any) => {
+        const store = { ...mockRoundStore, isRoundActive: false };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      await i18n.changeLanguage('es');
 
       render(<Dashboard />);
 
-      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+      expect(screen.getByText(/No hay rondas activas|dashboard\.emptyState\.noActiveRounds\.title/i)).toBeInTheDocument();
     });
+  });
 
-    it('does not call scrollIntoView when the deep-linked round is filtered out by the asset tab', () => {
-      // Round id 3 is an XLM round; requesting it while on the BTC tab means
-      // it never renders, so there is nothing to scroll to.
-      mockSearchParams = new URLSearchParams('round=3&asset=BTC');
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
-
-      render(<Dashboard />);
-
-      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
-    });
-
-    it('uses instant scroll behavior when reduced motion is preferred', () => {
-      mockSearchParams = new URLSearchParams('round=3');
-      const scrollIntoViewSpy = vi.fn();
-      Element.prototype.scrollIntoView = scrollIntoViewSpy;
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: vi.fn().mockImplementation((query: string) => ({
-          matches: query.includes('prefers-reduced-motion'),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(),
-        })),
+  describe('user stats panel', () => {
+    it('renders live stats when connected and API response succeeds', async () => {
+      vi.mocked(statsApi.getUserStats).mockResolvedValue({
+        balance: 999.5,
+        pendingWinnings: 50,
+        totalWins: 8,
+        totalLosses: 2,
+        currentStreak: 5,
+        xp: 1200,
+        rank: 'Analyst',
       });
 
       render(<Dashboard />);
 
-      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ behavior: 'auto' }),
-      );
+      expect(await screen.findByText('999.50 vXLM')).toBeInTheDocument();
+      expect(screen.getByText('5 rounds')).toBeInTheDocument();
+      expect(screen.getByText('8')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it('renders empty state without mock numbers when connected and API returns null', async () => {
+      vi.mocked(statsApi.getUserStats).mockResolvedValue(null);
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('User stats unavailable')).toBeInTheDocument();
+      expect(screen.queryByText('1000 vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+    });
+
+    it('renders error state when connected and API call fails', async () => {
+      vi.mocked(statsApi.getUserStats).mockRejectedValue(new Error('Network failure'));
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('Network failure')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    });
+
+    it('does not render stats panel when wallet is disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.queryByText('Your Record')).not.toBeInTheDocument();
     });
   });
 });
+

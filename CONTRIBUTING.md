@@ -36,54 +36,116 @@ The app has a dual-dashboard model plus a standalone landing page:
 
 - `/` renders the bespoke public landing experience.
 - `/dashboard` is the **single primary prediction terminal**. It includes the price chart, round lifecycle timeline, connection status, end-round modal, and opt-in community chat. This is the live dashboard used for all connected prediction flows.
-- `/play` is **deprecated** and permanently redirects to `/dashboard`. The `LegacyDashboard` component is retained only for reference and is no longer routed. New work should target `/dashboard` exclusively.
+- `/play` is **deprecated** and permanently redirects to `/dashboard`. The former `LegacyDashboard` page has been removed. New work should target `/dashboard` exclusively.
 
 All routed pages are composed under the dark terminal shell in `src/App.tsx`: `<OfflineBanner />`, `<Navbar />`, lazy routes, `<Footer />` (except the landing route), and `<Toaster />`. Avoid adding a second global shell or duplicate header. Prefer existing dark palette utilities and shared components.
 
 **Canonical shared UI:** Import `PanelHeader` only from `src/components/ui/PanelHeader.tsx`. Do not recreate a root-level `src/components/PanelHeader.tsx` — the duplicate was removed to prevent API drift.
 
-## Stellar Wave contributor quick-start
+## ContributorTaskPlaceholder rebuild workflow
 
-Xelma participates in the Stellar Wave hackathon program. This section is the fastest path
-for a new contributor to find rebuildable stubs and start shipping.
+Several UI surfaces are intentionally left as contributor rebuild tasks for the
+[Stellar Wave program](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3A%22Stellar+Wave%22).
+This section documents how those stubs work, how to claim them, and what
+“done” means.
 
-### 1. Find rebuild stubs with ContributorTaskPlaceholder
+### How stubs work
 
-The `ContributorTaskPlaceholder` component (`src/components/ContributorTaskPlaceholder.tsx`)
-is a temporary shell that marks UI surfaces intentionally stubbed for contributor rebuilds.
-It renders a dashed cyan border with a title and an `issueHint` linking back to the
-relevant GitHub issue.
+1. **`ContributorTaskPlaceholder` shell** — `src/components/ContributorTaskPlaceholder.tsx`
+   renders a dashed cyan bordered panel with a title and `issueHint`. It marks
+   UI chrome that is safe to replace while surrounding logic stays in place.
 
-Search for import references to find all active stubs:
+2. **`STUBBED` file comments** — stubbed files include a block comment such as
+   `STUBBED for contributor rebuild`. Read it before editing; it lists what
+   maintainers intentionally preserved (stores, hooks, aria-live regions, modal
+   wiring, mock data, tests).
+
+3. **What stays, what goes**
+   - **Keep:** data wiring, state machines, accessibility hooks, existing tests,
+     and any non-visual behavior called out in the stub comment.
+   - **Replace:** the placeholder panel and any temporary “stub” buttons or copy
+     inside it with production UI using the dark terminal / glass-card design
+     system (`glass-card`, brand blues/teals, no light emerald/rose cards).
+
+4. **Finding stubs in the tree**
 
 ```bash
 grep -r "ContributorTaskPlaceholder" src/
+grep -r "STUBBED for" src/
 ```
 
-Active stubs (search for the component name in [open Stellar Wave issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3A%22Stellar+Wave%22) to find the corresponding rebuild issue):
+Each `issueHint` string describes the acceptance criteria embedded in the file.
+Cross-check with the linked [open Stellar Wave issue](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3A%22Stellar+Wave%22)
+before starting work.
+
+### How to claim a rebuild issue
+
+1. Browse [open Stellar Wave issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3A%22Stellar+Wave%22).
+2. Comment on the issue with your plan and wait for maintainer acknowledgement
+   when required by the wave program.
+3. Create a focused branch (e.g. `issue-123-rebuild-round-timeline`).
+4. Replace the `ContributorTaskPlaceholder` wrapper with real UI that satisfies
+   the issue acceptance criteria **and** the stub comment in the file.
+5. Remove the `ContributorTaskPlaceholder` import when the surface is fully rebuilt.
+6. Open a PR referencing the issue (`Closes #123`) with before/after screenshots
+   or a short screen recording for visible UI changes.
+
+> **Tip:** run the file’s existing unit tests after your rebuild. Many stubs keep
+> behavioral tests (modal focus traps, aria-live announcements, store hydration)
+> that must continue to pass even while visuals change.
+
+### Definition of done (rebuild tasks)
+
+A rebuild issue is complete when **all** of the following are true:
+
+- [ ] `ContributorTaskPlaceholder` is fully removed from the target file(s).
+- [ ] The new UI matches the dark terminal design system and any file-level
+      `STUBBED` guidance (glass cards, SVG/lucide icons, brand tokens).
+- [ ] Preserved logic still works: stores/hooks, keyboard shortcuts, aria-live
+      regions, modal open/close, loading states, and mock/API wiring called out
+      in the stub comment.
+- [ ] Existing unit tests for the component/page still pass; add or update tests
+      when behavior changes.
+- [ ] No duplicate global shells or conflicting components are introduced.
+- [ ] PR links the GitHub issue and includes visual QA evidence for UI changes.
+
+### Currently stubbed components
+
+#### Primary rebuild surfaces
+
+These are the main contributor targets called out for Stellar Wave rebuilds:
+
+| Component | Location | Notes |
+| --- | --- | --- |
+| `OfflineBanner` | `src/components/OfflineBanner.tsx` | Global connection-lost alert mounted in `App.tsx`. Functional baseline without a placeholder wrapper; use its assertive `aria-live` alert pattern when rebuilding related connection UX. |
+| `ProfileSummaryCard` | `src/components/ProfileSummaryCard.tsx` | Store hydrate + `ProfileSettingsModal` wiring kept; rebuild glass-card profile summary. |
+| `Pools` | `src/pages/Pools.tsx` | Mock pool data + loading spinner kept; rebuild pools transparency cards. |
+| `RoundTimeline` | `src/components/RoundTimeline.tsx` | Round state machine + sr-only aria-live kept; rebuild Upcoming → Live → Resolving → Finished stepper. |
+| `EndRoundModal` | `src/components/EndRoundModal.tsx` | Radix dialog wiring, win/loss copy, focus restore, and tests kept; rebuild celebration UI for dark terminal theme. |
+
+#### Additional active stubs (earlier stubs still present)
+
+| Component | Location | Notes |
+| --- | --- | --- |
+| `HowItWorks` | `src/components/HowItWorks.tsx` | Landing section landmark kept; rebuild 3-step glass-card grid. |
+| `HudStatusRow` | `src/components/hud/HudStatusRow.tsx` | Round/wallet/stream/player data attributes kept; rebuild status chip row. |
+| `TipCard` | `src/components/education/TipCard.tsx` | Daily tip card shell; rebuild education card UI. |
+
+#### Previously stubbed — now rebuilt
+
+The following were earlier Stellar Wave stubs but no longer import
+`ContributorTaskPlaceholder` (rebuild complete):
 
 | Component | Location |
 | --- | --- |
-| `RoundTimer.tsx` | `src/components/RoundTimer.tsx` |
-| `RankProgressBar.tsx` | `src/components/RankProgressBar.tsx` |
-| `ModeCards.tsx` | `src/components/ModeCards.tsx` |
-| `NewsRibbon.tsx` | `src/components/NewsRibbon.tsx` |
-| `HowItWorks.tsx` | `src/components/HowItWorks.tsx` |
-| `LiveGameStatsPanel.tsx` | `src/components/LiveGameStatsPanel.tsx` |
-| `HudStatusRow.tsx` | `src/components/hud/HudStatusRow.tsx` |
-| `GuideCard.tsx` | `src/components/education/GuideCard.tsx` |
-| `TipCard.tsx` | `src/components/education/TipCard.tsx` |
+| `RoundTimer` | `src/components/RoundTimer.tsx` |
+| `RankProgressBar` | `src/components/RankProgressBar.tsx` |
+| `ModeCards` | `src/components/ModeCards.tsx` |
+| `NewsRibbon` | `src/components/NewsRibbon.tsx` |
+| `LiveGameStatsPanel` | `src/components/LiveGameStatsPanel.tsx` |
+| `GuideCard` | `src/components/education/GuideCard.tsx` |
 
-### 2. How to claim a rebuild issue
-
-1. Browse [open Stellar Wave issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3A%22Stellar+Wave%22).
-2. Comment on the issue to express interest and share your approach.
-3. Replace the `ContributorTaskPlaceholder` wrapper with real UI that matches the
-   issue's acceptance criteria and the project's dark terminal design system.
-4. Remove the `ContributorTaskPlaceholder` import once the stub is fully replaced.
-5. Open a PR referencing the issue (e.g., `Closes #254`).
-
-### 3. Freighter + Soroban environment variables
+### Freighter + Soroban environment variables
 
 To interact with the Stellar blockchain (wallet connection and on-chain contract calls),
 you may need these additional environment variables. Add them to your local `.env` file:
@@ -139,12 +201,43 @@ To run a local demo against mock socket data using MSW:
 2. Intercept WebSocket connections to `http://localhost:3000`.
 3. Emit `mockSocketFixtures` payloads to simulate backend events.
 
-## Finding work
+## Freighter-less Contributor Fixtures & Demo Guide
 
+Newcomers can run and demo the full client UI — including wallet connection, claiming rewards, and placing predictions — in **under 15 minutes** without installing the Freighter browser extension.
+
+For the complete reference guide, see [`docs/freighter-less-fixtures.md`](file:///Users/apple/Documents/GitHub/Xelma-Frontend/docs/freighter-less-fixtures.md).
+
+### Quick Demo Options
+
+1. **In-Browser DevTools Console Stub (Full Bet & Claim UI Demo)**:
+   Run `pnpm dev` and open `http://localhost:5173`. Open DevTools Console and execute:
+   ```js
+   window.freighter = {
+     isConnected: async () => ({ isConnected: true }),
+     requestAccess: async () => ({ address: 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE', error: null }),
+     getAddress: async () => ({ address: 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE', error: null }),
+     getNetwork: async () => ({ network: 'TESTNET', error: null }),
+     signMessage: async (msg) => ({ signedMessage: 'mocked_signature_' + msg, error: null }),
+     signTransaction: async (xdr) => ({ signedTxXdr: xdr, error: null }),
+   };
+   ```
+   Click **Connect Wallet** → select Freighter to connect immediately with a mock balance (`100.00 XLM`), allowing you to test `BetModal` predictions and `EndRoundModal` reward claims without extension popups.
+
+2. **Watch-Only Mode**:
+   Go to `/connect` → **Watch-Only** → enter any Stellar G-address (e.g. `GBHExampleAddressForTestingPurposesOnly1234567890ABCDE`) to inspect dashboard panels in read-only mode.
+
+3. **Ladle Component Workbench**:
+   Run `pnpm storybook` to launch Ladle (`http://localhost:61000`) for testing isolated components with mock props.
+
+4. **Playwright Headed Interactive Mode**:
+   Run `pnpm test:e2e:ui` to run Playwright with built-in Freighter injection and MSW backend mocking.
+
+## Finding work
 
 Start with the repository issue tracker:
 
 - [Open frontend issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen)
 - [Open enhancement issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
+- [Open Stellar Wave rebuild issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3A%22Stellar+Wave%22)
 
 If an issue is stale or underspecified, comment with your proposed approach before investing in a large change.

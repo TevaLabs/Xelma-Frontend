@@ -7,7 +7,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef, useCallback, type ChangeEvent } from 'react';
 
 import { useTranslation } from 'react-i18next';
-import { Menu, X, Search } from 'lucide-react';
+import { Menu, X, Search, Eye } from 'lucide-react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import Logo from '../assets/logo.svg';
@@ -28,6 +28,7 @@ interface NavLinkItem {
 const navLinks: NavLinkItem[] = [
   { labelKey: 'navbar.nav.terminal', to: '/dashboard' },
   { labelKey: 'navbar.nav.pools', to: '/pools' },
+  { labelKey: 'navbar.nav.tournament', to: '/tournament', tooltip: 'Coming Soon' },
   { labelKey: 'navbar.nav.leaderboard', to: '/leaderboard' },
   { labelKey: 'navbar.nav.learn', to: '/learn' },
   { labelKey: 'navbar.nav.profile', to: '/profile' },
@@ -57,6 +58,18 @@ function NetworkBadge() {
   );
 }
 
+function WatchOnlyBadge() {
+  return (
+    <span
+      className="rounded-full border border-purple-500/40 bg-purple-500/10 px-2.5 py-0.5 text-xs font-bold tracking-wide text-purple-400 flex items-center gap-1"
+      title="Watch-only mode: viewing address without signing capability"
+    >
+      <Eye className="w-3 h-3" />
+      <span>Watch-Only</span>
+    </span>
+  );
+}
+
 export default function Navbar() {
   const location = useLocation();
   const { t, i18n } = useTranslation();
@@ -66,6 +79,7 @@ export default function Navbar() {
   const status = useWalletStore((s) => s.status);
   const connect = useWalletStore((s) => s.connect);
   const checkConnection = useWalletStore((s) => s.checkConnection);
+  const isWatchOnly = useWalletStore((s) => s.isWatchOnly);
   const isConnecting = status === 'connecting' || status === 'checking';
   const currentLanguage = (i18n.language || 'en').split('-')[0];
 
@@ -143,13 +157,18 @@ export default function Navbar() {
                 <li key={item.labelKey}>
                   <Link
                     to={item.to}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                       isActive
                         ? 'bg-[#2C4BFD]/20 text-[#BEC7FE]'
                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                     }`}
                   >
                     {t(item.labelKey)}
+                    {item.tooltip && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                        {item.tooltip}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
@@ -171,6 +190,7 @@ export default function Navbar() {
                 <span className="text-xs">Ctrl+K</span>
               </button>
               <NetworkBadge />
+              {isWatchOnly && <WatchOnlyBadge />}
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-sm text-white">
                 <label htmlFor="language-select" className="sr-only">
                   {t('navbar.languageLabel')}
@@ -263,8 +283,9 @@ export default function Navbar() {
               </button>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <NetworkBadge />
+              {isWatchOnly && <WatchOnlyBadge />}
             </div>
 
             <nav className="flex flex-col gap-4">
@@ -285,13 +306,18 @@ export default function Navbar() {
                     key={item.labelKey}
                     to={item.to}
                     onClick={closeMenu}
-                    className={`rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
                       isActive
                         ? 'bg-[#2C4BFD]/20 text-[#BEC7FE]'
                         : 'text-gray-400 hover:bg-white/5 hover:text-white'
                     }`}
                   >
                     {t(item.labelKey)}
+                    {item.tooltip && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                        {item.tooltip}
+                      </span>
+                    )}
                   </Link>
                 );              })}
             </nav>

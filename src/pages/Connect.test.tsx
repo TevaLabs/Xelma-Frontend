@@ -42,9 +42,9 @@ import { useWalletStore } from '../store/useWalletStore';
 
 const mockUseWalletStore = vi.mocked(useWalletStore);
 
-function mockWalletState(status: string, publicKey: string | null) {
+function mockWalletState(status: string, publicKey: string | null, isWatchOnly = false) {
   mockUseWalletStore.mockImplementation((selector: any) => {
-    const store = { status, publicKey };
+    const store = { status, publicKey, isWatchOnly, disconnect: vi.fn() };
     if (typeof selector === 'function') return selector(store);
     return store;
   });
@@ -74,10 +74,10 @@ describe('Connect Page', () => {
       expect(screen.getByTestId('wallet-connect')).toBeInTheDocument();
     });
 
-    it('renders the advanced toggle button', () => {
+    it('renders the watch-only toggle button', () => {
       render(<Connect />);
       expect(
-        screen.getByRole('button', { name: /Advanced: validate an address manually/i }),
+        screen.getByRole('button', { name: /Watch-only: view an address without signing/i }),
       ).toBeInTheDocument();
     });
   });
@@ -115,12 +115,12 @@ describe('Connect Page', () => {
     });
   });
 
-  describe('advanced address validation panel', () => {
-    it('reveals network selection and address input when advanced toggle is clicked', () => {
+  describe('watch-only address panel', () => {
+    it('reveals network selection and address input when watch-only toggle is clicked', () => {
       render(<Connect />);
 
       const toggle = screen.getByRole('button', {
-        name: /Advanced: validate an address manually/i,
+        name: /Watch-only: view an address without signing/i,
       });
       fireEvent.click(toggle);
 
@@ -131,15 +131,15 @@ describe('Connect Page', () => {
       // Address input should appear
       expect(screen.getByLabelText('Stellar Address')).toBeInTheDocument();
 
-      // Validate button should appear
-      expect(screen.getByRole('button', { name: 'Validate Address' })).toBeInTheDocument();
+      // View button should appear
+      expect(screen.getByRole('button', { name: /View in Watch-Only Mode/i })).toBeInTheDocument();
     });
 
-    it('hides advanced panel content when toggle is clicked twice', () => {
+    it('hides watch-only panel content when toggle is clicked twice', () => {
       render(<Connect />);
 
       const toggle = screen.getByRole('button', {
-        name: /Advanced: validate an address manually/i,
+        name: /Watch-only: view an address without signing/i,
       });
 
       // Open
@@ -151,15 +151,44 @@ describe('Connect Page', () => {
       expect(screen.queryByLabelText('Stellar Address')).toBeNull();
     });
 
-    it('disables Validate Address button when address is invalid', () => {
+    it('disables View button when address is invalid', () => {
       render(<Connect />);
 
       fireEvent.click(
-        screen.getByRole('button', { name: /Advanced: validate an address manually/i }),
+        screen.getByRole('button', { name: /Watch-only: view an address without signing/i }),
       );
 
-      const validateBtn = screen.getByRole('button', { name: 'Validate Address' });
-      expect(validateBtn).toBeDisabled();
+      const viewBtn = screen.getByRole('button', { name: /View in Watch-Only Mode/i });
+      expect(viewBtn).toBeDisabled();
+    });
+  });
+
+  describe('watch-only connected state', () => {
+    it('renders Watch-Only Mode heading and does not render the Freighter WalletConnect', () => {
+      mockWalletState('connected', 'GTEST1234567890', true);
+      render(<Connect />);
+
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Watch-Only Mode');
+      expect(screen.queryByTestId('wallet-connect')).toBeNull();
+    });
+
+    it('shows Watch-only address active and Disconnect/Continue actions', () => {
+      mockWalletState('connected', 'GTEST1234567890', true);
+      render(<Connect />);
+
+      expect(screen.getByText(/Watch-only address active/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Disconnect/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Continue to Dashboard/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('does not show Freighter WalletConnect for a watch-only address', () => {
+      mockWalletState('connected', 'GTEST1234567890', true);
+      render(<Connect />);
+
+      // Assert the WalletConnect mock (Freighter flow) is never rendered
+      expect(screen.queryByTestId('wallet-connect')).toBeNull();
     });
   });
 

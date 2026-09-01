@@ -52,13 +52,10 @@ const LearnPage = () => {
     }, []);
 
     useEffect(() => {
-        // Deferred through a promise chain so the effect performs no synchronous
-        // setState calls (react-hooks/set-state-in-effect).
-        Promise.resolve()
-            .then(() => {
-                void fetchData();
-            })
-            .catch(() => undefined);
+        const timer = setTimeout(() => {
+            fetchData();
+        }, 0);
+        return () => clearTimeout(timer);
     }, [fetchData]);
 
     if (loading) {

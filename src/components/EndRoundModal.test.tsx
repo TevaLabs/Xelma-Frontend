@@ -18,6 +18,32 @@ describe('EndRoundModal accessibility', () => {
     expect(screen.getByText('You made all the right moves.')).toBeInTheDocument();
   });
 
+  it('renders an aria-live region announcing win/loss outcome', async () => {
+    const { unmount } = render(
+      <EndRoundModal isOpen onClose={vi.fn()} result={result} />,
+    );
+    await waitFor(() => {
+      const winRegion = document.querySelector('[aria-live="polite"]');
+      expect(winRegion).toBeInTheDocument();
+      expect(winRegion).toHaveTextContent(/round result: win/i);
+      expect(winRegion).toHaveTextContent(/net gain plus \$42\.00/i);
+    });
+    unmount();
+
+    render(
+      <EndRoundModal
+        isOpen
+        onClose={vi.fn()}
+        result={{ isWin: false, amount: 15, tip: 'Better luck next round.' }}
+      />,
+    );
+    await waitFor(() => {
+      const lossRegion = document.querySelector('[aria-live="polite"]');
+      expect(lossRegion).toBeInTheDocument();
+      expect(lossRegion).toHaveTextContent(/round result: loss/i);
+    });
+  });
+
   it('closes on Escape and restores focus to the trigger', async () => {
     const onClose = vi.fn();
 

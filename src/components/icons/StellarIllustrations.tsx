@@ -37,3 +37,22 @@ export const OfflineIllustration = ({ className, size = 96 }: IllustrationProps)
     <circle cx="40" cy="46" r="3" fill="#06B6D4" fillOpacity="0.3" />
   </svg>
 );
+
+export const ChatOfflineIllustration = ({ className, size = 96 }: IllustrationProps) => (
+  <svg width={size} height={size} viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+    <path
+      d="M20 32c0-7.7 6.3-14 14-14h28c7.7 0 14 6.3 14 14v16c0 7.7-6.3 14-14 14H46l-14 12v-12c-6.6-.6-12-6.3-12-13V32Z"
+      stroke="#2C4BFD"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="#2C4BFD"
+      fillOpacity="0.08"
+    />
+    <line x1="32" y1="30" x2="56" y2="30" stroke="#2C4BFD" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.3" />
+    <line x1="32" y1="40" x2="48" y2="40" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.2" />
+    <circle cx="70" cy="24" r="10" stroke="#2C4BFD" strokeWidth="2" strokeOpacity="0.2" />
+    <line x1="64" y1="18" x2="76" y2="30" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeDasharray="3 3" strokeOpacity="0.55" />
+    <circle cx="70" cy="24" r="2.5" fill="#EF4444" fillOpacity="0.5" />
+  </svg>
+);

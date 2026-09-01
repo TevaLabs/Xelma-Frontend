@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, type FeeEstimate } from '../lib/xelma-contract';
+import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, humanizeContractError, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
@@ -13,6 +13,10 @@ export interface PredictionData {
   stake: string;
   isLegend: boolean;
   exactPrice?: string;
+  /** Share of the UP/DOWN pool held by each side (0-100). Present only for
+   *  UP/DOWN rounds; used to surface the pool-imbalance soft warning. */
+  poolUpPct?: number;
+  poolDownPct?: number;
 }
 
 interface BetModalProps {
@@ -31,10 +35,25 @@ const PRICE_MIN = 0.0001;
 const PRICE_MAX = 10;
 const PRICE_DECIMALS = 4;
 
+// Issue #413 — a side that holds this share (or more) of the UP/DOWN pool is
+// treated as "dominating". The warning is informational only and never blocks
+// the submit.
+const POOL_IMBALANCE_THRESHOLD_PCT = 70;
+
 function parseBalance(balance: string | null): number {
   if (!balance) return 0;
   const numericPart = balance.replace(' XLM', '');
   return parseFloat(numericPart) || 0;
+}
+
+function computePresetStake(balanceStr: string | null | undefined, percentage: number): string {
+  const available = parseBalance(balanceStr ?? null);
+  if (available <= 0) return '';
+  const raw = available * percentage;
+  const factor = 10000;
+  const truncated = Math.floor(raw * factor + 1e-9) / factor;
+  const safeAmount = Math.min(truncated, available);
+  return Number(safeAmount.toFixed(4)).toString();
 }
 
 function validateStake(value: string, walletBalance: string | null): string | null {
@@ -65,12 +84,13 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
   const balance = useWalletStore((s) => s.balance);
+  const isWatchOnly = useWalletStore((s) => s.isWatchOnly);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   // Shared transaction status machine (preparing → signing → submitting → syncing)
   const tx = useTxStatusMachine();
 
-  const initialView = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+  const initialView = (!isConnected || !isAuthenticated || isWatchOnly) ? 'wallet_required' : 'confirm';
   const [view, setView] = useState<ModalView>(initialView);
   const [isConnecting, setIsConnecting] = useState(false);
   const [mode, setMode] = useState<PredictionMode>(predictionData?.isLegend ? 'precision' : 'direction');
@@ -79,6 +99,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const [exactPrice, setExactPrice] = useState(predictionData?.exactPrice ?? '');
   const [formError, setFormError] = useState('');
   const [inlineStakeError, setInlineStakeError] = useState('');
+  const [outcomeAnnouncement, setOutcomeAnnouncement] = useState('');
+  // Issue #413 — the pool-imbalance warning is dismissible; re-shown whenever
+  // the modal is (re)opened or a new prediction is loaded.
+  const [poolWarningDismissed, setPoolWarningDismissed] = useState(false);
 
   // Fee estimate state
   const [feeEstimate, setFeeEstimate] = useState<FeeEstimate | null>(null);
@@ -137,8 +161,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         }
       } catch (err) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Failed to estimate fee';
-          setFeeEstimateError(msg);
+          // The raw error stays in the console via humanizeContractError;
+          // only the friendly copy is surfaced in the modal.
+          setFeeEstimateError(humanizeContractError(err, 'estimate'));
           setFeeEstimateStatus('failed');
         }
       }
@@ -159,6 +184,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     setExactPrice(predictionData?.exactPrice ?? '');
     setFormError('');
     setInlineStakeError('');
+    setPoolWarningDismissed(false);
     setFeeEstimate(null);
     setFeeEstimateStatus('idle');
     setFeeEstimateError(null);
@@ -166,7 +192,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
     if (isOpen) {
-      const targetView = (!isConnected || !isAuthenticated) ? 'wallet_required' : 'confirm';
+      const targetView = (!isConnected || !isAuthenticated || isWatchOnly) ? 'wallet_required' : 'confirm';
       setView(targetView);
       tx.reset();
       setPrevPredictionData(predictionData);
@@ -176,9 +202,11 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       setExactPrice(predictionData?.exactPrice ?? '');
       setFormError('');
       setInlineStakeError('');
+      setPoolWarningDismissed(false);
       setFeeEstimate(null);
       setFeeEstimateStatus('idle');
       setFeeEstimateError(null);
+      setOutcomeAnnouncement('');
     }
   }
 
@@ -204,6 +232,14 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     } finally {
       setIsConnecting(false);
     }
+  };
+
+  const availableBalance = parseBalance(balance);
+  const arePresetsDisabled = !isConnected || availableBalance <= 0 || tx.isInFlight;
+
+  const handlePresetClick = (percentage: number) => {
+    const calculatedStake = computePresetStake(balance, percentage);
+    handleStakeChange(calculatedStake);
   };
 
   const handleStakeChange = (value: string) => {
@@ -286,9 +322,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         onSuccess(result.txHash);
       }
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error('Prediction submission error:', error);
-      tx.fail(error.message || 'An unexpected error occurred');
+      // Map the raw simulation/signing error to player-friendly copy; the raw
+      // error is kept in the console for debugging by humanizeContractError.
+      tx.fail(humanizeContractError(err, 'place_bet'));
       if (onPredictionError) {
         onPredictionError();
       }
@@ -296,6 +332,33 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   }, [balance, direction, exactPrice, isConnected, mode, onPending, onPredictionError, onSuccess, publicKey, stake, tx]);
 
   const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
+
+  const prevTxStepRef = useRef(tx.step);
+
+  useEffect(() => {
+    if (tx.step === prevTxStepRef.current) return;
+    prevTxStepRef.current = tx.step;
+
+    const timer = window.setTimeout(() => {
+      if (tx.step === 'success') {
+        setOutcomeAnnouncement(
+          'Prediction submitted successfully. Your prediction has been successfully written on-chain and registered.',
+        );
+      } else if (tx.step === 'error') {
+        setOutcomeAnnouncement(`Transaction failed. ${tx.errorMessage || 'An unexpected error occurred.'}`);
+      } else {
+        setOutcomeAnnouncement('');
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [tx.step, tx.errorMessage]);
+
+  // Issue #413 — pool-imbalance soft warning. Present only for UP/DOWN rounds
+  // (direction mode) when one side holds at least the imbalance threshold of
+  // the pool. Informational and dismissible; it never blocks the submit.
+  const poolUpPct = predictionData?.poolUpPct;
+  const poolDownPct = predictionData?.poolDownPct;
 
   const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
   const handleConfirmRef = useRef<() => void>(() => {});
@@ -334,6 +397,16 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {outcomeAnnouncement && (
+        <div
+          aria-live={tx.step === 'error' ? 'assertive' : 'polite'}
+          aria-atomic="true"
+          className="sr-only"
+          role={tx.step === 'error' ? 'alert' : 'status'}
+        >
+          {outcomeAnnouncement}
+        </div>
+      )}
       <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
       <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
         <button
@@ -346,17 +419,35 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
         {view === 'wallet_required' && (
           <div className="text-center py-4">
-            <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
-            <p className="text-gray-400 text-sm mb-6">
-              You need to connect and authenticate your Stellar wallet to submit predictions.
-            </p>
-            <button
-              onClick={handleConnectAndAuth}
-              disabled={isConnecting}
-              className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {isConnecting ? 'Connecting…' : 'Connect & Authenticate'}
-            </button>
+            {isWatchOnly ? (
+              <>
+                <h3 className="text-lg font-bold text-purple-400 mb-2">Watch-Only Mode</h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  You are viewing this address in watch-only mode. Connect a wallet with signing capability to submit predictions.
+                </p>
+                <button
+                  onClick={handleConnectAndAuth}
+                  disabled={isConnecting}
+                  className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect Wallet'}
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  You need to connect and authenticate your Stellar wallet to submit predictions.
+                </p>
+                <button
+                  onClick={handleConnectAndAuth}
+                  disabled={isConnecting}
+                  className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect & Authenticate'}
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -397,6 +488,40 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
                 </button>
               </div>
             )}
+
+            {/* Issue #413 — soft pool-imbalance warning (UP/DOWN rounds only).
+                Dismissible and informational; does not block the submit. */}
+            {poolUpPct !== undefined &&
+              poolDownPct !== undefined &&
+              mode === 'direction' &&
+              !poolWarningDismissed &&
+              (poolUpPct >= POOL_IMBALANCE_THRESHOLD_PCT ||
+                poolDownPct >= POOL_IMBALANCE_THRESHOLD_PCT) && (
+                <div
+                  className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3"
+                  role="status"
+                  data-testid="pool-imbalance-warning"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-amber-300">
+                      {poolUpPct >= poolDownPct ? 'UP' : 'DOWN'} dominates this round's pool
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-gray-300">
+                      UP currently holds {poolUpPct}% of the pool and DOWN holds {poolDownPct}%.
+                      Betting with the majority can mean smaller payouts, while betting against
+                      it carries more risk. This won't block your prediction.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPoolWarningDismissed(true)}
+                    className="shrink-0 rounded-md p-1 text-gray-400 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                    aria-label="Dismiss pool imbalance warning"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
 
             <div className="mb-5 grid grid-cols-2 rounded-xl border border-gray-800 bg-gray-950/70 p-1" role="tablist" aria-label="Prediction input mode">
               <button
@@ -471,7 +596,38 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               )}
 
               <div className="border-t border-gray-800 pt-3">
-                <label htmlFor="bet-modal-stake" className="mb-2 block text-sm text-gray-400">Stake</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="bet-modal-stake" className="text-sm text-gray-400">Stake</label>
+                  <div className="flex items-center gap-1" role="group" aria-label="Stake presets">
+                    <button
+                      type="button"
+                      onClick={() => handlePresetClick(0.25)}
+                      disabled={arePresetsDisabled}
+                      className="rounded bg-gray-800 px-2 py-0.5 text-xs font-semibold text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      aria-label="Set stake to 25% of balance"
+                    >
+                      25%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePresetClick(0.5)}
+                      disabled={arePresetsDisabled}
+                      className="rounded bg-gray-800 px-2 py-0.5 text-xs font-semibold text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      aria-label="Set stake to 50% of balance"
+                    >
+                      50%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePresetClick(1.0)}
+                      disabled={arePresetsDisabled}
+                      className="rounded bg-gray-800 px-2 py-0.5 text-xs font-semibold text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      aria-label="Set stake to Max available balance"
+                    >
+                      Max
+                    </button>
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     id="bet-modal-stake"

@@ -520,38 +520,26 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
     }
   }, []);
 
-  // Reset chart state whenever the asset changes. State is adjusted during
-  // render (not in an effect) so we never call setState synchronously from an
-  // effect (react-hooks/set-state-in-effect). prevAsset starts as null so the
-  // initial render performs the same reset, keeping the loading state visible
-  // until the data source below resolves.
-  const [prevAsset, setPrevAsset] = useState<Asset | null>(null);
-  if (prevAsset !== asset) {
-    setPrevAsset(asset);
-    setData([]);
-    setIsLoading(true);
-    setLoadError(null);
-  }
-
+  // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
-    // Seed mock data for instant visual feedback, then fetch live data from
-    // the API. Deferred through a promise chain so the effect performs no
-    // synchronous setState calls (react-hooks/set-state-in-effect).
-    Promise.resolve()
-      .then(() => {
-        // Use mock data directly for instant visual feedback per asset
-        const mockData = mockPriceData[asset];
-        if (mockData && mockData.length > 0) {
-          setData(mockData);
-          setLastUpdatedAt(new Date());
-          setIsLoading(false);
-        }
+    const timer = setTimeout(() => {
+      setData([]);
+      setIsLoading(true);
+      setLoadError(null);
 
-        // Also attempt to fetch live data from API
-        void loadInitialPrices();
-      })
-      .catch(() => undefined);
-  }, [asset]); // eslint-disable-line react-hooks/exhaustive-deps
+      // Use mock data directly for instant visual feedback per asset
+      const mockData = mockPriceData[asset];
+      if (mockData && mockData.length > 0) {
+        setData(mockData);
+        setLastUpdatedAt(new Date());
+        setIsLoading(false);
+      }
+
+      // Also attempt to fetch live data from API
+      void loadInitialPrices();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [asset, loadInitialPrices]);
 
   // Update chart line color when asset changes
   useEffect(() => {

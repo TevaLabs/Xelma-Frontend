@@ -1,6 +1,16 @@
+import type React from 'react';
 import PanelHeader from '../components/ui/PanelHeader';
 
-export default { title: 'Glass Card Primitives/PanelHeader' };
+export default {
+  title: 'Glass Card Primitives/PanelHeader',
+  decorators: [
+    (Story: React.FC) => (
+      <div style={{ background: '#0A0F1A', padding: '24px', minHeight: '200px' }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
 
 export const TitleOnly = () => <PanelHeader title="Market Overview" />;
 

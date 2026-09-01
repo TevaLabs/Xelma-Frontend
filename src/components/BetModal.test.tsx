@@ -26,6 +26,10 @@ let placeBetImpl: () => Promise<{ txHash: string }> = async () => ({ txHash: 'TX
 vi.mock('../lib/xelma-contract', () => ({
   place_bet: (...args: any[]) => placeBetImpl(),
   place_precision_prediction: (...args: any[]) => placeBetImpl(),
+  humanizeContractError: (error: unknown) =>
+    error instanceof Error && /reject|cancel/i.test(error.message)
+      ? 'You cancelled the request in your wallet. No transaction was sent.'
+      : 'Something went wrong while submitting your prediction. Please try again.',
   estimatePlaceBet: vi.fn().mockResolvedValue({
     baseFee: '0.0000100',
     resourceFee: '0.0000500',
@@ -41,20 +45,6 @@ vi.mock('../lib/xelma-contract', () => ({
     instructions: '100000',
     readBytes: '512',
     writeBytes: '256',
-    baseFee: '0.00001',
-    resourceFee: '0.00005',
-    totalFee: '0.00006',
-    instructions: '1000000',
-    readBytes: '500',
-    writeBytes: '200',
-  }),
-  estimatePrecisionPrediction: vi.fn().mockResolvedValue({
-    baseFee: '0.00001',
-    resourceFee: '0.00006',
-    totalFee: '0.00007',
-    instructions: '1200000',
-    readBytes: '600',
-    writeBytes: '300',
   }),
 }));
 
@@ -73,7 +63,7 @@ const defaultPrediction: PredictionData = {
 
 function renderOpen(prediction: PredictionData = defaultPrediction, onSuccess?: (tx: string) => void) {
   const onClose = vi.fn();
-  render(
+  const res = render(
     <BetModal
       isOpen
       onClose={onClose}
@@ -81,7 +71,7 @@ function renderOpen(prediction: PredictionData = defaultPrediction, onSuccess?: 
       onSuccess={onSuccess}
     />,
   );
-  return { onClose };
+  return { onClose, ...res };
 }
 
 // ── tests ────────────────────────────────────────────────────────────────────
@@ -171,8 +161,33 @@ describe('BetModal — transaction pending state (#163)', () => {
     await waitFor(() => {
       expect(screen.getByText(/transaction failed/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/user rejected/i)).toBeInTheDocument();
+    expect(screen.getByText('You cancelled the request in your wallet. No transaction was sent.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it('renders an aria-live region announcing transaction failure', async () => {
+    placeBetImpl = async () => { throw new Error('User rejected'); };
+
+    const { container } = renderOpen();
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      const liveRegion = container.querySelector('[aria-live="assertive"]');
+      expect(liveRegion).toBeInTheDocument();
+      expect(liveRegion).toHaveTextContent(/transaction failed/i);
+      expect(liveRegion).toHaveTextContent(/user rejected|cancelled|rejected/i);
+    });
+  });
+
+  it('renders an aria-live region announcing successful submission', async () => {
+    const { container } = renderOpen();
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+    await waitFor(() => {
+      const liveRegion = container.querySelector('[aria-live="polite"]');
+      expect(liveRegion).toBeInTheDocument();
+      expect(liveRegion).toHaveTextContent(/prediction submitted successfully/i);
+    });
   });
 
   it('shows wallet_required view when wallet is not connected', () => {
@@ -225,6 +240,31 @@ describe('BetModal — transaction pending state (#163)', () => {
       expect(within(tooltip).getByText('UP/DOWN')).toBeInTheDocument();
       expect(within(tooltip).getByText('Precision')).toBeInTheDocument();
       expect(within(tooltip).getByText('Legend')).toBeInTheDocument();
+    });
+  });
+
+  describe('Stake Presets (25% / 50% / Max)', () => {
+    it('populates stake input when preset buttons are clicked in BetModal', () => {
+      renderOpen();
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake/i }) as HTMLInputElement;
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 25% of balance/i }));
+      expect(stakeInput.value).toBe('250');
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 50% of balance/i }));
+      expect(stakeInput.value).toBe('500');
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to Max available balance/i }));
+      expect(stakeInput.value).toBe('1000');
+    });
+
+    it('disables preset buttons when wallet is disconnected or modal is in wallet_required view', () => {
+      mockIsConnected = false;
+      mockIsAuthenticated = false;
+      renderOpen();
+
+      expect(screen.queryByRole('button', { name: /Set stake to 25% of balance/i })).not.toBeInTheDocument();
     });
   });
 });

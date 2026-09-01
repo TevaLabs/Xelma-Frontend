@@ -16,6 +16,33 @@ vi.mock('../store/useRoundStore', () => ({
   }),
 }));
 
+// PredictionPulse (rendered inside RoundTimeline) uses useConnectionStatus and
+// useReducedMotion — mock them so the socket singleton is never touched in tests.
+vi.mock('../hooks/useConnectionStatus', () => ({
+  useConnectionStatus: () => ({
+    status: 'connected',
+    isConnected: true,
+    isConnecting: false,
+    isReconnecting: false,
+    isDisconnected: false,
+    error: null,
+    reconnectAttempts: 0,
+    lastConnected: null,
+    reconnect: vi.fn(),
+  }),
+}));
+
+vi.mock('../hooks/useReducedMotion', () => ({
+  useReducedMotion: () => ({ reduced: false, systemPreference: false, override: 'system' }),
+}));
+
+// usePredictionPulse itself calls socketService — mock the whole hook so no
+// socket side-effects leak into the timeline tests.
+vi.mock('../hooks/usePredictionPulse', () => ({
+  usePredictionPulse: () => ({ count: 0, flashing: false, isLive: true }),
+  usePredictionPulseMock: () => ({ count: 0, flashing: false, isLive: true }),
+}));
+
 import RoundTimeline from './RoundTimeline';
 
 function setRoundState(state: Partial<typeof mockRoundStore>) {
@@ -48,15 +75,13 @@ describe('RoundTimeline', () => {
     render(<RoundTimeline />);
 
     expect(screen.getByRole('heading', { name: /Round Progress/i })).toBeInTheDocument();
-    expect(screen.getByText(/Current state is "upcoming"/i)).toBeInTheDocument();
-    expect(screen.getByText(/Upcoming → Live → Resolving → Finished/i)).toBeInTheDocument();
+    expect(screen.getByText(/Round stages: Upcoming, Live, Resolving, Finished/i)).toBeInTheDocument();
   });
 
   it('renders upcoming state when there is no active round', () => {
     setRoundState({ activeRound: null, isRoundActive: false, sseConnection: { status: 'connected' } });
     const { container } = render(<RoundTimeline />);
 
-    expect(screen.getByText(/Current state is "upcoming"/i)).toBeInTheDocument();
     expect(getCurrentStateLabel(container)).toBe('upcoming');
   });
 
@@ -70,7 +95,6 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('live');
-    expect(screen.getByText(/Current state is "live"/i)).toBeInTheDocument();
   });
 
   it('renders resolving state for a round with resolving status', () => {
@@ -83,7 +107,6 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('resolving');
-    expect(screen.getByText(/Current state is "resolving"/i)).toBeInTheDocument();
   });
 
   it('renders finished state when round status is resolved', () => {
@@ -96,7 +119,6 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('finished');
-    expect(screen.getByText(/Current state is "finished"/i)).toBeInTheDocument();
   });
 
   it('updates current stage indicator when round data changes', () => {
@@ -123,7 +145,7 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('loading');
-    expect(screen.getByText(/Current state is "loading"/i)).toBeInTheDocument();
+    expect(screen.getByText(/Connecting to live round updates/i)).toBeInTheDocument();
   });
 
   it('shows disconnected warning when SSE status is disconnected', () => {
@@ -136,7 +158,7 @@ describe('RoundTimeline', () => {
     const { container } = render(<RoundTimeline />);
 
     expect(getCurrentStateLabel(container)).toBe('disconnected');
-    expect(screen.getByText(/Current state is "disconnected"/i)).toBeInTheDocument();
+    expect(screen.getByText(/Live round updates are currently unavailable/i)).toBeInTheDocument();
   });
 
   it('handles empty round data gracefully', () => {

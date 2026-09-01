@@ -75,5 +75,11 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
 
+      - name: Build project
+        run: pnpm build
+
       - name: Run Playwright tests
         run: pnpm run test:e2e
+
+      - name: Run Playwright axe scan
+        run: pnpm run test:e2e:a11y
