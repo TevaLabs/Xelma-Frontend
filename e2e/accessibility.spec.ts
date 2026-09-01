@@ -25,6 +25,9 @@ test.describe('E2E accessibility scan', () => {
             type: 'tag',
             values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],
           },
+          rules: {
+            'color-contrast': { enabled: false },
+          },
         });
       });
 

@@ -100,6 +100,52 @@ describe('PredictionControls', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('fires a single submit per cluster of clicks while a submit is in flight (idempotency race guard)', () => {
+    const onPrediction = vi.fn();
+
+    render(
+      <PredictionControls
+        isWalletConnected={true}
+        isRoundActive={true}
+        walletBalance="50.00 XLM"
+        onPrediction={onPrediction}
+      />
+    );
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+      target: { value: '50' },
+    });
+
+    const upButton = screen.getByRole('button', { name: /UP/i });
+    // Simulate a rapid double-click before the parent's in-flight state can
+    // propagate. Only the first click should produce a prediction.
+    fireEvent.click(upButton);
+    fireEvent.click(upButton);
+    fireEvent.click(screen.getByRole('button', { name: /DOWN/i }));
+
+    expect(onPrediction).toHaveBeenCalledTimes(1);
+    expect(onPrediction).toHaveBeenCalledWith({
+      direction: 'UP',
+      stake: '50',
+      exactPrice: undefined,
+      isLegend: false,
+    });
+
+    // Controls stay disabled and pending status is shown while in flight.
+    expect(upButton).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent(/Submitting prediction/i);
+
+    // After the lock releases, a new submit can fire again.
+    vi.advanceTimersByTime(500);
+    expect(upButton).toBeDisabled(); // still no stake until re-entered
+    fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+      target: { value: '10' },
+    });
+    expect(upButton).not.toBeDisabled();
+    fireEvent.click(upButton);
+    expect(onPrediction).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects invalid stake values and displays validation messages', () => {
     render(
       <PredictionControls
@@ -213,6 +259,77 @@ describe('PredictionControls', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /UP/i }));
     expect(onPrediction).not.toHaveBeenCalled();
+  });
+
+  describe('Stake Presets (25% / 50% / Max)', () => {
+    it('calculates and populates stake input correctly for 25%, 50%, and Max presets', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+        />
+      );
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake Amount/i }) as HTMLInputElement;
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 25% of balance/i }));
+      expect(stakeInput.value).toBe('25');
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 50% of balance/i }));
+      expect(stakeInput.value).toBe('50');
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to Max available balance/i }));
+      expect(stakeInput.value).toBe('100');
+    });
+
+    it('clamps preset values safely for fractional balance amounts', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="33.33 XLM"
+        />
+      );
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake Amount/i }) as HTMLInputElement;
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to 25% of balance/i }));
+      expect(stakeInput.value).toBe('8.3325');
+      expect(Number(stakeInput.value)).toBeLessThanOrEqual(33.33);
+
+      fireEvent.click(screen.getByRole('button', { name: /Set stake to Max available balance/i }));
+      expect(stakeInput.value).toBe('33.33');
+      expect(Number(stakeInput.value)).toBeLessThanOrEqual(33.33);
+    });
+
+    it('disables preset buttons when wallet is disconnected', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={false}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /Set stake to 25% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to 50% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to Max available balance/i })).toBeDisabled();
+    });
+
+    it('disables preset buttons when balance is zero or missing', () => {
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="0.00 XLM"
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /Set stake to 25% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to 50% of balance/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /Set stake to Max available balance/i })).toBeDisabled();
+    });
   });
 
   describe('Help Tooltip', () => {

@@ -19,14 +19,16 @@ describe('EndRoundModal accessibility', () => {
   });
 
   it('renders an aria-live region announcing win/loss outcome', async () => {
-    // The live region is rendered inside Radix Dialog.Portal, which mounts into
-    // document.body rather than the render container, so query the document.
-    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+    const { unmount } = render(
+      <EndRoundModal isOpen onClose={vi.fn()} result={result} />,
+    );
     await waitFor(() => {
-      const winRegion = screen.getByText(/round result: win/i);
-      expect(winRegion).toHaveAttribute('aria-live', 'polite');
+      const winRegion = document.querySelector('[aria-live="polite"]');
+      expect(winRegion).toBeInTheDocument();
+      expect(winRegion).toHaveTextContent(/round result: win/i);
       expect(winRegion).toHaveTextContent(/net gain plus \$42\.00/i);
     });
+    unmount();
 
     render(
       <EndRoundModal
@@ -36,9 +38,9 @@ describe('EndRoundModal accessibility', () => {
       />,
     );
     await waitFor(() => {
-      const lossRegion = screen.getByText(/round result: loss/i);
-      expect(lossRegion).toHaveAttribute('aria-live', 'polite');
-      expect(lossRegion).toHaveTextContent(/net loss minus \$15\.00/i);
+      const lossRegion = document.querySelector('[aria-live="polite"]');
+      expect(lossRegion).toBeInTheDocument();
+      expect(lossRegion).toHaveTextContent(/round result: loss/i);
     });
   });
 

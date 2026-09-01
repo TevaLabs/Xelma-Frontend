@@ -1,7 +1,11 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Github, BookOpen, ExternalLink, Heart } from 'lucide-react';
+import { Github, BookOpen, ExternalLink, Heart, Copy, Check, Info } from 'lucide-react';
+import { toast } from 'sonner';
 import Logo from '../assets/logo.svg';
 import { cn } from '../lib/utils';
+import { XELMA_CONTRACT_ID } from '../lib/stellarConfig';
+import { FREIGHTER_NETWORK_DOCS, STELLAR_NETWORKS_DOCS } from '../lib/stellarNetwork';
 
 export type FooterNetwork = 'TESTNET' | 'PUBLIC';
 
@@ -66,6 +70,107 @@ const externalLinkProps = {
 // Computed once at module load to keep renders pure (avoids snapshot/year-boundary flakes).
 const CURRENT_YEAR = new Date().getFullYear();
 
+async function writeToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function truncate(str: string, head = 8, tail = 8): string {
+  if (str.length <= head + tail + 3) return str;
+  return `${str.slice(0, head)}…${str.slice(-tail)}`;
+}
+
+interface InfoTooltipProps {
+  id: string;
+  ariaLabel: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+function InfoTooltip({
+  id,
+  ariaLabel,
+  children,
+  className = '',
+}: InfoTooltipProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const toggleOpen = () => setIsOpen((prev) => !prev);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        handleClose();
+      }
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div className={`relative inline-block align-middle ${className}`}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={toggleOpen}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        aria-controls={id}
+        className={cn(
+          'inline-flex items-center justify-center rounded-full text-gray-400 hover:text-white transition-colors',
+          'min-h-[20px] min-w-[20px]',
+          focusRing
+        )}
+      >
+        <Info className="h-4 w-4" aria-hidden="true" />
+      </button>
+
+      {isOpen && (
+        <div
+          ref={popoverRef}
+          id={id}
+          role="tooltip"
+          className="absolute right-0 top-full mt-2 z-50 w-80 rounded-xl bg-gray-900 border border-gray-700 p-4 text-xs text-gray-200 shadow-xl space-y-3"
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Footer({
   network,
   variant = 'default',
@@ -74,6 +179,28 @@ export default function Footer({
   const activeNetwork = resolveNetwork(network);
   const meta = NETWORK_META[activeNetwork];
   const isCompact = variant === 'compact';
+  const isTestnet = activeNetwork === 'TESTNET';
+  const [contractCopied, setContractCopied] = useState(false);
+
+  const handleCopyContractId = useCallback(async () => {
+    const ok = await writeToClipboard(XELMA_CONTRACT_ID);
+    if (ok) {
+      setContractCopied(true);
+      toast.success('Contract ID copied');
+      window.setTimeout(() => setContractCopied(false), 1500);
+    } else {
+      toast.error('Copy failed', {
+        description: 'Your browser may be blocking clipboard access.',
+      });
+    }
+  }, []);
+
+  const freighterTestnetSteps = [
+    'Open the Freighter browser extension.',
+    'Click the network name in the top bar (usually "Mainnet").',
+    'Select "Testnet" from the dropdown list.',
+    'Switch back to Xelma — predictions will now settle here.',
+  ];
 
   return (
     <footer
@@ -113,11 +240,11 @@ export default function Footer({
                   Xelma
                 </span>
               </Link>
-              <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-500 break-words">
+              <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-400 break-words">
                 Collective market intelligence on the Stellar blockchain —
                 trustless predictions that settle on-chain.
               </p>
-              <p className="mt-4 text-xs text-gray-600 whitespace-nowrap">
+              <p className="mt-4 text-xs text-gray-400 whitespace-nowrap">
                 © {CURRENT_YEAR} Xelma · MIT License
               </p>
             </div>
@@ -175,9 +302,79 @@ export default function Footer({
 
             {/* Network */}
             <div className="min-w-0">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
-                Settlement Network
-              </h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-300">
+                  Settlement Network
+                </h2>
+                <InfoTooltip
+                  id="network-info-tooltip"
+                  ariaLabel="What does the settlement network badge mean?"
+                >
+                  <div>
+                    <span className="font-semibold text-cyan-400 block mb-1">
+                      What this badge means
+                    </span>
+                    <p className="text-gray-300 leading-relaxed">
+                      Every prediction you create and every payout you claim is
+                      recorded on a public Stellar blockchain. The network badge
+                      tells you which chain your transactions settle on.
+                    </p>
+                  </div>
+
+                  <div>
+                    <span
+                      className={cn(
+                        'font-semibold block mb-1',
+                        isTestnet ? 'text-emerald-400' : 'text-cyan-400'
+                      )}
+                    >
+                      {isTestnet ? 'Stellar Testnet' : 'Stellar Mainnet'}
+                    </span>
+                    <p className="text-gray-300 leading-relaxed">
+                      {isTestnet
+                        ? "Testnet is a free sandbox. Funds here are virtual (vXLM) and have no real value — it's perfect for learning, practicing predictions, and testing wallet setup before anything real is at stake."
+                        : 'Mainnet is the production Stellar network. Transactions settled here use real XLM and are irreversible.'}
+                    </p>
+                  </div>
+
+                  {isTestnet && (
+                    <div className="border-t border-gray-800 pt-3">
+                      <span className="font-semibold text-amber-400 block mb-2">
+                        Setting up Freighter for Testnet
+                      </span>
+                      <ol className="space-y-1.5 text-gray-300">
+                        {freighterTestnetSteps.map((step, idx) => (
+                          <li key={step} className="flex gap-2">
+                            <span
+                              className="font-mono text-amber-300/70 shrink-0"
+                              aria-hidden="true"
+                            >
+                              {idx + 1}.
+                            </span>
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+                        <a
+                          href={FREIGHTER_NETWORK_DOCS}
+                          {...externalLinkProps}
+                          className="text-emerald-300 underline underline-offset-2 hover:text-emerald-200 transition-colors"
+                        >
+                          Freighter guide
+                        </a>
+                        <a
+                          href={STELLAR_NETWORKS_DOCS}
+                          {...externalLinkProps}
+                          className="text-gray-300 underline underline-offset-2 hover:text-white transition-colors"
+                        >
+                          About Stellar networks
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </InfoTooltip>
+              </div>
               <p
                 className={cn(
                   'mt-3 inline-flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold max-w-full',
@@ -196,12 +393,81 @@ export default function Footer({
                 />
                 <span className="whitespace-nowrap">{meta.label}</span>
               </p>
-              <p className="mt-3 text-xs leading-relaxed text-gray-500 break-words">
+              <p className="mt-3 text-xs leading-relaxed text-gray-400 break-words">
                 {meta.description}
               </p>
-              <p className="mt-4 text-xs text-gray-600 break-words">
+              <p className="mt-4 text-xs text-gray-400 break-words">
                 vXLM is virtual — no real funds move on this network.
               </p>
+
+              <div className="mt-5 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                    Contract ID
+                  </h3>
+                  <InfoTooltip
+                    id="contract-id-tooltip"
+                    ariaLabel="What is a contract ID?"
+                  >
+                    <div>
+                      <span className="font-semibold text-purple-400 block mb-1">
+                        What is a Contract ID?
+                      </span>
+                      <p className="text-gray-300 leading-relaxed">
+                        A Soroban smart contract lives on-chain at a unique
+                        address, just like a wallet account. The Contract ID
+                        (always starts with <span className="font-mono">C…</span>)
+                        is that address.
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-purple-400 block mb-1">
+                        Why it matters
+                      </span>
+                      <ul className="text-gray-300 space-y-1 leading-relaxed list-disc list-inside">
+                        <li>
+                          Every prediction, stake, and payout runs through this
+                          contract — not through a server.
+                        </li>
+                        <li>
+                          You can verify the deployed code and all transactions
+                          in any Stellar block explorer.
+                        </li>
+                        <li>
+                          Your wallet will show this contract ID when it asks
+                          you to approve a transaction — always confirm it
+                          matches before signing.
+                        </li>
+                      </ul>
+                    </div>
+                  </InfoTooltip>
+                </div>
+                <div className="mt-2 flex items-center gap-2 min-w-0 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
+                  <code
+                    className="text-xs text-gray-300 font-mono truncate min-w-0 flex-1"
+                    title={XELMA_CONTRACT_ID}
+                  >
+                    {truncate(XELMA_CONTRACT_ID, 6, 6)}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyContractId}
+                    aria-label={contractCopied ? 'Contract ID copied' : 'Copy contract ID'}
+                    aria-live="polite"
+                    className={cn(
+                      'shrink-0 inline-flex items-center justify-center rounded p-1.5 transition-colors',
+                      'text-gray-400 hover:text-white hover:bg-white/10',
+                      focusRing
+                    )}
+                  >
+                    {contractCopied ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -213,7 +479,7 @@ export default function Footer({
             isCompact ? '' : 'border-t border-white/5 pt-5 sm:pt-6'
           )}
         >
-          <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-gray-500 min-w-0">
+          <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-gray-400 min-w-0">
             <Heart
               className="h-3.5 w-3.5 shrink-0 text-pink-400/80"
               aria-hidden="true"

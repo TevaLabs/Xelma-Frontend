@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import PredictionHelpTooltip from "./PredictionHelpTooltip";
 import "./PredictionCard.css";
 
@@ -10,6 +10,16 @@ function parseBalance(balance: string | null | undefined): number {
   if (!balance) return 0;
   const numericPart = balance.replace(' XLM', '');
   return parseFloat(numericPart) || 0;
+}
+
+function computePresetStake(balanceStr: string | null | undefined, percentage: number): string {
+  const available = parseBalance(balanceStr);
+  if (available <= 0) return '';
+  const raw = available * percentage;
+  const factor = 10000;
+  const truncated = Math.floor(raw * factor + 1e-9) / factor;
+  const safeAmount = Math.min(truncated, available);
+  return Number(safeAmount.toFixed(4)).toString();
 }
 
 function validateStake(value: string, walletBalance: string | null | undefined): string | null {
@@ -30,6 +40,10 @@ export interface PredictionData {
   stake: string;
   exactPrice?: string;
   isLegend: boolean;
+  /** Share of the UP/DOWN pool held by each side (0-100). Present only for
+   *  UP/DOWN rounds; lets the BetModal surface the pool-imbalance warning. */
+  poolUpPct?: number;
+  poolDownPct?: number;
 }
 
 export interface PredictionControlsProps {
@@ -73,8 +87,18 @@ export function PredictionControls({
   const [touchedExactPrice, setTouchedExactPrice] = useState(false);
   const [stakeError, setStakeError] = useState<string | null>(null);
 
+  // Internal idempotency guard: blocks a second prediction submit while the
+  // first is still in flight (before the parent's isSubmittingPrediction state
+  // has propagated). Prevents double-submit races on rapid/cluster clicks.
+  const inFlightRef = useRef(false);
+  const [isSubmittingInternal, setIsSubmittingInternal] = useState(false);
+
+  const isSubmitting = isSubmittingPrediction || isSubmittingInternal;
+
   const isDisabled =
-    !isWalletConnected || !isRoundActive || isConnecting || isSubmittingPrediction;
+    !isWalletConnected || !isRoundActive || isConnecting || isSubmitting;
+  const availableBalance = parseBalance(walletBalance);
+  const arePresetsDisabled = isDisabled || !isWalletConnected || availableBalance <= 0;
 
   const validateExactPriceField = useCallback(() => {
     if (!isLegend) return;
@@ -100,16 +124,23 @@ export function PredictionControls({
     setStakeError(error);
   };
 
-  const handleFillClick = () => {
-    setStake("1000");
+  const handlePresetClick = (percentage: number) => {
+    const calculatedStake = computePresetStake(walletBalance, percentage);
+    handleStakeChange(calculatedStake);
   };
 
   const handlePrediction = (direction: "UP" | "DOWN") => {
     if (isDisabled || !stake) return;
 
+    // Acquire the internal in-flight lock. If a submit is already in progress
+    // (or hasn't been released yet), drop the duplicate click immediately.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
     const stakeValidationError = validateStake(stake, walletBalance);
     if (stakeValidationError) {
       setStakeError(stakeValidationError);
+      inFlightRef.current = false;
       return;
     }
 
@@ -117,7 +148,10 @@ export function PredictionControls({
       setTouchedExactPrice(true);
       const error = validateExactPrice(exactPrice);
       setExactPriceError(error);
-      if (error) return;
+      if (error) {
+        inFlightRef.current = false;
+        return;
+      }
     }
 
     const predictionData: PredictionData = {
@@ -128,9 +162,12 @@ export function PredictionControls({
     };
 
     setSelectedDirection(direction);
+    setIsSubmittingInternal(true);
     onPrediction?.(predictionData);
 
     setTimeout(() => {
+      inFlightRef.current = false;
+      setIsSubmittingInternal(false);
       setStake("");
       setExactPrice("");
       setExactPriceError(null);
@@ -155,7 +192,7 @@ export function PredictionControls({
           Connecting wallet...
         </p>
       )}
-      {isSubmittingPrediction && !isConnecting && (
+      {isSubmitting && !isConnecting && (
         <p className="prediction-card__connecting" role="status">
           Submitting prediction...
         </p>
@@ -205,15 +242,35 @@ export function PredictionControls({
             min="0"
             step="0.01"
           />
-          <button
-            type="button"
-            className="prediction-card__fill-button"
-            onClick={handleFillClick}
-            disabled={isDisabled}
-            title="Fill with wallet balance"
-          >
-            Fill
-          </button>
+          <div className="prediction-card__preset-buttons" role="group" aria-label="Stake presets">
+            <button
+              type="button"
+              className="prediction-card__preset-button"
+              onClick={() => handlePresetClick(0.25)}
+              disabled={arePresetsDisabled}
+              aria-label="Set stake to 25% of balance"
+            >
+              25%
+            </button>
+            <button
+              type="button"
+              className="prediction-card__preset-button"
+              onClick={() => handlePresetClick(0.5)}
+              disabled={arePresetsDisabled}
+              aria-label="Set stake to 50% of balance"
+            >
+              50%
+            </button>
+            <button
+              type="button"
+              className="prediction-card__preset-button"
+              onClick={() => handlePresetClick(1.0)}
+              disabled={arePresetsDisabled}
+              aria-label="Set stake to Max available balance"
+            >
+              Max
+            </button>
+          </div>
         </div>
         {stakeError && (
           <p className="prediction-card__exact-price-error" role="alert">
@@ -276,7 +333,7 @@ export function PredictionControls({
         </div>
       )}
 
-      {isDisabled && !isConnecting && !isSubmittingPrediction && (
+      {isDisabled && !isConnecting && !isSubmitting && (
         <div className="prediction-card__disabled-message">
           {!isWalletConnected && <p>Connect your wallet to make predictions</p>}
           {isWalletConnected && !isRoundActive && <p>This round is not active</p>}

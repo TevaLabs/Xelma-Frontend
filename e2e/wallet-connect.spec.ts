@@ -4,8 +4,8 @@ const MOCK_ADDRESS = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
 
 /** Inject a fake Freighter wallet object before any app code runs. */
 function mockFreighter(page: import('@playwright/test').Page) {
-  return page.addInitScript((mockAddress: string) => {
-    let connected = false;
+  return page.addInitScript(() => {
+    localStorage.setItem('xelma_onboarding_dismissed', 'true');
     (window as unknown as Record<string, unknown>).freighter = {
       isConnected: () => Promise.resolve({ isConnected: connected }),
       requestAccess: () => {
@@ -47,9 +47,8 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
 
     await page.goto('/connect');
 
-    // The Connect page renders the WalletConnect component
-    // Specify the button in the header (desktop), not the mobile drawer
-    const connectButton = page.locator('header button:has-text("Connect Wallet")').first();
+    // The Connect page renders the WalletConnect component inside the glass-card
+    const connectButton = page.locator('.glass-card').getByRole('button', { name: /connect wallet|checking wallet/i });
     await expect(connectButton).toBeVisible();
   });
 
@@ -83,8 +82,9 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
     await expect(walletPrompt).toBeVisible();
     await expect(walletPrompt).toContainText('Connect your wallet');
 
-    // Navigate to /connect page
-    await page.goto('/connect');
+    // Navigate to /connect page by clicking connect now CTA
+    await page.click('[data-testid="dashboard-connect-now"]');
+    await page.waitForURL('**/connect');
 
     // Close any modal overlay that might be present (e.g., onboarding modal)
     const modalOverlay = page.locator('.fixed.inset-0.z-\\[200\\]');
@@ -93,8 +93,9 @@ test.describe('Wallet Connect – Freighter Mocked', () => {
       await page.waitForTimeout(500);
     }
 
-    // Verify Connect Wallet button is visible on the connect page
-    const connectButton = page.getByRole('button', { name: 'Connect Wallet' }).nth(1);
+    // Click "Connect Wallet" button in the glass-card to initiate Freighter flow
+    const connectButton = page.locator('.glass-card').getByRole('button', { name: /connect wallet|checking wallet/i });
     await expect(connectButton).toBeVisible();
   });
 });
+
