@@ -299,6 +299,10 @@ const Dashboard = () => {
   }, [deepLinkedRoundId, filteredRounds, prefersReducedMotion]);
 
   const fetchStats = useCallback(async () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      setStats(mockUserStats);
+      return;
+    }
     if (!isWalletConnected) {
       setStats(null);
       return;
@@ -317,6 +321,10 @@ const Dashboard = () => {
   }, [isWalletConnected]);
 
   const fetchActivities = useCallback(async () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      setActivities(mockRecentActivity);
+      return;
+    }
     if (!isWalletConnected || !publicKey) {
       setActivities([]);
       return;
@@ -386,6 +394,7 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') return;
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
     void fetchActiveRound();
     const unsubscribe = subscribeToRoundEvents();
