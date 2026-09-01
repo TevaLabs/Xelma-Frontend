@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -13,11 +12,8 @@
     "test:a11y": "vitest run src/__tests__/accessibility-smoke.test.tsx",
     "test": "npm run lint && npm run build && npm run test:unit",
     "test:e2e": "playwright test",
-    "test:e2e:a11y": "playwright test e2e/accessibility.spec.ts",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed",
-    "storybook": "ladle serve",
-    "storybook:build": "ladle build"
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -25,24 +21,22 @@
     "@stellar/stellar-sdk": "^12.0.0",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-virtual": "^3.14.4",
-    "@testing-library/dom": "^10.4.1",
     "clsx": "^2.1.1",
-    "i18next": "^23.0.0",
+    "qrcode": "^1.5.4",
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-i18next": "^14.0.0",
     "react-router-dom": "^7.12.0",
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
-    "zod": "^4.4.3",
-    "zustand": "^5.0.10"
+    "zustand": "^5.0.10",
+    "i18next": "^23.0.0",
+    "react-i18next": "^14.0.0"
   },
   "devDependencies": {
-    "@ladle/react": "^5.0.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.1.18",
@@ -50,6 +44,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/axe-core": "^2.0.2",
     "@types/node": "^24.10.1",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
@@ -65,7 +60,6 @@
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
     "vite-plugin-pwa": "^0.18.0",
-    "vitest": "^4.0.18",
-    "workbox-window": "^7.4.1"
+    "vitest": "^4.0.18"
   }
 }

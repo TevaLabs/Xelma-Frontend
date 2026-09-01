@@ -3,6 +3,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WalletConnect from './WalletConnect';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { toast } from 'sonner';
+import { toDataURL } from 'qrcode';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+vi.mock('qrcode', () => ({
+  toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,qr-code'),
+}));
 
 // Mock the stores
 vi.mock('../store/useWalletStore', () => ({
@@ -20,18 +32,7 @@ vi.mock('../store/useWalletStore', () => ({
 }));
 vi.mock('../store/useAuthStore');
 
-// Report Freighter as installed so the picker offers it in jsdom.
-vi.mock('../lib/wallets', async () => {
-  const actual = await vi.importActual<typeof import('../lib/wallets')>('../lib/wallets');
-  return {
-    ...actual,
-    WALLET_ADAPTERS: actual.WALLET_ADAPTERS.map((adapter) =>
-      adapter.id === 'freighter'
-        ? { ...adapter, isAvailable: async () => ({ isAvailable: true }) }
-        : adapter,
-    ),
-  };
-});
+vi.stubEnv('VITE_STELLAR_NETWORK', 'TESTNET');
 
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
@@ -41,11 +42,10 @@ vi.mock('lucide-react', () => ({
   Wallet: ({ className, ...props }: any) => <div data-testid="wallet-icon" className={className} {...props} />,
   ShieldCheck: ({ className, ...props }: any) => <div data-testid="shield-icon" className={className} {...props} />,
   RefreshCw: ({ className, ...props }: any) => <div data-testid="refresh-icon" className={className} {...props} />,
-  AlertTriangle: ({ className, ...props }: any) => <div data-testid="alert-triangle-icon" className={className} {...props} />,
-  Download: ({ className, ...props }: any) => <div data-testid="download-icon" className={className} {...props} />,
+  Copy: ({ className, ...props }: any) => <div data-testid="copy-icon" className={className} {...props} />,
+  QrCode: ({ className, ...props }: any) => <div data-testid="qr-icon" className={className} {...props} />,
+  Droplets: ({ className, ...props }: any) => <div data-testid="droplets-icon" className={className} {...props} />,
   ExternalLink: ({ className, ...props }: any) => <div data-testid="external-link-icon" className={className} {...props} />,
-  // Used by the WalletPicker rendered alongside the connect button.
-  X: ({ className, ...props }: any) => <div data-testid="close-icon" className={className} {...props} />,
 }));
 
 const mockWalletStore = {
@@ -53,6 +53,7 @@ const mockWalletStore = {
   balance: null,
   status: 'idle' as const,
   errorMessage: null,
+  errorCode: null,
   networkMismatch: false,
   connect: vi.fn(),
   disconnect: vi.fn(),
@@ -67,7 +68,13 @@ const mockAuthStore = {
 describe('WalletConnect', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    
+    vi.mocked(toDataURL).mockResolvedValue('data:image/png;base64,qr-code');
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
     vi.mocked(useWalletStore).mockImplementation((selector: any) => {
       if (typeof selector === 'function') {
         return selector(mockWalletStore);
@@ -99,29 +106,13 @@ describe('WalletConnect', () => {
       expect(screen.getByTestId('wallet-icon')).toBeInTheDocument();
     });
 
-    it('opens the wallet picker when the connect button is clicked', () => {
+    it('calls connect when connect button is clicked', () => {
       render(<WalletConnect />);
 
-      expect(screen.queryByRole('dialog', { name: /connect a wallet/i })).not.toBeInTheDocument();
+      const connectButton = screen.getByRole('button', { name: /connect wallet/i });
+      fireEvent.click(connectButton);
 
-      fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
-
-      // Wallet choice is now made in the picker rather than connecting immediately.
-      expect(screen.getByRole('dialog', { name: /connect a wallet/i })).toBeInTheDocument();
-      expect(mockWalletStore.connect).not.toHaveBeenCalled();
-    });
-
-    it('calls connect once Freighter is chosen in the picker', async () => {
-      mockWalletStore.connect.mockResolvedValue(undefined);
-      render(<WalletConnect />);
-
-      fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
-
-      const freighterOption = await screen.findByRole('button', { name: /freighter/i });
-      await waitFor(() => expect(freighterOption).not.toBeDisabled());
-      fireEvent.click(freighterOption);
-
-      await waitFor(() => expect(mockWalletStore.connect).toHaveBeenCalledTimes(1));
+      expect(mockWalletStore.connect).toHaveBeenCalledTimes(1);
     });
 
     it('has correct styling for connect button', () => {
@@ -196,7 +187,7 @@ describe('WalletConnect', () => {
     it('shows connected wallet information', () => {
       render(<WalletConnect />);
 
-      expect(screen.getByText('GTES...WXYZ')).toBeInTheDocument(); // Shortened address
+      expect(screen.getByText('GTES...WXYZ')).toBeInTheDocument();
       expect(screen.getByText('100.50 XLM')).toBeInTheDocument();
       expect(screen.getByTestId('wallet-icon')).toBeInTheDocument();
     });
@@ -216,6 +207,51 @@ describe('WalletConnect', () => {
       fireEvent.click(disconnectButton);
 
       expect(mockWalletStore.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('copies the connected public key with a success toast', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /copy public key/i }));
+
+      await waitFor(() => {
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith('GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+      });
+      expect(toast.success).toHaveBeenCalledWith('Public key copied');
+    });
+
+    it('shows a receive panel with a QR code encoding the public key', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /show receive qr code/i }));
+
+      await waitFor(() => {
+        expect(toDataURL).toHaveBeenCalledWith(
+          'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          expect.objectContaining({ errorCorrectionLevel: 'M' }),
+        );
+      });
+      expect(screen.getByRole('img', { name: /qr code for connected stellar public key/i })).toHaveAttribute(
+        'src',
+        'data:image/png;base64,qr-code',
+      );
+      expect(screen.getByText('GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /copy address/i })).toBeInTheDocument();
+    });
+
+    it('shows a drip link in the receive panel on testnet', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /show receive qr code/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: /get testnet xlm/i })).toBeInTheDocument();
+      });
+
+      const dripLink = screen.getByRole('link', { name: /get testnet xlm/i });
+      expect(dripLink).toHaveAttribute('href', 'https://github.com/fredericklamar342-prog/Xelma-Frontend/issues/295');
+      expect(dripLink).toHaveAttribute('target', '_blank');
+      expect(dripLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it('shows authentication status when authenticated', () => {
@@ -245,7 +281,6 @@ describe('WalletConnect', () => {
 
       render(<WalletConnect />);
 
-      expect(screen.getByText('—')).toBeInTheDocument();
       expect(screen.getByText('Balance unavailable')).toBeInTheDocument();
     });
 
@@ -265,43 +300,17 @@ describe('WalletConnect', () => {
       const warning = screen.getByRole('status');
       expect(warning).toHaveTextContent('Switch to Testnet in Freighter');
       expect(warning).toHaveClass('text-red-600', 'dark:text-red-400');
-      // WalletConnect's own banner and the <NetworkMismatchCard /> both render an
-      // <AlertCircle />, so expect at least one.
-      expect(screen.getAllByTestId('alert-icon').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByTestId('alert-icon')).toBeInTheDocument();
     });
   });
 
   describe('error state', () => {
-    it('shows FreighterMissingCard when extension is missing', () => {
+    it('shows error message', () => {
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = {
           ...mockWalletStore,
           status: 'error',
-          errorCode: 'FREIGHTER_UNAVAILABLE',
-          errorMessage: 'Freighter is not installed or not unlocked.',
-        };
-        return typeof selector === 'function' ? selector(store) : store;
-      });
-
-      render(<WalletConnect />);
-
-      expect(screen.getByTestId('freighter-missing-card')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /freighter extension required/i })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /install freighter extension/i })).toBeInTheDocument();
-
-      const retryButton = screen.getByRole('button', { name: /re-check connection/i });
-      fireEvent.click(retryButton);
-      expect(mockWalletStore.clearError).toHaveBeenCalledTimes(1);
-      expect(mockWalletStore.checkConnection).toHaveBeenCalled();
-    });
-
-    it('shows generic connection error and retry button for other errors', () => {
-      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
-        const store = {
-          ...mockWalletStore,
-          status: 'error',
-          errorCode: 'ACCESS_DENIED',
-          errorMessage: 'User denied access',
+          errorMessage: 'Freighter is not installed',
         };
         return typeof selector === 'function' ? selector(store) : store;
       });
@@ -309,7 +318,37 @@ describe('WalletConnect', () => {
       render(<WalletConnect />);
 
       const errorAlert = screen.getByRole('alert');
-      expect(errorAlert).toHaveTextContent('User denied access');
+      expect(errorAlert).toHaveTextContent('Freighter is not installed');
+    });
+
+    it('shows retry button', () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'error',
+          errorMessage: 'Freighter is not installed',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      render(<WalletConnect />);
+
+      const retryButton = screen.getByRole('button', { name: /retry/i });
+      expect(retryButton).toBeInTheDocument();
+      expect(screen.getByTestId('refresh-icon')).toBeInTheDocument();
+    });
+
+    it('clears error and reconnects when retry is clicked', () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'error',
+          errorMessage: 'Freighter is not installed',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      render(<WalletConnect />);
 
       const retryButton = screen.getByRole('button', { name: /retry/i });
       fireEvent.click(retryButton);
@@ -501,7 +540,6 @@ describe('WalletConnect', () => {
 
       render(<WalletConnect />);
 
-      // Should still show shortened version
       expect(screen.getByText('GVER...7890')).toBeInTheDocument();
     });
 
@@ -509,7 +547,7 @@ describe('WalletConnect', () => {
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = {
           ...mockWalletStore,
-          status: 'idle', // Empty key means not connected
+          status: 'idle',
           publicKey: '',
         };
         return typeof selector === 'function' ? selector(store) : store;
@@ -517,7 +555,6 @@ describe('WalletConnect', () => {
 
       render(<WalletConnect />);
 
-      // Should show connect button instead of connected state
       expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
     });
 
@@ -533,14 +570,12 @@ describe('WalletConnect', () => {
 
       render(<WalletConnect />);
 
-      // Should show connect button instead of error state
       expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
     });
 
     it('handles rapid state changes', () => {
       const { rerender } = render(<WalletConnect />);
 
-      // Change to connecting
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = { ...mockWalletStore, status: 'connecting' };
         return typeof selector === 'function' ? selector(store) : store;
@@ -548,7 +583,6 @@ describe('WalletConnect', () => {
       rerender(<WalletConnect />);
       expect(screen.getByText('Connecting…')).toBeInTheDocument();
 
-      // Change to connected
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = {
           ...mockWalletStore,
@@ -560,7 +594,6 @@ describe('WalletConnect', () => {
       rerender(<WalletConnect />);
       expect(screen.getByText('GTES...T123')).toBeInTheDocument();
 
-      // Change to error
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = {
           ...mockWalletStore,

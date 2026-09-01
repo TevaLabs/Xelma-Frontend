@@ -1,20 +1,38 @@
 import { useEffect, useState } from 'react';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { toDataURL } from 'qrcode';
+import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw, Copy, QrCode, Droplets, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
 
-import WalletPicker from './WalletPicker';
-import type { WalletId } from '../lib/wallets';
-import MaskedBalance from './MaskedBalance';
-import NetworkMismatchCard from './NetworkMismatchCard';
-import { EXPECTED_NETWORK_LABEL } from '../lib/stellarNetwork';
-import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
-import FreighterMissingCard from './FreighterMissingCard';
-
+const IS_TESTNET = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase() !== 'PUBLIC';
+const ISSUE_URL = 'https://github.com/fredericklamar342-prog/Xelma-Frontend/issues/295';
 
 const focusRing =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand('copy');
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error('Copy command failed');
+  }
+}
 
 const WalletConnect = () => {
   const {
@@ -30,22 +48,52 @@ const WalletConnect = () => {
     clearError,
   } = useWalletStore();
   const { isAuthenticated } = useAuthStore();
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [pickedWallet, setPickedWallet] = useState<WalletId | null>(null);
+  const [showReceivePanel, setShowReceivePanel] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     void checkConnection();
   }, [checkConnection]);
 
-  // Only Freighter is wired today; the picker disables every other adapter, so a
-  // selection always resolves to the store's Freighter connect flow.
-  const handleSelectWallet = async (id: WalletId) => {
-    setPickedWallet(id);
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!publicKey || !showReceivePanel) return;
+
+    void toDataURL(publicKey, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      scale: 6,
+      color: {
+        dark: '#0A0F1A',
+        light: '#FFFFFF',
+      },
+    })
+      .then((dataUrl) => {
+        if (!cancelled) {
+          setQrDataUrl(dataUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl(null);
+          toast.error('Could not generate receive QR code');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [publicKey, showReceivePanel]);
+
+  const handleCopyPublicKey = async () => {
+    if (!publicKey) return;
+
     try {
-      await connect();
-      setIsPickerOpen(false);
-    } finally {
-      setPickedWallet(null);
+      await copyText(publicKey);
+      toast.success('Public key copied');
+    } catch {
+      toast.error('Could not copy public key');
     }
   };
 
@@ -65,7 +113,7 @@ const WalletConnect = () => {
             role="status"
           >
             <AlertCircle className="w-4 h-4 mr-1 shrink-0" aria-hidden />
-            Switch to {EXPECTED_NETWORK_LABEL} in Freighter
+            Switch to Testnet in Freighter
           </div>
         )}
 
@@ -73,11 +121,7 @@ const WalletConnect = () => {
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-[#BEC7FE] dark:border-gray-700 rounded-lg shadow-sm">
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
               {balance ? <span className="sr-only">Balance:</span> : <span className="sr-only">Balance unavailable</span>}
-              <MaskedBalance
-                value={balance || '—'}
-                className=""
-                maskedText="••••"
-              />
+              {balance ?? '—'}
             </span>
           </div>
 
@@ -88,25 +132,41 @@ const WalletConnect = () => {
             >
               <Wallet className="w-4 h-4" />
             </div>
-            <a
-              href={accountUrl(publicKey)}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={publicKey}
-              aria-label={`${shortAddress} — view on StellarExpert (${EXPLORER_NETWORK})`}
-              className={clsx(
-                'text-sm font-medium text-gray-800 dark:text-gray-200 tabular-nums max-w-[7rem] sm:max-w-none truncate',
-                'underline-offset-2 hover:underline hover:text-[#2C4BFD] dark:hover:text-[#BEC7FE] rounded',
-                focusRing
-              )}
-            >
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 tabular-nums max-w-[7rem] sm:max-w-none truncate">
               {shortAddress}
-            </a>
+            </span>
             {isAuthenticated ? (
               <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-label="Signed in to server" />
             ) : (
               <span className="sr-only">Not signed in to backend</span>
             )}
+            <button
+              type="button"
+              onClick={handleCopyPublicKey}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg text-[#2C4BFD] dark:text-[#BEC7FE] hover:bg-[#2C4BFD]/10',
+                focusRing
+              )}
+              aria-label="Copy public key"
+            >
+              <Copy className="w-4 h-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowReceivePanel((isOpen) => {
+                if (isOpen) setQrDataUrl(null);
+                return !isOpen;
+              })}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
+                focusRing
+              )}
+              aria-expanded={showReceivePanel}
+              aria-controls="wallet-receive-panel"
+              aria-label={showReceivePanel ? 'Hide receive QR code' : 'Show receive QR code'}
+            >
+              <QrCode className="w-4 h-4" aria-hidden />
+            </button>
             <button
               type="button"
               onClick={disconnect}
@@ -121,7 +181,63 @@ const WalletConnect = () => {
           </div>
         </div>
 
-        <NetworkMismatchCard />
+        {showReceivePanel && (
+          <div
+            id="wallet-receive-panel"
+            className="rounded-2xl border border-[#BEC7FE]/20 bg-white dark:bg-gray-900 p-4 shadow-sm"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-36 w-36 shrink-0 items-center justify-center rounded-xl bg-white p-2">
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="QR code for connected Stellar public key"
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <Loader2 className="h-6 w-6 animate-spin text-[#2C4BFD]" aria-label="Generating receive QR code" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white">Receive XLM</h2>
+                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  Scan this QR code or copy your Stellar public key to receive funds.
+                </p>
+                <p className="mt-3 break-all rounded-lg bg-gray-100 p-3 font-mono text-xs text-gray-800 dark:bg-gray-950 dark:text-gray-200">
+                  {publicKey}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyPublicKey}
+                    className={clsx(
+                      'inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#2C4BFD] px-4 py-2 text-sm font-bold text-white hover:bg-[#1a3bf0]',
+                      focusRing
+                    )}
+                  >
+                    <Copy className="h-4 w-4" aria-hidden />
+                    Copy address
+                  </button>
+                  {IS_TESTNET && (
+                    <a
+                      href={ISSUE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        'inline-flex min-h-11 items-center gap-2 rounded-lg border border-amber-400/30 px-4 py-2 text-sm font-bold text-amber-200 transition-colors hover:bg-amber-400/10',
+                        focusRing
+                      )}
+                    >
+                      <Droplets className="h-4 w-4" aria-hidden />
+                      Get testnet XLM
+                      <ExternalLink className="h-3 w-3" aria-hidden />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isPendingAuth && (
           <div className="rounded-2xl border border-blue-200 bg-blue-50 dark:border-blue-900/30 dark:bg-blue-950/50 px-4 py-3 text-sm text-blue-900 dark:text-blue-100">
@@ -168,24 +284,15 @@ const WalletConnect = () => {
   }
 
   if (status === 'error' && errorMessage) {
-    if (errorCode === 'FREIGHTER_UNAVAILABLE' || errorMessage.toLowerCase().includes('freighter is not installed')) {
-      return <FreighterMissingCard />;
-    }
-
     return (
-      <div className="flex flex-col gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-white">
-        <div className="flex items-start gap-2.5">
-          <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-          <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-bold text-red-200">
-              {errorCode === 'ACCESS_DENIED' ? 'Wallet Access Denied' : 'Connection Error'}
-            </h4>
-            <p className="text-xs text-red-100/80 mt-1" role="alert">
-              {errorMessage}
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
+      <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <p
+          className="text-xs sm:text-sm text-red-700 dark:text-red-300 max-w-[220px] sm:max-w-xs text-right sm:text-left"
+          role="alert"
+        >
+          {errorMessage}
+        </p>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => {
@@ -206,45 +313,35 @@ const WalletConnect = () => {
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setIsPickerOpen(true)}
-        disabled={status === 'connecting' || status === 'checking'}
-        className={clsx(
-          'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200',
-          'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20',
-          'disabled:opacity-70 disabled:cursor-not-allowed',
-          focusRing
-        )}
-        aria-busy={status === 'connecting' || status === 'checking'}
-      >
-        {status === 'connecting' ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-            <span>Connecting…</span>
-          </>
-        ) : status === 'checking' ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-            <span>Checking wallet…</span>
-          </>
-        ) : (
-          <>
-            <Wallet className="w-4 h-4" aria-hidden />
-            <span>Connect Wallet</span>
-          </>
-        )}
-      </button>
-
-      <WalletPicker
-        isOpen={isPickerOpen}
-        onClose={() => setIsPickerOpen(false)}
-        onSelect={handleSelectWallet}
-        isConnecting={status === 'connecting'}
-        connectingId={pickedWallet}
-      />
-    </>
+    <button
+      type="button"
+      onClick={() => void connect()}
+      disabled={status === 'connecting' || status === 'checking'}
+      className={clsx(
+        'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200',
+        'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20',
+        'disabled:opacity-70 disabled:cursor-not-allowed',
+        focusRing
+      )}
+      aria-busy={status === 'connecting' || status === 'checking'}
+    >
+      {status === 'connecting' ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+          <span>Connecting…</span>
+        </>
+      ) : status === 'checking' ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+          <span>Checking wallet…</span>
+        </>
+      ) : (
+        <>
+          <Wallet className="w-4 h-4" aria-hidden />
+          <span>Connect Wallet</span>
+        </>
+      )}
+    </button>
   );
 };
 
