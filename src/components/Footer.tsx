@@ -113,11 +113,11 @@ export default function Footer({
                   Xelma
                 </span>
               </Link>
-              <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-500 break-words">
+              <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-400 break-words">
                 Collective market intelligence on the Stellar blockchain —
                 trustless predictions that settle on-chain.
               </p>
-              <p className="mt-4 text-xs text-gray-600 whitespace-nowrap">
+              <p className="mt-4 text-xs text-gray-400 whitespace-nowrap">
                 © {CURRENT_YEAR} Xelma · MIT License
               </p>
             </div>
@@ -196,10 +196,10 @@ export default function Footer({
                 />
                 <span className="whitespace-nowrap">{meta.label}</span>
               </p>
-              <p className="mt-3 text-xs leading-relaxed text-gray-500 break-words">
+              <p className="mt-3 text-xs leading-relaxed text-gray-400 break-words">
                 {meta.description}
               </p>
-              <p className="mt-4 text-xs text-gray-600 break-words">
+              <p className="mt-4 text-xs text-gray-400 break-words">
                 vXLM is virtual — no real funds move on this network.
               </p>
             </div>
@@ -213,7 +213,7 @@ export default function Footer({
             isCompact ? '' : 'border-t border-white/5 pt-5 sm:pt-6'
           )}
         >
-          <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-gray-500 min-w-0">
+          <p className="inline-flex flex-wrap items-center gap-1.5 text-xs text-gray-400 min-w-0">
             <Heart
               className="h-3.5 w-3.5 shrink-0 text-pink-400/80"
               aria-hidden="true"

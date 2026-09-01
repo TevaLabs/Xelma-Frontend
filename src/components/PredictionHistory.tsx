@@ -17,6 +17,8 @@ interface PredictionHistoryProps {
   refreshSignal?: number;
 }
 
+const PAGE_SIZE = 10;
+
 function formatStake(value?: string | number): string {
   if (value === undefined || value === null || value === "") return "N/A";
   const num = typeof value === "number" ? value : Number(value);
@@ -116,7 +118,7 @@ export default function PredictionHistory({ userId, optimisticPrediction, refres
   const hasMore = visibleCount < history.length;
 
   const loadMore = useCallback(() => {
-    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, history.length));
+    setVisibleCount((prev: number) => Math.min(prev + PAGE_SIZE, history.length));
   }, [history.length]);
 
   const handleExportCSV = useCallback(() => {

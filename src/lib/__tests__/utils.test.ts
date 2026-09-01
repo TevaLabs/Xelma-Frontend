@@ -90,39 +90,99 @@ describe('formatRelativeTime', () => {
     vi.useRealTimers();
   });
 
-  it('returns "just now" for dates less than 60 seconds ago', () => {
+  // ── Seconds ──
+
+  it('returns "just now" for 1 second ago', () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
-    const date = new Date(now.getTime() - 30 * 1000);
-    expect(formatRelativeTime(date)).toBe('just now');
+    expect(formatRelativeTime(new Date(now.getTime() - 1 * 1000))).toBe('just now');
+  });
+
+  it('returns "just now" for 30 seconds ago', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 30 * 1000))).toBe('just now');
+  });
+
+  it('returns "just now" for 59 seconds ago (upper boundary)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 59 * 1000))).toBe('just now');
   });
 
   it('returns "just now" for future dates', () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
-    const date = new Date(now.getTime() + 5000);
-    expect(formatRelativeTime(date)).toBe('just now');
+    expect(formatRelativeTime(new Date(now.getTime() + 5000))).toBe('just now');
+  });
+
+  // ── Minutes ──
+
+  it('returns "1m ago" at the 60-second boundary', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 60 * 1000))).toBe('1m ago');
   });
 
   it('returns "Xm ago" for dates minutes ago', () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
     expect(formatRelativeTime(new Date(now.getTime() - 5 * 60 * 1000))).toBe('5m ago');
+  });
+
+  it('returns "59m ago" at the upper minutes boundary', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
     expect(formatRelativeTime(new Date(now.getTime() - 59 * 60 * 1000))).toBe('59m ago');
+  });
+
+  // ── Hours ──
+
+  it('returns "1h ago" at the 60-minute boundary', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 60 * 60 * 1000))).toBe('1h ago');
   });
 
   it('returns "Xh ago" for dates hours ago', () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
     expect(formatRelativeTime(new Date(now.getTime() - 3 * 60 * 60 * 1000))).toBe('3h ago');
+  });
+
+  it('returns "23h ago" at the upper hours boundary', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
     expect(formatRelativeTime(new Date(now.getTime() - 23 * 60 * 60 * 1000))).toBe('23h ago');
+  });
+
+  // ── Days ──
+
+  it('returns "1d ago" at the 24-hour boundary', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    expect(formatRelativeTime(new Date(now.getTime() - 24 * 60 * 60 * 1000))).toBe('1d ago');
   });
 
   it('returns "Xd ago" for dates days ago', () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
     expect(formatRelativeTime(new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000))).toBe('5d ago');
+  });
+
+  it('returns "29d ago" at the upper days boundary', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
     expect(formatRelativeTime(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000))).toBe('29d ago');
+  });
+
+  // ── Date fallback ──
+
+  it('falls back to toLocaleDateString at the 30-day boundary', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const date = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(date)).toBe(date.toLocaleDateString());
   });
 
   it('falls back to toLocaleDateString for dates older than 30 days', () => {
