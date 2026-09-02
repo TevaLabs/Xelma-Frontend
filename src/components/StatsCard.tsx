@@ -27,6 +27,15 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   const pendingWinnings = stats?.pendingWinnings || 0;
   const canClaim = isWalletConnected && pendingWinnings > 0 && !tx.isInFlight;
 
+  // Why the claim button is unavailable — exposed to assistive tech via
+  // aria-describedby (and mirrored in the visible caption below the button).
+  // Null when the user is ready to claim, so no stale reason is ever announced.
+  const disabledReason = !isWalletConnected
+    ? 'Connect wallet to claim'
+    : pendingWinnings === 0
+      ? 'No pending rewards to claim'
+      : null;
+
   const handleClaim = async () => {
     // Guard against double-submits while a claim is already in-flight.
     if (!canClaim || !publicKey || !tx.start()) return;
