@@ -27,6 +27,15 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   const pendingWinnings = stats?.pendingWinnings || 0;
   const canClaim = isWalletConnected && pendingWinnings > 0 && !tx.isInFlight;
 
+  // Why the claim button is unavailable — exposed to assistive tech via
+  // aria-describedby (and mirrored in the visible caption below the button).
+  // Null when the user is ready to claim, so no stale reason is ever announced.
+  const disabledReason = !isWalletConnected
+    ? 'Connect wallet to claim'
+    : pendingWinnings === 0
+      ? 'No pending rewards to claim'
+      : null;
+
   const handleClaim = async () => {
     // Guard against double-submits while a claim is already in-flight.
     if (!canClaim || !publicKey || !tx.start()) return;
@@ -168,7 +177,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
             type="button"
             disabled={!canClaim}
             onClick={handleClaim}
-            title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
+            aria-describedby={disabledReason ? 'claim-rewards-description' : undefined}
             className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
               ${canClaim 
                 ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' 
@@ -176,8 +185,8 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           >
             Claim Rewards
           </button>
-          <p className="mt-2 text-center text-xs text-gray-400">
-            {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
+          <p id="claim-rewards-description" className="mt-2 text-center text-xs text-gray-400">
+            {disabledReason ?? 'Ready to claim'}
           </p>
         </>
       ) : (
