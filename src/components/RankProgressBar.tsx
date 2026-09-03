@@ -38,9 +38,9 @@ export default function RankProgressBar({ xp }: RankProgressBarProps) {
 
         <div
           role="progressbar"
-          aria-valuenow={xp - current.minXp}
+          aria-valuenow={Math.round(progress)}
           aria-valuemin={0}
-          aria-valuemax={next ? next.minXp - current.minXp : xp - current.minXp}
+          aria-valuemax={100}
           aria-label={
             next
               ? `XP progress toward ${next.name}: ${Math.round(progress)}%`
