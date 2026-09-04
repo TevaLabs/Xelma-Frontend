@@ -5,6 +5,7 @@ import type { NotificationEventPayload } from "../types/notification";
 import NotificationsPanel from "./NotificationsPanel";
 import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
+import { useWalletStore } from "../store/useWalletStore";
 
 const NotificationsBell: React.FC = () => {
   const unread = useNotificationsStore((s) => s.unread);
@@ -13,27 +14,30 @@ const NotificationsBell: React.FC = () => {
   const panelId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const { isConnected } = useConnectionStatus();
+  const publicKey = useWalletStore((s) => s.publicKey);
 
   useEffect(() => {
     void useNotificationsStore.getState().fetchUnread();
   }, []);
 
   useEffect(() => {
+    if (!publicKey) return;
+
     // Connect to socket and subscribe to notifications
     socketService.connect();
-    
+
     const unsubscribe = socketService.onNotification((payload: unknown) => {
       addNotification(payload as NotificationEventPayload);
     });
 
-    // Join notifications channel
-    socketService.joinNotifications("user"); // TODO: Use actual user ID
+    // Join notifications channel with real user identifier
+    socketService.joinNotifications(publicKey);
 
     return () => {
       unsubscribe();
       // Note: Don't disconnect socket as other components may be using it
     };
-  }, [addNotification]);
+  }, [addNotification, publicKey]);
 
   useEffect(() => {
     if (!open) return;

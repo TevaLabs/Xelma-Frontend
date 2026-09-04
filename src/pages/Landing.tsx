@@ -50,7 +50,7 @@ export default function Landing() {
   const players = useCountUp(stats.activePlayers);
 
   return (
-    <div className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
+    <main id="main-content" className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
       <section className="relative overflow-hidden px-4 pb-16 pt-16 sm:px-6 lg:px-8 lg:pt-24">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.18),_transparent_60%)]" />
         <div className="pointer-events-none absolute -left-24 top-32 h-80 w-80 rounded-full bg-cyan-500/8 blur-3xl" />
@@ -67,10 +67,10 @@ export default function Landing() {
             <span className="hero-headline-accent">{t('landing.headline2')}</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-400 sm:text-xl">
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-300 sm:text-xl">
             {t('landing.subtitle')}
           </p>
- 
+
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link to="/dashboard" className="btn-primary rounded-xl px-8 py-4 text-base font-bold">
               {t('landing.enterTerminal')}
@@ -79,8 +79,8 @@ export default function Landing() {
               {t('landing.howItWorks')}
             </a>
           </div>
- 
-          <p className="mt-4 text-sm text-[#808897]">
+
+          <p className="mt-4 text-sm text-gray-300">
             {t('landing.starterNote')}
           </p>
 
@@ -103,7 +103,7 @@ export default function Landing() {
           <div className="mx-auto mt-4 grid max-w-3xl gap-4 sm:grid-cols-3">
             <GlassCard className="rounded-xl p-5 text-left">
               <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-300">
                 {t('landing.roundsResolved')}
               </p>
             </GlassCard>
@@ -111,7 +111,7 @@ export default function Landing() {
               <p className="text-2xl font-black text-cyan-300">
                 {formatStat(vxlm, 'vxlm')} vXLM
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-300">
                 {t('landing.practiceVolume')}
               </p>
             </GlassCard>
@@ -119,7 +119,7 @@ export default function Landing() {
               <p className="text-2xl font-black text-[#BEC7FE]">
                 {formatStat(players, 'players')}
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#808897]">
+              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-300">
                 {t('landing.activePredictors')}
               </p>
             </GlassCard>
@@ -136,11 +136,11 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="text-center sm:text-left">
             <p className="text-lg font-bold text-white">Xelma</p>
-            <p className="mt-1 text-sm text-[#808897]">
+            <p className="mt-1 text-sm text-gray-300">
               {t('footer.description')}
             </p>
           </div>
-          <div className="flex items-center gap-6 text-sm text-[#808897]">
+          <div className="flex items-center gap-6 text-sm text-gray-300">
             <span>MIT License</span>
             <a
               href="https://github.com/TevaLabs/Xelma-Frontend"
@@ -153,6 +153,6 @@ export default function Landing() {
           </div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, act } from '@testing-library/react';
 import PriceChart from './PriceChart';
+import type { Asset } from '../types/asset';
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => ({
@@ -279,7 +280,9 @@ describe('PriceChart', () => {
     it('should show loading state initially', () => {
       (priceApi.getPriceSeries as any).mockImplementation(() => new Promise(() => {})); // Never resolves
       
-      render(<PriceChart height={300} />);
+      // Use an asset with no mock-data fast-path so the loading state stays visible
+      // while the pending price fetch is in flight.
+      render(<PriceChart height={300} asset={'SOL' as Asset} />);
       
       expect(screen.getByText(/Loading live price data/i)).toBeInTheDocument();
     });

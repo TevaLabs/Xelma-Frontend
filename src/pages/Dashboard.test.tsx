@@ -73,6 +73,7 @@ const mockRoundStore = {
 const mockWalletStore = {
   status: 'connected' as const,
   publicKey: 'GTEST123',
+  connect: vi.fn(),
 };
 
 // Mock the stores with proper Zustand-like behavior
@@ -267,6 +268,7 @@ describe('Dashboard', () => {
     Object.assign(mockWalletStore, {
       status: 'connected',
       publicKey: 'GTEST123',
+      connect: vi.fn(),
     });
 
     localStorage.clear();
@@ -325,7 +327,57 @@ describe('Dashboard', () => {
       render(<Dashboard />);
 
       expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
-      expect(screen.getByText('Share')).toBeInTheDocument();
+      expect(screen.getByTestId('share-rounds-btn')).toHaveTextContent(/Share|dashboard\.share\.button/i);
+    });
+  });
+
+  describe('mode toggle & persistence', () => {
+    it('renders mode toggle on the dashboard header', () => {
+      render(<Dashboard />);
+
+      const toggle = screen.getByTestId('dashboard-mode-toggle');
+      expect(toggle).toBeInTheDocument();
+      expect(screen.getByTestId('mode-practice-btn')).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByTestId('practice-risk-free-label')).toHaveTextContent(
+        'virtual xLM, no on-chain risk'
+      );
+    });
+
+    it('persists selected mode in localStorage when switched', () => {
+      render(<Dashboard />);
+
+      const onChainBtn = screen.getByTestId('mode-onchain-btn');
+      fireEvent.click(onChainBtn);
+
+      expect(localStorage.getItem('xelma_mode')).toBe('on-chain');
+      expect(onChainBtn).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('prompts wallet connection and remains in practice mode when clicking on-chain while disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      const onChainBtn = screen.getByTestId('mode-onchain-btn');
+      fireEvent.click(onChainBtn);
+
+      expect(mockWalletStore.connect).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('mode-practice-btn')).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('opens the open positions drawer from the dashboard entry point', () => {
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('open-positions-trigger'));
+
+      expect(screen.getByRole('dialog', { name: /open positions/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'No open positions' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close open positions' }));
+      expect(screen.queryByRole('dialog', { name: /open positions/i })).not.toBeInTheDocument();
     });
   });
 
@@ -399,7 +451,7 @@ describe('Dashboard', () => {
 
       render(<Dashboard />);
 
-      expect(screen.getByText('No Active Rounds')).toBeInTheDocument();
+      expect(screen.getByText(/No Active Rounds|dashboard\.emptyState\.noActiveRounds\.title/i)).toBeInTheDocument();
       expect(screen.queryByTestId('prediction-card')).not.toBeInTheDocument();
     });
 
@@ -561,7 +613,7 @@ describe('Dashboard', () => {
         'Conecta tu cartera para enviar predicciones.'
       );
       expect(screen.getByTestId('dashboard-connect-now')).toHaveTextContent('Conectar ahora');
-      expect(screen.getByText('Compartir')).toBeInTheDocument();
+      expect(screen.getByTestId('share-rounds-btn')).toHaveTextContent(/Compartir|dashboard\.share\.button/i);
     });
 
     it('renders Spanish empty state when no round is active', async () => {
@@ -574,7 +626,59 @@ describe('Dashboard', () => {
 
       render(<Dashboard />);
 
-      expect(screen.getByText('No hay rondas activas')).toBeInTheDocument();
+      expect(screen.getByText(/No hay rondas activas|dashboard\.emptyState\.noActiveRounds\.title/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('user stats panel', () => {
+    it('renders live stats when connected and API response succeeds', async () => {
+      vi.mocked(statsApi.getUserStats).mockResolvedValue({
+        balance: 999.5,
+        pendingWinnings: 50,
+        totalWins: 8,
+        totalLosses: 2,
+        currentStreak: 5,
+        xp: 1200,
+        rank: 'Analyst',
+      });
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('999.50 vXLM')).toBeInTheDocument();
+      expect(screen.getByText('5 rounds')).toBeInTheDocument();
+      expect(screen.getByText('8')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it('renders empty state without mock numbers when connected and API returns null', async () => {
+      vi.mocked(statsApi.getUserStats).mockResolvedValue(null);
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('User stats unavailable')).toBeInTheDocument();
+      expect(screen.queryByText('1000 vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+    });
+
+    it('renders error state when connected and API call fails', async () => {
+      vi.mocked(statsApi.getUserStats).mockRejectedValue(new Error('Network failure'));
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('Network failure')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    });
+
+    it('does not render stats panel when wallet is disconnected', () => {
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      expect(screen.queryByText('Your Record')).not.toBeInTheDocument();
     });
   });
 });
+

@@ -77,6 +77,8 @@ The app boots on [http://localhost:5173](http://localhost:5173). During developm
 proxies `/api` and `/socket.io` to `http://localhost:3000` (configure via
 [`vite.config.ts`](./vite.config.ts) and [`src/lib/config.ts`](./src/lib/config.ts)).
 
+> 💡 **Freighter-less Demo:** Newcomers can demo the full UI, wallet connection, placing bets, and claiming rewards in <15 minutes without installing the Freighter browser extension. See [`docs/freighter-less-fixtures.md`](./docs/freighter-less-fixtures.md).
+
 ---
 
 ## Available scripts
@@ -242,11 +244,7 @@ in order — they're ordered from most → least likely.
 
 Frontend features depend on backend endpoints contractually. Issue
 [`#152` — Document backend dependency matrix for frontend features](https://github.com/TevaLabs/Xelma-Frontend/issues/152)
-tracks a single source-of-truth doc that lives next to this README. Until that
-lands, treat the API paths called out in [`src/lib/api.ts`](./src/lib/api.ts) and the
-backend repo's OpenAPI spec as the working contract. If a frontend feature ships
-against an endpoint the backend doesn't expose (or vice versa), update both sides
-in the same PR rather than relying on tribal knowledge.
+is documented in [`docs/BACKEND_DEPENDENCIES.md`](./docs/BACKEND_DEPENDENCIES.md), which serves as the single source of truth for endpoint dependencies, real-time WebSocket events, graceful degradation behavior, and mock availability across all feature areas. If a frontend feature ships against an endpoint the backend doesn't expose (or vice versa), update both sides in the same PR rather than relying on tribal knowledge.
 
 ---
 

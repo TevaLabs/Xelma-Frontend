@@ -522,6 +522,18 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
 
   // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
+    // Reset and refresh chart state when the selected asset changes.
+    setData([]);
+    setIsLoading(true);
+    setLoadError(null);
+
+    // Use mock data directly for instant visual feedback per asset
+    const mockData = mockPriceData[asset];
+    if (mockData && mockData.length > 0) {
+      setData(mockData);
+      setLastUpdatedAt(new Date());
+      setIsLoading(false);
+    }
     const timer = setTimeout(() => {
       setData([]);
       setIsLoading(true);

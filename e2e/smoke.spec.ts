@@ -6,9 +6,50 @@ import {
   visitRoute,
 } from './helpers/smoke';
 
+const MOCK_ADDRESS = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
+
+function mockFreighter(page: import('@playwright/test').Page) {
+  return page.addInitScript((mockAddress: string) => {
+    let connected = false;
+    (window as unknown as Record<string, unknown>).freighter = {
+      isConnected: () => Promise.resolve({ isConnected: connected }),
+      requestAccess: () => {
+        connected = true;
+        return Promise.resolve({ address: mockAddress, error: null });
+      },
+      getAddress: () =>
+        Promise.resolve({ address: connected ? mockAddress : '', error: null }),
+      getNetwork: () => Promise.resolve({ network: 'TESTNET', error: null }),
+      signMessage: (message: string) =>
+        Promise.resolve({ signedMessage: `mocked_signature_${message}`, error: null }),
+    };
+  }, MOCK_ADDRESS);
+}
+
 test.describe('Smoke Tests - Critical Routes', () => {
   test.beforeEach(async ({ page }) => {
+    page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
+    page.on('pageerror', (err) => console.log('PAGE ERROR:', err.message, err.stack));
     await prepareSmokeSession(page);
+    await mockFreighter(page);
+
+    await page.route('**/horizon-testnet.stellar.org/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          balances: [{ asset_type: 'native', balance: '100.00' }],
+        }),
+      }),
+    );
+
+    await page.route('**/api/auth/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ challenge: 'mock_challenge', token: 'mock_jwt_token' }),
+      }),
+    );
   });
 
   test('Landing page loads and renders correctly', async ({ page }) => {

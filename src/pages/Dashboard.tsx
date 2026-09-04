@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
 import PredictionHistory from "../components/PredictionHistory";
@@ -11,6 +10,7 @@ import AssetTabs from "../components/AssetTabs";
 import { ASSETS } from "../constants/assets";
 import type { Asset } from "../types/asset";
 
+import { useTranslation } from 'react-i18next';
 import type { PredictionData } from "../components/PredictionControls";
 import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
@@ -40,13 +40,61 @@ import NetworkMismatchCard from '../components/NetworkMismatchCard';
 import ProfileSummaryCard from '../components/ProfileSummaryCard';
 import SorobanInspectorPanel from '../components/SorobanInspectorPanel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import ModeToggle, { type DashboardMode } from "../components/ModeToggle";
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
-import { mockUserStats, mockRounds } from "../data/mockData";
+import { mockRounds } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
+import OpenPositionsDrawer, { type OpenPosition } from "../components/OpenPositionsDrawer";
+
+const OPEN_PREDICTION_STATUSES = new Set(["open", "pending", "active", "placed", "unresolved"]);
+
+function isOpenPrediction(pred: UserPrediction, activeRoundId?: string | number | null): boolean {
+  const status = String(pred.status ?? "").toLowerCase();
+  if (status) return OPEN_PREDICTION_STATUSES.has(status);
+
+  return (
+    activeRoundId !== undefined &&
+    activeRoundId !== null &&
+    pred.roundId !== undefined &&
+    pred.roundId !== null &&
+    String(pred.roundId) === String(activeRoundId)
+  );
+}
+
+function mapPredictionToOpenPosition(pred: UserPrediction): OpenPosition {
+  return {
+    id: pred.id,
+    asset: typeof pred.asset === "string" ? pred.asset : undefined,
+    direction: typeof pred.direction === "string" ? pred.direction : undefined,
+    stake: pred.stake,
+    exactPrice: pred.exactPrice,
+    roundId: pred.roundId,
+    potentialPayout:
+      typeof pred.potentialPayout === "string" || typeof pred.potentialPayout === "number"
+        ? pred.potentialPayout
+        : undefined,
+    createdAt: pred.createdAt,
+  };
+}
+
+/**
+ * Issue #413 — derive the UP/DOWN pool split (0-100) for a round so the
+ * BetModal can surface the soft pool-imbalance warning. Returns null for
+ * precision rounds or empty pools.
+ */
+function upDownPoolPercentages(
+  round: { mode?: string; poolUp?: number; poolDown?: number } | null,
+): { poolUpPct: number; poolDownPct: number } | null {
+  if (!round || round.mode !== 'updown') return null;
+  const total = (round.poolUp ?? 0) + (round.poolDown ?? 0);
+  if (total <= 0) return null;
+  const upPct = Math.round(((round.poolUp ?? 0) / total) * 100);
+  return { poolUpPct: upPct, poolDownPct: 100 - upPct };
+}
 
 function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
   const isWin = typeof pred.isWin === "boolean"
@@ -169,38 +217,55 @@ const Dashboard = () => {
   const publicKey = useWalletStore((s) => s.publicKey);
   const balance = useWalletStore((s) => s.balance);
   const { isConnected: isSocketConnected } = useConnectionStatus();
-const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
+  const activeRound = useRoundStore((state) => state.activeRound);
+  const activeRoundId = activeRound?.id ?? null;
   const [isBetModalOpen, setIsBetModalOpen] = useState(false);
   const [pendingPrediction, setPendingPrediction] = useState<PredictionData | null>(null);
   const [optimisticPrediction, setOptimisticPrediction] = useState<UserPrediction | null>(null);
+  // Bumped on a successful submit so PredictionHistory re-fetches and picks
+  // up the now-confirmed prediction once the optimistic row is cleared.
+  const [historyRefreshSignal, setHistoryRefreshSignal] = useState(0);
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isEventLogOpen, setIsEventLogOpen] = useState(false);
   const timeoutRef = useRef<number | null>(null);
+
+  const [dashboardMode, setDashboardMode] = useState<DashboardMode>(() => {
+    const saved = localStorage.getItem('xelma_mode');
+    return saved === 'on-chain' ? 'on-chain' : 'practice';
+  });
+
+  const handleModeChange = (newMode: DashboardMode) => {
+    setDashboardMode(newMode);
+    localStorage.setItem('xelma_mode', newMode);
+  };
 
   // Latest live price from the chart, held in a ref to avoid re-renders on every tick.
   const currentPriceRef = useRef<number | null>(null);
   // Price that was live when the user's prediction succeeded; marks the chart.
   const [entryPrice, setEntryPrice] = useState<number | null>(null);
 
+  // Clear the entry marker whenever the active round changes. State is adjusted
+  // during render (not in an effect) so we never call setState synchronously
+  // from an effect (react-hooks/set-state-in-effect).
+  const [prevActiveRoundId, setPrevActiveRoundId] = useState(activeRoundId);
+  if (prevActiveRoundId !== activeRoundId) {
+    setPrevActiveRoundId(activeRoundId);
+    setEntryPrice(null);
+  }
+
   const handlePriceUpdate = useCallback((price: number) => {
     currentPriceRef.current = price;
   }, []);
-
-  // Clear the entry marker whenever the active round changes.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setEntryPrice(null);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [activeRoundId]);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
 
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
+  const [openPositions, setOpenPositions] = useState<OpenPosition[]>([]);
   const [isActivitiesLoading, setIsActivitiesLoading] = useState(false);
+  const [isOpenPositionsOpen, setIsOpenPositionsOpen] = useState(false);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
   const [inspector, setInspector] = useState<SorobanInspectorSnapshot | null>(null);
   const [isInspectorLoading, setIsInspectorLoading] = useState(false);
@@ -235,6 +300,17 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   // Filter mock rounds by the selected asset
   const filteredRounds = useMemo(
     () => mockRounds.filter((r) => r.asset === normalizedAsset),
+    [normalizedAsset],
+  );
+
+  // Issue #413 — pool split for the selected asset's UP/DOWN round, attached
+  // to predictions opened from the prediction card / mobile bar so the
+  // BetModal can surface the soft pool-imbalance warning.
+  const assetPoolSplit = useMemo(
+    () =>
+      upDownPoolPercentages(
+        mockRounds.find((r) => r.asset === normalizedAsset && r.mode === 'updown') ?? null,
+      ),
     [normalizedAsset],
   );
 
@@ -278,6 +354,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   const fetchActivities = useCallback(async () => {
     if (!isWalletConnected || !publicKey) {
       setActivities([]);
+      setOpenPositions([]);
       return;
     }
     setIsActivitiesLoading(true);
@@ -285,20 +362,30 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
     try {
       const data = await predictionsApi.getUserHistory(publicKey);
       setActivities(data.map(mapPredictionToActivityItem));
+      setOpenPositions(
+        data
+          .filter((prediction) => isOpenPrediction(prediction, activeRoundId))
+          .map(mapPredictionToOpenPosition),
+      );
     } catch (err) {
       console.error("Failed to fetch predictions:", err);
+      setOpenPositions([]);
       setActivitiesError(err instanceof Error ? err.message : "Failed to load predictions");
     } finally {
       setIsActivitiesLoading(false);
     }
-  }, [isWalletConnected, publicKey]);
+  }, [activeRoundId, isWalletConnected, publicKey]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void fetchStats();
-      void fetchActivities();
-    }, 0);
-    return () => clearTimeout(timer);
+    // Deferred through a promise chain so the effect performs no synchronous
+    // setState calls (react-hooks/set-state-in-effect). Both fetches still
+    // start promptly and run concurrently.
+    Promise.resolve()
+      .then(() => {
+        void fetchStats();
+        void fetchActivities();
+      })
+      .catch(() => undefined);
   }, [fetchStats, fetchActivities]);
 
   const refreshInspector = useCallback(async () => {
@@ -323,10 +410,13 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [isWalletConnected, publicKey]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void refreshInspector();
-    }, 0);
-    return () => clearTimeout(timer);
+    // Deferred through a promise chain so the effect performs no synchronous
+    // setState calls (react-hooks/set-state-in-effect).
+    Promise.resolve()
+      .then(() => {
+        void refreshInspector();
+      })
+      .catch(() => undefined);
   }, [refreshInspector]);
 
   // Bind the audio controller to the settings store so round-resolution cues
@@ -357,7 +447,9 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, []);
 
   const handlePrediction = (data: PredictionData) => {
-    setPendingPrediction(data);
+    // Attach the round's UP/DOWN pool split so the BetModal can surface the
+    // soft pool-imbalance warning for UP/DOWN rounds.
+    setPendingPrediction({ ...data, ...(assetPoolSplit ?? {}) });
     setIsBetModalOpen(true);
   };
 
@@ -418,7 +510,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
   }, [resolvedRound, endRoundResult.isWin, soundEnabled]);
 
   return (
-    <div className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+    <main id="main-content" className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
       {/* Opt-in community chat (ported from the legacy /play view). Self-positions
           as a fixed slide-over, so mounting it does not shift the terminal layout. */}
       {isChatOpen && <ChatSidebar />}
@@ -427,7 +519,13 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
         {isLoading && <DashboardSkeleton />}
 
         {!isLoading && (
-          <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <ModeToggle
+              mode={dashboardMode}
+              onChangeMode={handleModeChange}
+              isWalletConnected={isWalletConnected}
+              onPromptConnect={() => void useWalletStore.getState().connect()}
+            />
             <button
               type="button"
               onClick={() => setIsChatOpen((open) => !open)}
@@ -460,7 +558,15 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
         {/* Round lifecycle timeline, ported from /play. */}
         {!isLoading && (
           <div className="mb-6">
-            <div className="mb-3 flex justify-end">
+            <div className="mb-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsOpenPositionsOpen(true)}
+                data-testid="open-positions-trigger"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-[#2C4BFD]/40 hover:text-white"
+              >
+                Open positions{openPositions.length > 0 ? ` (${openPositions.length})` : ''}
+              </button>
               <button
                 type="button"
                 onClick={() => setIsEventLogOpen(true)}
@@ -490,18 +596,18 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                       const url = new URL(window.location.href);
                       try {
                         await navigator.clipboard.writeText(url.toString());
-                        toast.success(t('dashboard.share.copied'), {
+                        toast.success("Link copied to clipboard", {
                           id: "share-round-url",
                         });
                       } catch {
-                        toast.error(t('dashboard.share.copyError'), {
+                        toast.error("Could not copy link", {
                           id: "share-round-url",
                         });
                       }
                     }}
                     data-testid="share-rounds-btn"
                     className="btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
-                    aria-label={t('dashboard.share.copyAriaLabel')}
+                    aria-label="Copy share link"
                   >
                     <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                     {t('dashboard.share.button')}
@@ -520,11 +626,14 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                     }}
                     round={round}
                     isHighlighted={deepLinkedRoundId === round.id}
-                    onSubmitPrediction={() => {
+                    onSubmitPrediction={(round) => {
                       setPendingPrediction({
                         direction: "UP",
                         stake: "0",
                         isLegend: false,
+                        // Issue #413 — carry the round's UP/DOWN pool split so
+                        // the BetModal can show the imbalance warning.
+                        ...(upDownPoolPercentages(round) ?? {}),
                       });
                       setIsBetModalOpen(true);
                     }}
@@ -534,10 +643,8 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
               </>
             ) : (
               <EmptyState
-                title={t('dashboard.emptyState.noAssetRounds.title', { asset: normalizedAsset })}
-                description={t('dashboard.emptyState.noAssetRounds.description', {
-                  assetName: t(`dashboard.assetNames.${normalizedAsset}`),
-                })}
+                title={`No ${normalizedAsset} Rounds Available`}
+                description={`There are currently no active rounds for ${normalizedAsset === 'BTC' ? 'Bitcoin' : normalizedAsset === 'ETH' ? 'Ethereum' : 'Stellar'}. Try selecting a different asset or check back later.`}
                 action={
                   <button
                     type="button"
@@ -546,7 +653,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                       void useRoundStore.getState().fetchActiveRound();
                     }}
                   >
-                    {t('dashboard.refresh')}
+                    Refresh
                   </button>
                 }
               />
@@ -586,7 +693,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                   void useRoundStore.getState().fetchActiveRound();
                 }}
               >
-                {t('dashboard.refresh')}
+                Refresh
               </button>
             }
           />
@@ -605,30 +712,16 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                 walletBalance={balance}
               />
               {isWalletConnected && (
-                <section className="rounded-2xl border border-cyan-500/20 bg-black/40 p-5 font-mono text-xs text-cyan-100 shadow-inner shadow-cyan-950/30" aria-labelledby="soroban-inspector-title">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <h2 id="soroban-inspector-title" className="text-sm font-bold uppercase tracking-[0.2em] text-cyan-300">{t('dashboard.sorobanInspector.title')}</h2>
-                      <p className="mt-1 text-[11px] text-cyan-100/70">{t('dashboard.sorobanInspector.description')}</p>
-                    </div>
-                    <button type="button" onClick={() => void refreshInspector()} disabled={isInspectorLoading} className="rounded border border-cyan-400/30 px-3 py-1 text-[11px] font-semibold text-cyan-200 disabled:opacity-60">
-                      {isInspectorLoading ? t('dashboard.sorobanInspector.loading') : t('dashboard.refresh')}
-                    </button>
-                  </div>
-                  {inspector?.error && (
-                    <p className="mb-3 rounded border border-amber-400/30 bg-amber-500/10 p-2 text-amber-200" role="status">
-                      {t('dashboard.sorobanInspector.rpcFallback', { error: inspector.error })}
-                    </p>
-                  )}
-                  <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#020617] p-3" aria-live="polite">
-                    {JSON.stringify(inspector ?? { status: isInspectorLoading ? 'loading' : 'not connected' }, null, 2)}
-                  </pre>
-                </section>
+                <SorobanInspectorPanel
+                  inspector={inspector}
+                  isLoading={isInspectorLoading}
+                  onRefresh={() => void refreshInspector()}
+                />
               )}
 
               {isWalletConnected && (
                 <StatsCard
-                  stats={stats || mockUserStats}
+                  stats={stats}
                   isLoading={isStatsLoading}
                   error={statsError || undefined}
                   onRetry={fetchStats}
@@ -638,7 +731,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-<div className="min-h-[350px] glass-card rounded-2xl p-5">
+<div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
                 <PriceChart height={280} asset={normalizedAsset} entryPrice={entryPrice} onPriceUpdate={handlePriceUpdate} />
               </div>
               {isWalletConnected && (
@@ -659,11 +752,22 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                   onRetry={fetchActivities}
                 />
               )}
-              <PredictionHistory userId={publicKey} optimisticPrediction={optimisticPrediction} />
+              <PredictionHistory
+                userId={publicKey}
+                optimisticPrediction={optimisticPrediction}
+                refreshSignal={historyRefreshSignal}
+              />
             </div>
           </div>
         )}
       </div>
+
+      <OpenPositionsDrawer
+        isOpen={isOpenPositionsOpen}
+        onClose={() => setIsOpenPositionsOpen(false)}
+        positions={openPositions}
+        activeRound={activeRound}
+      />
 
       {/* Mobile sticky predict action bar — visible only on small screens */}
       {!isLoading && isRoundActive && (
@@ -679,6 +783,7 @@ const activeRoundId = useRoundStore((state) => state.activeRound?.id ?? null);
                 direction: 'UP',
                 stake: '',
                 isLegend: false,
+                ...(assetPoolSplit ?? {}),
               });
               setIsBetModalOpen(true);
             }}
@@ -709,6 +814,7 @@ setOptimisticPrediction(null);
           }
           void fetchStats();
           void fetchActivities();
+          setHistoryRefreshSignal((n) => n + 1);
         }}
       />
       <EndRoundModal
@@ -717,7 +823,7 @@ setOptimisticPrediction(null);
         result={endRoundResult}
       />
       <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
-    </div>
+    </main>
   );
 };
 

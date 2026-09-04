@@ -201,12 +201,43 @@ To run a local demo against mock socket data using MSW:
 2. Intercept WebSocket connections to `http://localhost:3000`.
 3. Emit `mockSocketFixtures` payloads to simulate backend events.
 
-## Finding work
+## Freighter-less Contributor Fixtures & Demo Guide
 
+Newcomers can run and demo the full client UI — including wallet connection, claiming rewards, and placing predictions — in **under 15 minutes** without installing the Freighter browser extension.
+
+For the complete reference guide, see [`docs/freighter-less-fixtures.md`](file:///Users/apple/Documents/GitHub/Xelma-Frontend/docs/freighter-less-fixtures.md).
+
+### Quick Demo Options
+
+1. **In-Browser DevTools Console Stub (Full Bet & Claim UI Demo)**:
+   Run `pnpm dev` and open `http://localhost:5173`. Open DevTools Console and execute:
+   ```js
+   window.freighter = {
+     isConnected: async () => ({ isConnected: true }),
+     requestAccess: async () => ({ address: 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE', error: null }),
+     getAddress: async () => ({ address: 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE', error: null }),
+     getNetwork: async () => ({ network: 'TESTNET', error: null }),
+     signMessage: async (msg) => ({ signedMessage: 'mocked_signature_' + msg, error: null }),
+     signTransaction: async (xdr) => ({ signedTxXdr: xdr, error: null }),
+   };
+   ```
+   Click **Connect Wallet** → select Freighter to connect immediately with a mock balance (`100.00 XLM`), allowing you to test `BetModal` predictions and `EndRoundModal` reward claims without extension popups.
+
+2. **Watch-Only Mode**:
+   Go to `/connect` → **Watch-Only** → enter any Stellar G-address (e.g. `GBHExampleAddressForTestingPurposesOnly1234567890ABCDE`) to inspect dashboard panels in read-only mode.
+
+3. **Ladle Component Workbench**:
+   Run `pnpm storybook` to launch Ladle (`http://localhost:61000`) for testing isolated components with mock props.
+
+4. **Playwright Headed Interactive Mode**:
+   Run `pnpm test:e2e:ui` to run Playwright with built-in Freighter injection and MSW backend mocking.
+
+## Finding work
 
 Start with the repository issue tracker:
 
 - [Open frontend issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen)
 - [Open enhancement issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement)
+- [Open Stellar Wave rebuild issues](https://github.com/TevaLabs/Xelma-Frontend/issues?q=is%3Aissue+is%3Aopen+label%3A%22Stellar+Wave%22)
 
 If an issue is stale or underspecified, comment with your proposed approach before investing in a large change.

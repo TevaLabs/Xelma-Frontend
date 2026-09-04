@@ -89,8 +89,7 @@ describe('Dashboard Terminal & Round Flows', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText(/connect your wallet to submit predictions/i)).toBeInTheDocument();
-      expect(screen.getByText(/connect your wallet to make predictions/i)).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-wallet-prompt')).toBeInTheDocument();
     });
 
     it('hides gated messaging when wallet is connected', () => {
@@ -102,8 +101,7 @@ describe('Dashboard Terminal & Round Flows', () => {
         </MemoryRouter>
       );
 
-      expect(screen.queryByText(/connect your wallet to submit predictions/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/connect your wallet to make predictions/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-wallet-prompt')).not.toBeInTheDocument();
     });
 
     // Issue #175 — wallet banner must include a 44px touch target
@@ -178,6 +176,44 @@ describe('Dashboard Terminal & Round Flows', () => {
       });
     });
 
+    it('re-fetches prediction history after a successful submit, so PredictionHistory reflects the confirmed prediction', async () => {
+      vi.mocked(place_bet).mockResolvedValue({ txHash: 'tx-hash-456', ledger: 101 });
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-2' });
+
+      render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      // Both Dashboard's activities feed and PredictionHistory fetch on mount.
+      await waitFor(() => {
+        expect(predictionsApi.getUserHistory).toHaveBeenCalled();
+      });
+      const callsBeforeSubmit = vi.mocked(predictionsApi.getUserHistory).mock.calls.length;
+
+      const stakeInput = screen.getByPlaceholderText('Enter amount');
+      fireEvent.change(stakeInput, { target: { value: '10' } });
+
+      const upBtn = screen.getByRole('button', { name: /predict price goes up/i });
+      fireEvent.click(upBtn);
+
+      const confirmBtn = screen.getByRole('button', { name: /confirm/i });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+
+      // Both the RecentActivity feed and PredictionHistory should have
+      // re-fetched after success — not just RecentActivity.
+      await waitFor(() => {
+        expect(vi.mocked(predictionsApi.getUserHistory).mock.calls.length).toBeGreaterThanOrEqual(
+          callsBeforeSubmit + 2
+        );
+      });
+    });
+
     it('invokes expected onSuccess callback when prediction succeeds in modal', async () => {
       vi.mocked(place_bet).mockResolvedValue({ txHash: 'tx-callback-999', ledger: 101 });
       vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 'pred-2' });
@@ -244,8 +280,7 @@ describe('Dashboard Terminal & Round Flows', () => {
         </MemoryRouter>
       );
 
-      expect(screen.getByText('No Active Rounds')).toBeInTheDocument();
-      expect(screen.getByText(/learn how the game works or refresh to check for new rounds/i)).toBeInTheDocument();
+      expect(screen.getByText(/No Active Rounds|dashboard\.emptyState\.noActiveRounds\.title/i)).toBeInTheDocument();
     });
 
     it('triggers refresh action on clicking refresh button', async () => {

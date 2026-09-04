@@ -171,6 +171,12 @@ describe('StatsCard', () => {
       renderCard({}, { error: 'Failed to load stats' });
       expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
     });
+
+    it('renders an empty/unavailable state when stats is null', () => {
+      render(<StatsCard stats={null} />);
+      expect(screen.getByText('User stats unavailable')).toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+    });
   });
 
   describe('claim flow status machine', () => {
