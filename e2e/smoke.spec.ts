@@ -1,52 +1,109 @@
 import { test, expect } from '@playwright/test';
+import {
+  mockActiveRoundApi,
+  mockEducationApis,
+  prepareSmokeSession,
+  visitRoute,
+} from './helpers/smoke';
 
 test.describe('Smoke Tests - Critical Routes', () => {
-  test('Landing page loads and renders correctly', async ({ page }) => {
-    await page.goto('/');
+  test.beforeEach(async ({ page }) => {
+    await prepareSmokeSession(page);
+  });
 
-    // Verify page title
+  test('Landing page loads and renders correctly', async ({ page }) => {
+    await visitRoute(page, '/');
+    await expect(page).toHaveURL(/\/$/);
     await expect(page).toHaveTitle(/Xelma/i);
 
-    // Verify main heading is present
-    const mainHeading = page.locator('h1');
+    const mainHeading = page.getByRole('heading', { level: 1 });
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Read the market');
-    
-    // Verify subheading is present
-    const subheading = page.locator('p').filter({ hasText: 'Xelma is a trustless, dual-mode prediction market' });
-    await expect(subheading).toBeVisible();
 
-    // Verify CTA button is present
-    const ctaButton = page.locator('a', { hasText: 'Enter Prediction Terminal' });
-    await expect(ctaButton).toBeVisible();
+    await expect(
+      page.getByText('Xelma is a trustless, dual-mode prediction market'),
+    ).toBeVisible();
+
+    await expect(
+      page.getByRole('link', { name: 'Enter Prediction Terminal' }),
+    ).toBeVisible();
   });
 
   test('Dashboard page loads and renders correctly', async ({ page }) => {
-    await page.goto('/dashboard');
-
-    // Verify page title
+    await mockActiveRoundApi(page);
+    await visitRoute(page, '/dashboard');
+    await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page).toHaveTitle(/Xelma/i);
 
-    // Verify dashboard content is present
-    // The dashboard shows wallet connection prompt when not connected
-    const walletPrompt = page.locator('[data-testid="dashboard-wallet-prompt"]');
-    await expect(walletPrompt).toBeVisible();
+    const walletPrompt = page.getByTestId('dashboard-wallet-prompt');
+    await expect(walletPrompt).toBeVisible({ timeout: 15_000 });
     await expect(walletPrompt).toContainText('Connect your wallet');
 
-    // Verify connect button is present
-    const connectButton = page.locator('[data-testid="dashboard-connect-now"]');
-    await expect(connectButton).toBeVisible();
+    await expect(page.getByTestId('dashboard-connect-now')).toBeVisible();
   });
 
   test('Leaderboard page loads and renders correctly', async ({ page }) => {
-    await page.goto('/leaderboard');
-
-    // Verify page title
+    await visitRoute(page, '/leaderboard');
+    await expect(page).toHaveURL(/\/leaderboard$/);
     await expect(page).toHaveTitle(/Xelma/i);
 
-    // Verify main heading is present
-    const mainHeading = page.locator('h1');
+    const mainHeading = page.getByRole('heading', { name: 'Leaderboard', level: 1 });
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
+  });
+
+  test('Learn page loads and renders correctly', async ({ page }) => {
+    await mockEducationApis(page);
+    await visitRoute(page, '/learn');
+    await expect(page).toHaveURL(/\/learn$/);
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    await expect(page.getByRole('heading', { name: /Xelma Academy/i, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Expert Guides', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Quick Alpha', level: 2 })).toBeVisible();
+  });
+
+  test('Profile page loads and renders correctly', async ({ page }) => {
+    await visitRoute(page, '/profile');
+    await expect(page).toHaveURL(/\/profile$/);
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    const profileHeading = page.getByRole('heading', { name: 'Profile', level: 1 });
+    await expect(profileHeading).toBeVisible();
+    await expect(profileHeading).toContainText('Profile');
+
+    const settingsLink = page.getByTestId('profile-open-settings');
+    await expect(settingsLink).toBeVisible();
+    await expect(settingsLink).toHaveAttribute('href', '/settings');
+  });
+
+  test('Pools page loads and renders correctly', async ({ page }) => {
+    await visitRoute(page, '/pools');
+    await expect(page).toHaveURL(/\/pools$/);
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    const poolsHeading = page.getByRole('heading', { name: 'Liquidity Pools', level: 1 });
+    await expect(poolsHeading).toBeVisible();
+    await expect(poolsHeading).toContainText('Liquidity Pools');
+
+    await expect(page.getByRole('heading', { name: 'BTC Pool', level: 2 })).toBeVisible({
+      timeout: 5_000,
+    });
+  });
+
+  test('Tournament page loads and renders correctly', async ({ page }) => {
+    await visitRoute(page, '/tournament');
+    await expect(page).toHaveURL(/\/tournament$/);
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    const tournamentHeading = page.getByRole('heading', { name: 'Tournament', level: 1 });
+    await expect(tournamentHeading).toBeVisible();
+    await expect(tournamentHeading).toContainText('Tournament');
+
+    await expect(
+      page.getByText(
+        'Competitive tournament mode is being built. Check back soon to compete for top rankings and exclusive rewards.',
+      ),
+    ).toBeVisible();
   });
 });
