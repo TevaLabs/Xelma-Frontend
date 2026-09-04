@@ -137,14 +137,12 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(page).toHaveURL(/\/tournament$/);
     await expect(page).toHaveTitle(/Xelma/i);
 
-    const tournamentHeading = page.getByRole('heading', { name: 'Tournament', level: 1 });
+    const tournamentHeading = page.getByRole('heading', { name: /Tournaments?/, level: 1 });
     await expect(tournamentHeading).toBeVisible();
     await expect(tournamentHeading).toContainText('Tournament');
 
     await expect(
-      page.getByText(
-        'Competitive tournament mode is being built. Check back soon to compete for top rankings and exclusive rewards.',
-      ),
+      page.getByText(/Compete against other predictors in structured tournament brackets/i),
     ).toBeVisible();
   });
 });
