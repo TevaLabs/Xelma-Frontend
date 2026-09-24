@@ -23,6 +23,7 @@ application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 - [Deployment](#deployment) ← production / Vercel guide
 - [Education & Learn page](#education--learn-page)
 - [Project structure notes](#project-structure-notes)
+- [Maintainer API guide](#maintainer-api-guide)
 - [Localization](#localization)
 - [Testing](#testing)
 - [React Compiler / ESLint notes](#react-compiler--eslint-notes)
@@ -279,6 +280,10 @@ src/
 ├── types/             # Shared TypeScript types
 └── utils/             # Pure utility functions
 ```
+
+### Maintainer API guide
+
+The frontend intentionally keeps the API stack layered as `api.ts` → `api-client.ts` → stores. See [docs/API_CLIENT_GUIDE.md](./docs/API_CLIENT_GUIDE.md) for the maintainer guide, endpoint ownership table, and the exceptions for auth, SSE, and Socket.IO streams.
 
 ### Dashboard routes
 
