@@ -1,3 +1,12 @@
+/**
+ * API client layering contract:
+ * - src/lib/api.ts owns raw transport, auth headers, and shared error handling.
+ * - this file owns endpoint contracts, response normalization, and typed client helpers.
+ * - stores orchestrate state and call these helpers; components should consume stores.
+ *
+ * Keep new endpoints in this module, not in components or stores, so payload shape and
+ * TypeScript guarantees remain centralized and consistent across the app.
+ */
 import type { Guide, Tip } from '../types/education';
 import type { NotificationItem } from '../types/notification';
 import { apiFetch } from './api';
