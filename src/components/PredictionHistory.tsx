@@ -3,6 +3,7 @@ import { predictionsApi, type UserPrediction } from "../lib/api-client";
 import { LoadingState, ErrorState, EmptyState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
 import { formatVXLM, formatRelativeTime } from "../lib/utils";
+import { buildPredictionCsv, downloadCsv, predictionCsvFilename } from "../lib/predictionCsv";
 
 const PAGE_SIZE = 10;
 
@@ -121,43 +122,16 @@ export default function PredictionHistory({ userId, optimisticPrediction, refres
     setVisibleCount((prev: number) => Math.min(prev + PAGE_SIZE, history.length));
   }, [history.length]);
 
+  // Why Export is unavailable right now, or null when it is available.
+  const exportDisabledReason = isLoading
+    ? "Export unavailable while your history is loading"
+    : history.length === 0
+      ? "No predictions to export yet"
+      : null;
+
   const handleExportCSV = useCallback(() => {
     if (history.length === 0) return;
-
-    const headers = ["direction", "stake", "result", "timestamp"];
-    const rows = history.map((prediction) => {
-      const direction = typeof prediction.direction === "string" ? prediction.direction : "";
-      const stake = prediction.stake !== undefined && prediction.stake !== null ? String(prediction.stake) : "";
-      const result = typeof prediction.status === "string" ? prediction.status : "";
-      const timestamp = typeof prediction.createdAt === "string" ? prediction.createdAt : "";
-
-      const escape = (val: string) => {
-        const cleaned = val.replace(/"/g, '""');
-        if (cleaned.includes(",") || cleaned.includes('"') || cleaned.includes("\n") || cleaned.includes("\r")) {
-          return `"${cleaned}"`;
-        }
-        return cleaned;
-      };
-
-      return [
-        escape(direction),
-        escape(stake),
-        escape(result),
-        escape(timestamp)
-      ].join(",");
-    });
-
-    const csvContent = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `prediction_history_${userId ?? "user"}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(predictionCsvFilename(userId), buildPredictionCsv(history));
   }, [history, userId]);
 
   useEffect(() => {
@@ -187,14 +161,25 @@ export default function PredictionHistory({ userId, optimisticPrediction, refres
         title="Prediction History"
         action={
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              className="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              onClick={handleExportCSV}
-              disabled={history.length === 0 || isLoading}
-            >
-              Export CSV
-            </button>
+            {/* The wrapper carries the tooltip: browsers do not reliably show a
+                `title` on a disabled button. The sr-only text gives the same
+                reason to assistive tech through aria-describedby. */}
+            <span title={exportDisabledReason ?? undefined} className="inline-flex">
+              <button
+                type="button"
+                className="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                onClick={handleExportCSV}
+                disabled={exportDisabledReason !== null}
+                aria-describedby={exportDisabledReason ? "export-csv-reason" : undefined}
+              >
+                Export CSV
+              </button>
+              {exportDisabledReason && (
+                <span id="export-csv-reason" className="sr-only">
+                  {exportDisabledReason}
+                </span>
+              )}
+            </span>
             <button
               type="button"
               className="text-sm font-medium text-[#2C4BFD] hover:underline disabled:opacity-50"

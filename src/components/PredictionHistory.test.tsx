@@ -65,6 +65,7 @@ describe("PredictionHistory", () => {
     const mockHistory: UserPrediction[] = [
       {
         id: "1",
+        asset: "BTC",
         direction: "UP",
         stake: 10.5,
         status: "WON",
@@ -72,6 +73,7 @@ describe("PredictionHistory", () => {
       },
       {
         id: "2",
+        asset: "XLM",
         direction: "DOWN",
         stake: "20",
         status: "LOST",
@@ -101,15 +103,17 @@ describe("PredictionHistory", () => {
     });
 
     const exportBtn = screen.getByRole("button", { name: /Export CSV/i });
+    // The object URL is revoked after a short delay (not in the same tick).
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
     fireEvent.click(exportBtn);
 
     // Assert URL.createObjectURL and Blob creation
     expect(blobSpy).toHaveBeenCalled();
     const blobArgs = blobSpy.mock.calls[0][0] as string[];
     const expectedCSV = [
-      "direction,stake,result,timestamp",
-      "UP,10.5,WON,2026-07-29T10:00:00.000Z",
-      "DOWN,20,LOST,2026-07-29T10:05:00.000Z",
+      "asset,direction,stake,result,timestamp",
+      "BTC,UP,10.5,WON,2026-07-29T10:00:00.000Z",
+      "XLM,DOWN,20,LOST,2026-07-29T10:05:00.000Z",
     ].join("\n");
     expect(blobArgs[0]).toBe(expectedCSV);
 
@@ -126,13 +130,90 @@ describe("PredictionHistory", () => {
     
     expect(clickSpy).toHaveBeenCalled();
     expect(removeChildSpy).toHaveBeenCalledWith(mockAnchor);
+    expect(revokeObjectURLMock).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
     expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:mock-url");
+    vi.useRealTimers();
 
     // Clean up spies
     appendChildSpy.mockRestore();
     removeChildSpy.mockRestore();
     clickSpy.mockRestore();
     blobSpy.mockRestore();
+  });
+
+  describe("export availability", () => {
+    it("says why export is disabled when the history is empty", async () => {
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue([]);
+
+      render(<PredictionHistory userId={mockUserId} />);
+      await waitFor(() => {
+        expect(screen.getByText("No predictions yet")).toBeInTheDocument();
+      });
+
+      const exportBtn = screen.getByRole("button", { name: /Export CSV/i });
+      expect(exportBtn).toBeDisabled();
+      expect(exportBtn).toHaveAccessibleDescription("No predictions to export yet");
+      expect(exportBtn.closest("span[title]")).toHaveAttribute("title", "No predictions to export yet");
+    });
+
+    it("says export is unavailable while the history is loading", () => {
+      (predictionsApi.getUserHistory as Mock).mockReturnValue(new Promise(() => {}));
+
+      render(<PredictionHistory userId={mockUserId} />);
+
+      const exportBtn = screen.getByRole("button", { name: /Export CSV/i });
+      expect(exportBtn).toBeDisabled();
+      expect(exportBtn).toHaveAccessibleDescription("Export unavailable while your history is loading");
+    });
+
+    it("shows no reason once there is something to export", async () => {
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue([
+        { id: "1", direction: "UP", stake: 10, status: "WON", createdAt: "2026-07-29T10:00:00.000Z" },
+      ]);
+
+      render(<PredictionHistory userId={mockUserId} />);
+      await waitFor(() => {
+        expect(screen.getByText(/WON/i)).toBeInTheDocument();
+      });
+
+      const exportBtn = screen.getByRole("button", { name: /Export CSV/i });
+      expect(exportBtn).toBeEnabled();
+      expect(exportBtn).not.toHaveAttribute("aria-describedby");
+      expect(exportBtn.closest("span[title]")).toBeNull();
+    });
+
+    it("exports the whole history, not just the rows visible on the first page", async () => {
+      const many: UserPrediction[] = Array.from({ length: 25 }, (_, i) => ({
+        id: String(i + 1),
+        asset: "XLM",
+        direction: i % 2 === 0 ? "UP" : "DOWN",
+        stake: i + 1,
+        status: "WON",
+        createdAt: "2026-07-29T10:00:00.000Z",
+      }));
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue(many);
+      global.URL.createObjectURL = vi.fn().mockReturnValue("blob:mock-url");
+      global.URL.revokeObjectURL = vi.fn();
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+      const blobSpy = vi.spyOn(global, "Blob");
+
+      render(<PredictionHistory userId={mockUserId} />);
+      await waitFor(() => {
+        expect(screen.getAllByText(/WON/i).length).toBeGreaterThan(0);
+      });
+      // Only the first page is on screen...
+      expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /Export CSV/i }));
+
+      // ...but the file has the header plus all 25 predictions.
+      const csv = (blobSpy.mock.calls[0][0] as string[])[0];
+      expect(csv.split("\n")).toHaveLength(26);
+
+      clickSpy.mockRestore();
+      blobSpy.mockRestore();
+    });
   });
 
   describe("optimistic pending prediction", () => {
