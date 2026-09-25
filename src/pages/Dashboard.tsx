@@ -113,6 +113,7 @@ function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
     result: isWin ? "Won" : "Lost",
     amount: typeof pred.stake === "number" ? pred.stake : parseFloat(String(pred.stake || 0)) || 0,
     mode,
+    timestamp: pred.createdAt,
   };
 }
 

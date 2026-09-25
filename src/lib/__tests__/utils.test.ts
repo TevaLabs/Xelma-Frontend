@@ -191,4 +191,34 @@ describe('formatRelativeTime', () => {
     const date = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
     expect(formatRelativeTime(date)).toBe(date.toLocaleDateString());
   });
+
+  // ── Flexible Inputs (ISO strings, timestamps, null/undefined, invalid) ──
+
+  it('formats ISO string dates correctly', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const isoString = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+    expect(formatRelativeTime(isoString)).toBe('15m ago');
+  });
+
+  it('formats numeric timestamps in milliseconds', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const msTimestamp = now.getTime() - 2 * 60 * 60 * 1000;
+    expect(formatRelativeTime(msTimestamp)).toBe('2h ago');
+  });
+
+  it('formats numeric timestamps in seconds', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    const secTimestamp = Math.floor((now.getTime() - 3 * 24 * 60 * 60 * 1000) / 1000);
+    expect(formatRelativeTime(secTimestamp)).toBe('3d ago');
+  });
+
+  it('safely handles null, undefined, empty string, and invalid dates', () => {
+    expect(formatRelativeTime(null)).toBe('just now');
+    expect(formatRelativeTime(undefined)).toBe('just now');
+    expect(formatRelativeTime('')).toBe('just now');
+    expect(formatRelativeTime('not-a-valid-date')).toBe('just now');
+  });
 });
