@@ -317,6 +317,15 @@ const Dashboard = () => {
   // Scroll the deep-linked RoundCard into view once it's actually rendered
   // (it may be filtered out by the selected asset tab, so we only scroll
   // when it resolves to a visible card).
+  //
+  // FIX (issue #415): The refs are populated during the same render commit
+  // that mounts the cards, but useEffect callbacks run *after* the browser
+  // has painted. On the very first mount the ref map is empty when the
+  // effect fires because React populates callback-refs in the commit phase
+  // (layout), which happens before useEffect (passive) — however in jsdom
+  // and some browser edge-cases the DOM node isn't accessible until the
+  // next animation frame. We defer one rAF to guarantee the element is
+  // available before calling scrollIntoView.
   const roundCardRefs = useRef(new Map<number, HTMLElement>());
   const { reduced: prefersReducedMotion } = useReducedMotion();
 
@@ -324,13 +333,19 @@ const Dashboard = () => {
     if (deepLinkedRoundId === null) return;
     if (!filteredRounds.some((r) => r.id === deepLinkedRoundId)) return;
 
-    const card = roundCardRefs.current.get(deepLinkedRoundId);
-    if (!card) return;
+    // Defer one animation frame so the browser has committed the card's
+    // DOM node into the ref map before we attempt to scroll to it.
+    const rafId = requestAnimationFrame(() => {
+      const card = roundCardRefs.current.get(deepLinkedRoundId);
+      if (!card) return;
 
-    card.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-      block: "center",
+      card.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "center",
+      });
     });
+
+    return () => cancelAnimationFrame(rafId);
   }, [deepLinkedRoundId, filteredRounds, prefersReducedMotion]);
 
   const fetchStats = useCallback(async () => {

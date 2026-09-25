@@ -7,6 +7,15 @@ import i18n from '../i18n';
 let mockSearchParams = new URLSearchParams();
 const mockSetSearchParams = vi.fn();
 
+// Mock sonner so toast calls can be asserted without needing a Toaster portal.
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
 // Mock the API client
 vi.mock('../lib/api-client', () => ({
   predictionsApi: {
@@ -678,6 +687,184 @@ describe('Dashboard', () => {
       render(<Dashboard />);
 
       expect(screen.queryByText('Your Record')).not.toBeInTheDocument();
+    });
+  });
+
+  // Issue #415 — ?round= deep-link: scroll the matching card into view
+  describe('deep-link ?round= scroll-into-view', () => {
+    // Pending rAF callbacks. Populated by the deferred-rAF mock below and
+    // flushed explicitly by flushRAF() so tests can assert the two-phase
+    // contract: scrollIntoView must NOT fire before the frame, and MUST fire
+    // after. This is the only setup that can distinguish the fixed code (rAF
+    // wrapper present) from the reverted code (direct synchronous call inside
+    // the effect), because a synchronous mock would let both pass.
+    let rafCallbacks: FrameRequestCallback[] = [];
+
+    const flushRAF = () => {
+      const pending = rafCallbacks;
+      rafCallbacks = [];
+      pending.forEach((cb) => cb(0));
+    };
+
+    beforeEach(() => {
+      // Reset the pending queue every test so callbacks from one test can't
+      // leak into the next.
+      rafCallbacks = [];
+
+      // vi.resetAllMocks() in the outer beforeEach clears the global
+      // Element.prototype.scrollIntoView stub from src/test/setup.ts.
+      // Re-install it here as a fresh spy so we can assert on it.
+      Element.prototype.scrollIntoView = vi.fn();
+
+      // Deferred rAF mock: queue the callback instead of invoking it
+      // immediately. Tests must call flushRAF() to trigger the scroll.
+      // This ensures the test would FAIL if the rAF wrapper were removed
+      // from Dashboard.tsx and scrollIntoView were called synchronously
+      // inside the effect (the pre-fix behaviour), because in that case
+      // scrollIntoView would already have been called before flushRAF().
+      global.requestAnimationFrame = vi.fn((cb: FrameRequestCallback) => {
+        rafCallbacks.push(cb);
+        return rafCallbacks.length;
+      });
+      global.cancelAnimationFrame = vi.fn((id: number) => {
+        // Remove the callback at the given 1-based index so cancelled frames
+        // don't fire on the next flushRAF() call.
+        rafCallbacks.splice(id - 1, 1);
+      });
+    });
+
+    afterEach(() => {
+      // Restore the setup.ts baseline so other suites are unaffected.
+      Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    it('calls scrollIntoView on the matching card when a valid ?round= param is present', () => {
+      // Round 3 belongs to XLM (the default asset tab), so it is included
+      // in filteredRounds and its ref will be populated on render.
+      mockSearchParams = new URLSearchParams('round=3');
+
+      render(<Dashboard />);
+
+      // ── The distinguishing assertion ──────────────────────────────────────
+      // Because requestAnimationFrame is deferred, the scroll must NOT have
+      // fired yet. If this assertion passes but the post-flush assertion also
+      // passes, we know the rAF wrapper is the mechanism, not an accident.
+      // If Dashboard.tsx is reverted to a direct synchronous call inside the
+      // effect, scrollIntoView fires before flushRAF() and this line FAILS.
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+
+      // Flush the pending rAF — this is when scrollIntoView must be called.
+      flushRAF();
+
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'center',
+      });
+
+      // The matching card should carry the highlight attribute.
+      const cards = screen.getAllByTestId('round-card');
+      const highlightedCard = cards.find(
+        (el) => el.getAttribute('data-highlighted') === 'true',
+      );
+      expect(highlightedCard).toBeDefined();
+    });
+
+    it('uses behavior:"auto" when reduced motion is preferred', () => {
+      mockSearchParams = new URLSearchParams('round=3');
+
+      // Simulate OS-level reduced-motion preference.
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: query === '(prefers-reduced-motion: reduce)',
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
+      render(<Dashboard />);
+
+      // No scroll yet — must wait for the rAF frame.
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+      flushRAF();
+
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+        behavior: 'auto',
+        block: 'center',
+      });
+    });
+
+    it('does not call scrollIntoView when the round id exists in mockRounds but belongs to a different asset tab', () => {
+      // Round 1 is a BTC round; default tab is XLM — it won't appear in
+      // filteredRounds, so we must not attempt to scroll to it.
+      mockSearchParams = new URLSearchParams('round=1');
+
+      render(<Dashboard />);
+
+      // No rAF callback should have been queued at all (the effect returns
+      // early before requestAnimationFrame is called).
+      expect(global.requestAnimationFrame).not.toHaveBeenCalled();
+      flushRAF(); // safe no-op — nothing queued
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it('does not call scrollIntoView for a completely unknown round id', () => {
+      mockSearchParams = new URLSearchParams('round=9999');
+
+      render(<Dashboard />);
+
+      expect(global.requestAnimationFrame).not.toHaveBeenCalled();
+      flushRAF();
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it('does not call scrollIntoView when no ?round= param is present', () => {
+      // mockSearchParams is already a clean URLSearchParams() from the
+      // outer beforeEach.
+      render(<Dashboard />);
+
+      expect(global.requestAnimationFrame).not.toHaveBeenCalled();
+      flushRAF();
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    // Existing toast behavior must be preserved — do not regress.
+    it('shows a toast for an unknown round id and does NOT call scrollIntoView', async () => {
+      mockSearchParams = new URLSearchParams('round=9999');
+
+      render(<Dashboard />);
+      flushRAF();
+
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+
+      // The toast module is mocked above with vi.mock('sonner'); assert on
+      // the spy directly rather than querying the portal-rendered DOM.
+      const { toast } = await import('sonner');
+      expect(toast.error).toHaveBeenCalledWith(
+        'Round "9999" not found — showing all rounds',
+        expect.objectContaining({ id: 'round-deeplink-unknown' }),
+      );
+    });
+
+    it('shows a toast for a non-numeric ?round= value', async () => {
+      mockSearchParams = new URLSearchParams('round=abc');
+
+      render(<Dashboard />);
+      flushRAF();
+
+      expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+
+      const { toast } = await import('sonner');
+      expect(toast.error).toHaveBeenCalledWith(
+        'Round "abc" not found — showing all rounds',
+        expect.objectContaining({ id: 'round-deeplink-unknown' }),
+      );
     });
   });
 });
