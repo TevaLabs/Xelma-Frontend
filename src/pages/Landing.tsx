@@ -6,14 +6,24 @@ import ModeCards from '../components/ModeCards';
 import GlassCard from '../components/ui/GlassCard';
 import StatusPill from '../components/ui/StatusPill';
 import { useNetworkStats } from '../hooks/useNetworkStats';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
-function useCountUp(target: number, durationMs = 1800) {
-  const [value, setValue] = useState(0);
+function useCountUp(target: number, reduced: boolean, durationMs = 1800) {
+  // Under reduced motion the first render already holds the final value, so
+  // there is no 0 -> target flash on first paint.
+  const [value, setValue] = useState(() => (reduced ? target : 0));
   // Track the last displayed value so re-targeting (mock -> live stats) animates
   // smoothly from where it is rather than snapping back to zero.
-  const latestRef = useRef(0);
+  const latestRef = useRef(reduced ? target : 0);
 
   useEffect(() => {
+    if (reduced) {
+      // No animation. Keep the ref in step with what is shown so that turning
+      // motion back on later animates from here instead of from a stale value.
+      latestRef.current = target;
+      return;
+    }
+
     let frame = 0;
     const startValue = latestRef.current;
     const start = performance.now();
@@ -29,9 +39,11 @@ function useCountUp(target: number, durationMs = 1800) {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [target, durationMs]);
+  }, [target, durationMs, reduced]);
 
-  return value;
+  // Reduced motion: always show the target (also when live stats replace the
+  // mock ones), never an in-between number.
+  return reduced ? target : value;
 }
 
 function formatStat(value: number, type: 'rounds' | 'vxlm' | 'players') {
@@ -45,9 +57,11 @@ function formatStat(value: number, type: 'rounds' | 'vxlm' | 'players') {
 export default function Landing() {
   const { t } = useTranslation();
   const { stats, isStale } = useNetworkStats();
-  const rounds = useCountUp(stats.totalRounds);
-  const vxlm = useCountUp(stats.vXlmDistributed);
-  const players = useCountUp(stats.activePlayers);
+  // Honours the Settings motion override first, then prefers-reduced-motion.
+  const { reduced } = useReducedMotion();
+  const rounds = useCountUp(stats.totalRounds, reduced);
+  const vxlm = useCountUp(stats.vXlmDistributed, reduced);
+  const players = useCountUp(stats.activePlayers, reduced);
 
   return (
     <main id="main-content" className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
