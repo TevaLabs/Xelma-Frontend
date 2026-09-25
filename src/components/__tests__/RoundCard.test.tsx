@@ -298,3 +298,30 @@ describe('RoundCard Component', () => {
     });
   });
 });
+
+describe('RoundCard pool split — direction is not conveyed by colour alone (#565)', () => {
+  it('renders the pool split with a triangle beside each of UP and DOWN', () => {
+    render(
+      <RoundCard
+        round={{
+          id: 9,
+          asset: 'BTC',
+          mode: 'updown',
+          status: 'live',
+          startPrice: 67420,
+          poolUp: 2500,
+          poolDown: 1500,
+          closesInSeconds: 150,
+        }}
+        onSubmitPrediction={vi.fn()}
+      />,
+    );
+    const widget = screen.getByTestId('pool-split-widget');
+
+    expect(widget.querySelector('svg[data-direction="up"]')).not.toBeNull();
+    expect(widget.querySelector('svg[data-direction="down"]')).not.toBeNull();
+    expect(screen.getByText('UP 63%')).toBeInTheDocument();
+    expect(screen.getByText('DOWN 37%')).toBeInTheDocument();
+  });
+});
+

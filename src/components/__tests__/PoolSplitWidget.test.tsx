@@ -211,3 +211,57 @@ describe('PoolSplitWidget', () => {
     expect(wrapper.className).toMatch(/test-cls/);
   });
 });
+
+// ─── Direction is not conveyed by colour alone (issue #565) ─────────────────
+
+describe('PoolSplitWidget — distinct UP / DOWN patterns and shapes (#565)', () => {
+  it('uses a different stripe style per side (single diagonal vs crosshatch)', () => {
+    render(<PoolSplitWidget poolUp={600} poolDown={400} />);
+
+    expect(screen.getByTestId('pool-split-up-bar')).toHaveAttribute('data-stripe-style', 'diagonal');
+    expect(screen.getByTestId('pool-split-down-bar')).toHaveAttribute('data-stripe-style', 'crosshatch');
+  });
+
+  it('separates the two segments with a border when both sides have a share', () => {
+    render(<PoolSplitWidget poolUp={600} poolDown={400} />);
+
+    expect(screen.getByTestId('pool-split-down-bar').style.borderLeft).toContain('2px solid');
+  });
+
+  it.each([
+    ['all on DOWN', 0, 4000],
+    ['all on UP', 4000, 0],
+  ])('drops the divider when the pool is %s', (_label, up, down) => {
+    render(<PoolSplitWidget poolUp={up} poolDown={down} />);
+
+    expect(screen.getByTestId('pool-split-down-bar').style.borderLeft).toBe('');
+  });
+
+  it('shows an up-pointing triangle by UP and a down-pointing one by DOWN', () => {
+    render(<PoolSplitWidget poolUp={600} poolDown={400} />);
+    const labels = screen.getByTestId('pool-split-labels');
+
+    expect(labels.querySelectorAll('svg[data-direction="up"]')).toHaveLength(1);
+    expect(labels.querySelectorAll('svg[data-direction="down"]')).toHaveLength(1);
+    expect(screen.getByTestId('pool-split-up-label').parentElement?.querySelector('svg[data-direction="up"]')).not.toBeNull();
+    expect(screen.getByTestId('pool-split-down-label').parentElement?.querySelector('svg[data-direction="down"]')).not.toBeNull();
+  });
+
+  it('keeps the triangles decorative, so the screen-reader summary is unchanged', () => {
+    render(<PoolSplitWidget poolUp={2500} poolDown={1500} />);
+
+    expect(screen.getByTestId('pool-split-sr-summary').textContent).toBe(
+      'Pool split: UP 63% (2.50K vXLM), DOWN 37% (1.50K vXLM), total 4.00K vXLM',
+    );
+    screen.getByTestId('pool-split-labels').querySelectorAll('svg').forEach((svg) => {
+      expect(svg).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  it('still shows the triangles in the empty state', () => {
+    render(<PoolSplitWidget poolUp={0} poolDown={0} />);
+
+    expect(screen.getByTestId('pool-split-labels').querySelectorAll('svg')).toHaveLength(2);
+  });
+});
+
