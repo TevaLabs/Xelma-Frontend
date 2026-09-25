@@ -19,6 +19,7 @@ const Leaderboard = lazy(() => import(/* webpackChunkName: "leaderboard" */ './c
 const LearnPage = lazy(() => import(/* webpackChunkName: "learn" */ './pages/Learn'));
 const Connect = lazy(() => import('./pages/Connect'));
 const Profile = lazy(() => import('./pages/Profile'));
+const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 const Pools = lazy(() => import('./pages/Pools'));
 const Tournament = lazy(() => import(/* webpackChunkName: "tournament" */ './pages/Tournament'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -57,6 +58,8 @@ function App() {
                 <Route path="/pools" element={<Pools />} />
                 <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/:id" element={<PublicProfile />} />
+                <Route path="/u/:handle" element={<PublicProfile />} />
                 <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
                 <Route path="*" element={<NotFound />} />                </Routes>
             </RouteTransition>
