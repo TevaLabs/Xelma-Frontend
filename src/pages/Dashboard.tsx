@@ -43,7 +43,7 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import ModeToggle, { type DashboardMode } from "../components/ModeToggle";
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
-import { mockRounds } from "../data/mockData";
+import { mockRounds, mockUserStats, mockRecentActivity } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";
@@ -334,6 +334,10 @@ const Dashboard = () => {
   }, [deepLinkedRoundId, filteredRounds, prefersReducedMotion]);
 
   const fetchStats = useCallback(async () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      setStats(mockUserStats as unknown as UserStats);
+      return;
+    }
     if (!isWalletConnected) {
       setStats(null);
       return;
@@ -352,6 +356,11 @@ const Dashboard = () => {
   }, [isWalletConnected]);
 
   const fetchActivities = useCallback(async () => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      setActivities(mockRecentActivity as unknown as RecentActivityItem[]);
+      setOpenPositions([]);
+      return;
+    }
     if (!isWalletConnected || !publicKey) {
       setActivities([]);
       setOpenPositions([]);
@@ -428,6 +437,10 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    if (import.meta.env.VITE_USE_MOCKS === 'true') {
+      useRoundStore.setState({ activeRound: mockRounds[0] as unknown as Round, isRoundActive: true, isLoading: false });
+      return () => {};
+    }
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
     void fetchActiveRound();
     const unsubscribe = subscribeToRoundEvents();
