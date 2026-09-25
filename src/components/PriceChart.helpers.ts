@@ -66,6 +66,35 @@ export function toCandlestickData(
   return result.sort((a, b) => a.time - b.time);
 }
 
+/**
+ * Resample price points into fixed-size time buckets, keeping the last
+ * price observed in each bucket (bucket-aligned timestamps).
+ *
+ * Used to render coarser chart timeframes (5m / 15m) entirely on the
+ * client without refetching data or remounting the chart instance.
+ *
+ * @param points           – Price points (sorted internally if needed)
+ * @param intervalSeconds  – Bucket size in seconds (300 = 5m, 900 = 15m)
+ */
+export function resamplePricePoints(
+  points: PricePoint[],
+  intervalSeconds: number,
+): PricePoint[] {
+  if (points.length === 0 || intervalSeconds <= 0) return points;
+
+  const sorted = points.length > 1
+    ? [...points].sort((a, b) => a.time - b.time)
+    : points;
+
+  const buckets = new Map<number, PricePoint>();
+  for (const point of sorted) {
+    const bucketStart = Math.floor(point.time / intervalSeconds) * intervalSeconds;
+    buckets.set(bucketStart, { time: bucketStart, value: point.value });
+  }
+
+  return Array.from(buckets.values()).sort((a, b) => a.time - b.time);
+}
+
 export function mergePricePoints(existing: PricePoint[], incoming: PricePoint[]): PricePoint[] {
   if (incoming.length === 0) return existing;
 
