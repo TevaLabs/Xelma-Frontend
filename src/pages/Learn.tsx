@@ -1,17 +1,22 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { educationApi } from "../lib/api-client";
 import { normalizeApiError } from "../lib/api";
 import type { Guide, Tip } from "../types/education";
 import { GuideCard } from "../components/education/GuideCard";
 import { TipCard } from "../components/education/TipCard";
 import { LoadingState, ErrorState, EmptyState } from "../components/ui/StatusStates";
-import { BookMarked, GraduationCap, Telescope } from "lucide-react";
+import { BookMarked, GraduationCap, Telescope, Search, X } from "lucide-react";
+import { cn } from "../lib/utils";
 
 const LearnPage = () => {
     const [guides, setGuides] = useState<Guide[]>([]);
     const [tip, setTip] = useState<Tip | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Client-side guide filters: filtering happens in memory with no network round-trips.
+    const [searchQuery, setSearchQuery] = useState("");
+    const [activeCategory, setActiveCategory] = useState("All");
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -59,6 +64,34 @@ const LearnPage = () => {
         }, 0);
         return () => clearTimeout(timer);
     }, [fetchData]);
+
+    // Category chips derived from loaded guides, sorted for a stable order.
+    const categories = useMemo(() => {
+        const unique = new Set(guides.map((guide) => guide.category.trim()));
+        return ["All", ...Array.from(unique).sort((a, b) => a.localeCompare(b))];
+    }, [guides]);
+
+    // Pure client-side filter: matches category plus a case-insensitive query
+    // against title, description, and category. No network requests involved.
+    const filteredGuides = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+        return guides.filter((guide) => {
+            const matchesCategory =
+                activeCategory === "All" || guide.category.trim() === activeCategory;
+            if (!matchesCategory) return false;
+            if (!query) return true;
+            const haystack = [guide.title, guide.description, guide.category]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+            return haystack.includes(query);
+        });
+    }, [guides, searchQuery, activeCategory]);
+
+    const handleClearFilters = useCallback(() => {
+        setSearchQuery("");
+        setActiveCategory("All");
+    }, []);
 
     if (loading) {
         return (
@@ -110,11 +143,94 @@ const LearnPage = () => {
                             </div>
 
                             {guides.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {guides.map((guide) => (
-                                        <GuideCard key={guide.id} guide={guide} />
-                                    ))}
-                                </div>
+                                <>
+                                    {/* Client-side filter controls */}
+                                    <div className="mb-6 space-y-4">
+                                        <div className="relative">
+                                            <label htmlFor="guide-search" className="sr-only">
+                                                Search guides
+                                            </label>
+                                            <Search
+                                                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+                                                aria-hidden
+                                            />
+                                            <input
+                                                id="guide-search"
+                                                type="search"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="Search guides by title or topic..."
+                                                aria-describedby="learn-guide-filter-status"
+                                                className="w-full rounded-xl border border-white/10 bg-[#111827]/60 py-3 pl-11 pr-4 text-sm text-white placeholder-gray-500 focus:border-xelma-blue/50 focus:outline-none focus:ring-2 focus:ring-xelma-blue/30"
+                                            />
+                                        </div>
+
+                                        <div
+                                            role="group"
+                                            aria-label="Filter guides by category"
+                                            className="flex flex-wrap gap-2"
+                                        >
+                                            {categories.map((category) => {
+                                                const isActive = category === activeCategory;
+                                                return (
+                                                    <button
+                                                        key={category}
+                                                        type="button"
+                                                        onClick={() => setActiveCategory(category)}
+                                                        aria-pressed={isActive}
+                                                        className={cn(
+                                                            "rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors",
+                                                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]",
+                                                            isActive
+                                                                ? "border-xelma-blue bg-xelma-blue text-white"
+                                                                : "border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                                                        )}
+                                                    >
+                                                        {category}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Announces filter results to assistive tech */}
+                                    <p
+                                        id="learn-guide-filter-status"
+                                        role="status"
+                                        aria-live="polite"
+                                        className="sr-only"
+                                    >
+                                        {filteredGuides.length === 1
+                                            ? "1 guide matches your filters"
+                                            : `${filteredGuides.length} guides match your filters`}
+                                    </p>
+
+                                    {filteredGuides.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {filteredGuides.map((guide) => (
+                                                <GuideCard key={guide.id} guide={guide} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <EmptyState
+                                                title="No guides match your filters"
+                                                message="No guides found for your search or category. Try different keywords or clear your filters to see all guides."
+                                                icon={<Telescope className="h-12 w-12 text-gray-600 mb-4" />}
+                                            />
+                                            <div className="flex justify-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleClearFilters}
+                                                    className="btn-ghost rounded-xl px-6 py-2.5 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
+                                                >
+                                                    <X className="mr-2 h-4 w-4" aria-hidden />
+                                                    Clear filters
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
                             ) : (
                                 <EmptyState
                                     title="No guides available"
