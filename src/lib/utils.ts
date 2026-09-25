@@ -51,6 +51,41 @@ export function formatCompactNumber(value: number, decimals = 2): string {
 }
 
 /**
+ * Copy text to the clipboard.
+ *
+ * Uses the async Clipboard API when available (secure contexts only) and falls
+ * back to a hidden `<textarea>` + `document.execCommand('copy')` otherwise so
+ * the affordance still works on insecure origins or older browsers.
+ *
+ * Resolves `true` when the text was copied, `false` when every mechanism failed.
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to the legacy path (permission denied, insecure context, etc.).
+    }
+  }
+
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Format a date as a relative time string (e.g. "just now", "5m ago", "3h ago", "2d ago").
  * Falls back to toLocaleDateString for dates older than 30 days.
  */

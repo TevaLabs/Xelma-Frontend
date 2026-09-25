@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { formatVXLM, formatPercent, formatCompactNumber, formatRelativeTime } from '../utils';
+import {
+  formatVXLM,
+  formatPercent,
+  formatCompactNumber,
+  formatRelativeTime,
+  copyToClipboard,
+} from '../utils';
 
 describe('formatVXLM', () => {
   it('formats values below 1 000 with two decimal places', () => {
@@ -190,5 +196,61 @@ describe('formatRelativeTime', () => {
     vi.setSystemTime(now);
     const date = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000);
     expect(formatRelativeTime(date)).toBe(date.toLocaleDateString());
+  });
+});
+
+describe('copyToClipboard', () => {
+  const TEXT = 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete (navigator as { clipboard?: Clipboard }).clipboard;
+    delete (document as unknown as { execCommand?: unknown }).execCommand;
+  });
+
+  it('uses the Clipboard API when available', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    await expect(copyToClipboard(TEXT)).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith(TEXT);
+  });
+
+  it('falls back to execCommand when the Clipboard API is unavailable', async () => {
+    const execCommand = vi.fn().mockReturnValue(true);
+    (document as unknown as { execCommand: unknown }).execCommand = execCommand;
+
+    await expect(copyToClipboard(TEXT)).resolves.toBe(true);
+    expect(execCommand).toHaveBeenCalledWith('copy');
+  });
+
+  it('falls back to execCommand when the Clipboard API rejects', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    const execCommand = vi.fn().mockReturnValue(true);
+    (document as unknown as { execCommand: unknown }).execCommand = execCommand;
+
+    await expect(copyToClipboard(TEXT)).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith(TEXT);
+    expect(execCommand).toHaveBeenCalledWith('copy');
+  });
+
+  it('resolves false when every mechanism fails', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    (document as unknown as { execCommand: unknown }).execCommand = vi
+      .fn()
+      .mockReturnValue(false);
+
+    await expect(copyToClipboard(TEXT)).resolves.toBe(false);
   });
 });

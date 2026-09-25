@@ -1,7 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
+import {
+  Loader2,
+  AlertCircle,
+  LogOut,
+  Wallet,
+  ShieldCheck,
+  RefreshCw,
+  Copy,
+  Check,
+  QrCode,
+  X,
+} from 'lucide-react';
+import QRCode from 'qrcode';
+import { toast } from 'sonner';
 import clsx from 'clsx';
 
 import WalletPicker from './WalletPicker';
@@ -11,6 +24,8 @@ import NetworkMismatchCard from './NetworkMismatchCard';
 import { EXPECTED_NETWORK_LABEL } from '../lib/stellarNetwork';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
 import FreighterMissingCard from './FreighterMissingCard';
+import { copyToClipboard } from '../lib/utils';
+import { FRIENDBOT_ENABLED, friendbotUrl } from '../lib/friendbot';
 
 
 const focusRing =
@@ -32,10 +47,47 @@ const WalletConnect = () => {
   const { isAuthenticated } = useAuthStore();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickedWallet, setPickedWallet] = useState<WalletId | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
 
   useEffect(() => {
     void checkConnection();
   }, [checkConnection]);
+
+  // Render the receive QR only while the panel is open, and only for the
+  // currently connected key (regenerate when either changes).
+  useEffect(() => {
+    if (!isQrOpen || !publicKey) {
+      setQrSvg(null);
+      return;
+    }
+    let cancelled = false;
+    void QRCode.toString(publicKey, { type: 'svg', margin: 1 })
+      .then((svg) => {
+        if (!cancelled) setQrSvg(svg);
+      })
+      .catch(() => {
+        if (!cancelled) setQrSvg(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isQrOpen, publicKey]);
+
+  const handleCopyAddress = async () => {
+    if (!publicKey) return;
+    const ok = await copyToClipboard(publicKey);
+    if (ok) {
+      setCopied(true);
+      toast.success('Address copied');
+      window.setTimeout(() => setCopied(false), 1500);
+    } else {
+      toast.error('Copy failed', {
+        description: 'Your browser may be blocking clipboard access.',
+      });
+    }
+  };
 
   // Only Freighter is wired today; the picker disables every other adapter, so a
   // selection always resolves to the store's Freighter connect flow.
@@ -102,6 +154,37 @@ const WalletConnect = () => {
             >
               {shortAddress}
             </a>
+            <button
+              type="button"
+              onClick={handleCopyAddress}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-[#2C4BFD] dark:hover:text-[#BEC7FE] hover:bg-gray-50 dark:hover:bg-gray-700/50',
+                copied && 'text-green-600 dark:text-green-400',
+                focusRing
+              )}
+              aria-label={copied ? 'Address copied' : 'Copy wallet address'}
+              title="Copy address"
+            >
+              {copied ? (
+                <Check className="w-4 h-4" aria-hidden />
+              ) : (
+                <Copy className="w-4 h-4" aria-hidden />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsQrOpen((open) => !open)}
+              className={clsx(
+                'shrink-0 p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-[#2C4BFD] dark:hover:text-[#BEC7FE] hover:bg-gray-50 dark:hover:bg-gray-700/50',
+                isQrOpen && 'text-[#2C4BFD] dark:text-[#BEC7FE] bg-gray-50 dark:bg-gray-700/50',
+                focusRing
+              )}
+              aria-label={isQrOpen ? 'Hide receive QR code' : 'Show receive QR code'}
+              aria-expanded={isQrOpen}
+              title="Receive"
+            >
+              <QrCode className="w-4 h-4" aria-hidden />
+            </button>
             {isAuthenticated ? (
               <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-label="Signed in to server" />
             ) : (
@@ -120,6 +203,82 @@ const WalletConnect = () => {
             </button>
           </div>
         </div>
+
+        {isQrOpen && (
+          <div
+            role="dialog"
+            aria-label="Receive — show your wallet address as a QR code"
+            data-testid="qr-receive-panel"
+            className="rounded-xl border border-[#BEC7FE] dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex flex-col items-center gap-3 shadow-sm"
+          >
+            <div className="flex items-center justify-between w-full">
+              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                Receive
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsQrOpen(false)}
+                className={clsx(
+                  'p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50',
+                  focusRing
+                )}
+                aria-label="Close receive QR panel"
+              >
+                <X className="w-4 h-4" aria-hidden />
+              </button>
+            </div>
+
+            <div
+              className="bg-white rounded-lg p-2 [&>svg]:w-40 [&>svg]:h-40"
+              aria-hidden
+            >
+              {qrSvg ? (
+                <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
+              ) : (
+                <div className="w-40 h-40 flex items-center justify-center text-xs text-gray-400" data-testid="qr-loading">
+                  Generating QR code…
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center break-all font-mono max-w-full">
+              {publicKey}
+            </p>
+
+            <button
+              type="button"
+              onClick={handleCopyAddress}
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50',
+                copied && 'text-green-600 dark:text-green-400 border-green-300 dark:border-green-700',
+                focusRing
+              )}
+              aria-label={copied ? 'Address copied' : 'Copy wallet address'}
+            >
+              {copied ? (
+                <Check className="w-4 h-4" aria-hidden />
+              ) : (
+                <Copy className="w-4 h-4" aria-hidden />
+              )}
+              {copied ? 'Copied' : 'Copy address'}
+            </button>
+
+            {FRIENDBOT_ENABLED && (
+              <a
+                href={friendbotUrl(publicKey)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={clsx(
+                  'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-[#2C4BFD] hover:underline',
+                  focusRing
+                )}
+                aria-label="Get testnet XLM from Friendbot faucet"
+              >
+                Get testnet XLM (Friendbot)
+              </a>
+            )}
+          </div>
+        )}
 
         <NetworkMismatchCard />
 
