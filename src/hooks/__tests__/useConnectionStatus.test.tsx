@@ -42,6 +42,7 @@ describe('useConnectionStatus', () => {
     expect(result.current.isConnecting).toBe(false);
     expect(result.current.isReconnecting).toBe(false);
     expect(result.current.isDisconnected).toBe(true);
+    expect(result.current.isDegraded).toBe(false);
   });
 
   it('should subscribe to connection changes on mount', () => {
@@ -87,6 +88,7 @@ describe('useConnectionStatus', () => {
     expect(result.current.status).toBe('connected');
     expect(result.current.isConnected).toBe(true);
     expect(result.current.isDisconnected).toBe(false);
+    expect(result.current.isDegraded).toBe(false);
   });
 
   it('should provide correct boolean flags for each status', () => {
@@ -128,6 +130,8 @@ describe('useConnectionStatus', () => {
     expect(result.current.isConnected).toBe(false);
     expect(result.current.isConnecting).toBe(false);
     expect(result.current.isDisconnected).toBe(false);
+    expect(result.current.isDegraded).toBe(true);
+    expect(result.current.isDegraded).toBe(true);
   });
 
   it('should provide reconnect function', () => {
