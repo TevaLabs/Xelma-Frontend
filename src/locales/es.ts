@@ -60,6 +60,35 @@ const es = {
     title: 'Torneos',
     description:
       'Compite contra otros predictores en brackets de torneo estructurados. Sube en la clasificación, gana recompensas exclusivas y demuestra tu intuición de mercado.',
+    pageEyebrow: 'Temporadas competitivas de Xelma',
+    heroTitle: 'Tu próxima predicción puede llevarte a la cima.',
+    heroDescription:
+      'Los torneos por temporada llegarán a Xelma. Compite con la comunidad, escala posiciones y demuestra tu intuición de mercado.',
+    waitlistTitle: 'Únete a la lista de acceso anticipado',
+    waitlistDescription:
+      'Recibe novedades cuando se abran las temporadas. Regístrate para guardar tu interés en este dispositivo.',
+    emailLabel: 'Correo electrónico',
+    emailPlaceholder: 'tu@ejemplo.com',
+    submitCta: 'Unirme a la lista',
+    localStorageNote: 'Esta demostración guarda tu correo solo en este navegador. No se envía a un servidor.',
+    confirmation: 'Ya estás en la lista local, {{email}}. Guardamos tu registro en este dispositivo.',
+    duplicateConfirmation: 'Este correo ya está en la lista de este dispositivo.',
+    storageError: 'No se pudo guardar el registro. Revisa el almacenamiento del navegador e inténtalo de nuevo.',
+    roadmapEyebrow: 'Competencia justa',
+    roadmapTitle: 'Una temporada que merece la pena',
+    roadmapDescription:
+      'Estamos definiendo un camino claro desde tu primer enfrentamiento hasta la clasificación final. Esto es lo que planeamos incluir.',
+    roadmapStep: 'Pilar {{number}}',
+    seasonsTitle: 'Formato de temporada',
+    seasonsDescription:
+      'Compite en temporadas definidas con rondas programadas, clasificaciones transparentes y una tabla renovada cada temporada.',
+    prizesTitle: 'Premios y recompensas',
+    prizesDescription:
+      'Los mejores participantes podrán obtener recompensas y reconocimiento. Los detalles se anunciarán antes del lanzamiento.',
+    eligibilityTitle: 'Requisitos',
+    eligibilityDescription:
+      'Las reglas claras ayudarán a mantener una competencia justa. Los requisitos y las condiciones de participación se publicarán antes de cada temporada.',
+    roadmapNote: 'Compartiremos las fechas, requisitos y premios antes de abrir las inscripciones.',
     modesTitle: 'Formatos de Torneo',
     modesSubtitle:
       'Dos modos competitivos están planeados, cada uno recompensando diferentes estrategias de predicción.',
