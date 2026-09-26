@@ -185,6 +185,69 @@ describe('PriceChart', () => {
         })
       );
     });
+
+    it('flashes the last tick green for an increase and red for a decrease', () => {
+      vi.useFakeTimers();
+      render(<PriceChart height={300} asset={'SOL' as Asset} />);
+
+      const onPriceUpdate = (socketService.onPriceUpdate as any).mock.calls[0][0];
+      act(() => {
+        onPriceUpdate({ time: 1000000, value: 10 });
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+
+      const lastTick = screen.getByTestId('price-last-tick');
+      expect(lastTick).not.toHaveClass('price-flash-up');
+
+      act(() => {
+        onPriceUpdate({ time: 1000001, value: 11 });
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(lastTick).toHaveClass('price-flash-up');
+
+      act(() => {
+        onPriceUpdate({ time: 1000002, value: 9 });
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(lastTick).toHaveClass('price-flash-down');
+      vi.useRealTimers();
+    });
+
+    it('does not apply a flash class when reduced motion is preferred', () => {
+      vi.useFakeTimers();
+      (useReducedMotion as any).mockReturnValue({
+        reduced: true,
+        systemPreference: true,
+        override: 'system',
+      });
+
+      render(<PriceChart height={300} asset={'SOL' as Asset} />);
+
+      const onPriceUpdate = (socketService.onPriceUpdate as any).mock.calls[0][0];
+      act(() => {
+        onPriceUpdate({ time: 1000000, value: 10 });
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      act(() => {
+        onPriceUpdate({ time: 1000001, value: 11 });
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+
+      const lastTick = screen.getByTestId('price-last-tick');
+      expect(lastTick).not.toHaveClass('price-flash-up');
+      expect(lastTick).not.toHaveClass('price-flash-down');
+      vi.useRealTimers();
+    });
   });
 
   describe('Chart mode toggle', () => {
