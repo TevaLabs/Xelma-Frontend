@@ -1,6 +1,5 @@
 // ISSUE: Integrate Freighter wallet connection (@stellar/freighter-api) — partial: uses useWalletStore
 // ISSUE: Build Leaderboard page (/leaderboard)
-// ISSUE: Build Tournament page (/tournament)
 // ISSUE: Build User Profile page (/profile)
 
 import { Link, useLocation } from 'react-router-dom';
@@ -28,7 +27,7 @@ interface NavLinkItem {
 const navLinks: NavLinkItem[] = [
   { labelKey: 'navbar.nav.terminal', to: '/dashboard' },
   { labelKey: 'navbar.nav.pools', to: '/pools' },
-  { labelKey: 'navbar.nav.tournament', to: '/tournament', tooltip: 'Coming Soon' },
+  { labelKey: 'navbar.nav.tournament', to: '/tournament' },
   { labelKey: 'navbar.nav.leaderboard', to: '/leaderboard' },
   { labelKey: 'navbar.nav.learn', to: '/learn' },
   { labelKey: 'navbar.nav.profile', to: '/profile' },

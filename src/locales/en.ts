@@ -106,6 +106,35 @@ const en = {
     title: 'Tournaments',
     description:
       'Compete against other predictors in structured tournament brackets. Climb the leaderboard, earn exclusive rewards, and prove your market intuition.',
+    pageEyebrow: 'Xelma competitive seasons',
+    heroTitle: 'Your next prediction could be a champion run.',
+    heroDescription:
+      'Season-based tournaments are coming to Xelma. Compete with the community, climb the standings, and earn recognition for your market instincts.',
+    waitlistTitle: 'Get on the early-access list',
+    waitlistDescription:
+      'Be first to hear when tournament seasons open. Sign up here to save your interest on this device.',
+    emailLabel: 'Email address',
+    emailPlaceholder: 'you@example.com',
+    submitCta: 'Join the waitlist',
+    localStorageNote: 'This demo saves your email only in this browser. It is not sent to a server.',
+    confirmation: 'You’re on the local waitlist, {{email}}. We’ve saved your signup on this device.',
+    duplicateConfirmation: 'This email is already on the waitlist on this device.',
+    storageError: 'Your browser could not save this signup. Check your storage settings and try again.',
+    roadmapEyebrow: 'Built for fair competition',
+    roadmapTitle: 'A season worth showing up for',
+    roadmapDescription:
+      'We’re shaping a clear path from your first match to the season standings. Here’s what tournament play is planned to include.',
+    roadmapStep: 'Pillar {{number}}',
+    seasonsTitle: 'Season format',
+    seasonsDescription:
+      'Compete in defined seasons with scheduled rounds, transparent standings, and a fresh leaderboard each season.',
+    prizesTitle: 'Rewards & prizes',
+    prizesDescription:
+      'Top performers can earn season rewards and recognition. Final prize details will be announced before launch.',
+    eligibilityTitle: 'Eligibility',
+    eligibilityDescription:
+      'Clear participation rules will help keep competition fair. Requirements and any entry conditions will be published ahead of each season.',
+    roadmapNote: 'Dates, eligibility rules, and reward details will be shared before registration opens.',
     modesTitle: 'Tournament Formats',
     modesSubtitle:
       'Two competitive modes are planned, each rewarding different prediction strategies.',

@@ -1,309 +1,173 @@
+import { useState, type FormEvent } from 'react';
 import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Gift,
+  ShieldCheck,
+  Sparkles,
   Trophy,
-  TrendingUp,
-  Crosshair,
-  Calendar,
-  Users,
-  Shield,
-  Zap,
-  Target,
-  ChevronRight,
+  UsersRound,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-/**
- * Tournament landing page shell (issue #127).
- *
- * Shows a premium coming-soon experience with:
- * - Hero section with trophy and headline
- * - Two tournament mode cards (Directional & Precision)
- * - Roadmap timeline of upcoming features
- * - Schedule placeholder
- * - Disabled Join CTA (backend not ready)
- *
- * All styling uses the existing glass-card + brand token design system.
- */
+const WAITLIST_STORAGE_KEY = 'xelma:tournament-waitlist';
 
-const TOURNAMENT_MODES = [
-  {
-    id: 'directional',
-    title: 'Directional Tournament',
-    subtitle: 'UP / DOWN',
-    description:
-      'Compete by predicting whether asset prices will rise or fall within fixed rounds. Earn leaderboard points for accurate calls.',
-    accent: 'blue' as const,
-    icon: TrendingUp,
-    bullets: [
-      'Bracket-style elimination rounds',
-      'Real-time leaderboard scoring',
-      'Prize pool distribution',
-    ],
-  },
-  {
-    id: 'precision',
-    title: 'Precision Tournament',
-    subtitle: 'Narrow Range',
-    description:
-      'Lock in tighter price windows for higher multipliers. Precision traders climb the rankings faster with fewer but more accurate predictions.',
-    accent: 'teal' as const,
-    icon: Crosshair,
-    bullets: [
-      'Multiplied scoring for accuracy',
-      'Advanced strategy required',
-      'Separate precision leaderboard',
-    ],
-  },
+const ROADMAP_CARDS = [
+  { title: 'tournament.seasonsTitle', description: 'tournament.seasonsDescription', icon: CalendarDays },
+  { title: 'tournament.prizesTitle', description: 'tournament.prizesDescription', icon: Gift },
+  { title: 'tournament.eligibilityTitle', description: 'tournament.eligibilityDescription', icon: ShieldCheck },
 ] as const;
 
-const ROADMAP_ITEMS = [
-  {
-    phase: 'Phase 1',
-    title: 'Tournament Infrastructure',
-    description: 'Backend tournament engine, matchmaking, and scoring system.',
-    icon: Shield,
-    status: 'upcoming' as const,
-  },
-  {
-    phase: 'Phase 2',
-    title: 'Ranked Seasons',
-    description: 'Seasonal leaderboard resets with tier-based rewards and exclusive badges.',
-    icon: Trophy,
-    status: 'upcoming' as const,
-  },
-  {
-    phase: 'Phase 3',
-    title: 'Live Tournaments',
-    description: 'Real-time competitive events with entry limits and escalating prize pools.',
-    icon: Zap,
-    status: 'upcoming' as const,
-  },
-  {
-    phase: 'Phase 4',
-    title: 'Custom Tournaments',
-    description: 'Create private tournaments with friends or community groups.',
-    icon: Users,
-    status: 'upcoming' as const,
-  },
-] as const;
+function saveWaitlistEmail(email: string): 'saved' | 'duplicate' | 'error' {
+  try {
+    const stored = window.localStorage.getItem(WAITLIST_STORAGE_KEY);
+    let emails: string[] = [];
 
-const ACCENT_STYLES = {
-  blue: {
-    borderGlow: 'border-xelma-blue/30',
-    glow: 'shadow-[0_0_24px_rgba(44,75,253,0.10)]',
-    iconBg: 'bg-xelma-blue/10 text-xelma-blue',
-    bulletDot: 'bg-xelma-blue',
-    badge: 'bg-xelma-blue/10 text-xelma-blue border-xelma-blue/20',
-    accentLine: 'from-xelma-blue to-xelma-blue/60',
-  },
-  teal: {
-    borderGlow: 'border-xelma-teal/30',
-    glow: 'shadow-[0_0_24px_rgba(6,182,212,0.10)]',
-    iconBg: 'bg-xelma-teal/10 text-xelma-teal',
-    bulletDot: 'bg-xelma-teal',
-    badge: 'bg-xelma-teal/10 text-xelma-teal border-xelma-teal/20',
-    accentLine: 'from-xelma-teal to-xelma-teal/60',
-  },
-} as const;
+    if (stored) {
+      try {
+        const parsed: unknown = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          emails = parsed.filter((entry): entry is string => typeof entry === 'string');
+        }
+      } catch {
+        // Replace invalid local data with a clean waitlist on the next signup.
+      }
+    }
 
-function TournamentModeCard({ mode }: { mode: (typeof TOURNAMENT_MODES)[number] }) {
-  const Icon = mode.icon;
-  const styles = ACCENT_STYLES[mode.accent];
+    if (emails.some((entry) => entry.toLowerCase() === email.toLowerCase())) {
+      return 'duplicate';
+    }
 
-  return (
-    <article
-      className={`glass-card group relative flex flex-col rounded-2xl p-6 transition-all duration-300 sm:p-8 ${styles.borderGlow} ${styles.glow}`}
-    >
-      {/* Accent line at top */}
-      <div
-        aria-hidden="true"
-        className={`absolute -inset-x-px -top-px h-1 rounded-t-2xl bg-gradient-to-r ${styles.accentLine}`}
-      />
-
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <div
-          className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${styles.iconBg} transition-transform duration-300 group-hover:scale-110`}
-        >
-          <Icon className="size-6" aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-xl font-bold text-white">{mode.title}</h3>
-          <span
-            className={`mt-1 inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${styles.badge}`}
-          >
-            {mode.subtitle}
-          </span>
-        </div>
-      </div>
-
-      {/* Description */}
-      <p className="mt-4 text-sm leading-relaxed text-gray-400">{mode.description}</p>
-
-      {/* Feature bullets */}
-      <ul className="mt-4 space-y-2">
-        {mode.bullets.map((bullet) => (
-          <li key={bullet} className="flex items-start gap-2.5">
-            <span
-              className={`mt-1.5 inline-block size-1.5 shrink-0 rounded-full ${styles.bulletDot}`}
-              aria-hidden="true"
-            />
-            <span className="text-sm text-gray-300">{bullet}</span>
-          </li>
-        ))}
-      </ul>
-    </article>
-  );
-}
-
-function RoadmapTimeline() {
-  return (
-    <section className="px-4 py-16 sm:px-6 lg:px-8" aria-labelledby="roadmap-title">
-      <div className="mx-auto max-w-3xl">
-        <h2 id="roadmap-title" className="text-center text-3xl font-bold tracking-tight text-white">
-          Development Roadmap
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-center text-gray-400">
-          Here&apos;s what we&apos;re building to bring competitive tournaments to Xelma.
-        </p>
-
-        <div className="mt-10 space-y-6">
-          {ROADMAP_ITEMS.map((item, index) => {
-            const Icon = item.icon;
-            const isLast = index === ROADMAP_ITEMS.length - 1;
-
-            return (
-              <div key={item.phase} className="flex gap-4">
-                {/* Timeline connector */}
-                <div className="flex flex-col items-center">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-gray-500">
-                    <Icon className="size-5" aria-hidden="true" />
-                  </div>
-                  {!isLast && (
-                    <div className="mt-2 w-px flex-1 bg-gradient-to-b from-white/10 to-transparent" />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="glass-card flex-1 rounded-xl p-5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                      {item.phase}
-                    </span>
-                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                      Upcoming
-                    </span>
-                  </div>
-                  <h3 className="mt-2 text-lg font-bold text-white">{item.title}</h3>
-                  <p className="mt-1 text-sm text-gray-400">{item.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SchedulePlaceholder() {
-  return (
-    <section className="px-4 py-12 sm:px-6 lg:px-8" aria-labelledby="schedule-title">
-      <div className="mx-auto max-w-3xl">
-        <div className="glass-card rounded-2xl p-8 text-center">
-          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-white/5">
-            <Calendar className="size-6 text-gray-500" aria-hidden="true" />
-          </div>
-          <h2 id="schedule-title" className="text-xl font-bold text-white">
-            Tournament Schedule
-          </h2>
-          <p className="mt-2 text-sm text-gray-400">
-            Tournament dates, brackets, and prize pools will appear here once the backend is
-            ready.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-3 text-xs text-gray-500">
-            <Target className="size-4" aria-hidden="true" />
-            <span>First season expected after mainnet launch</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+    window.localStorage.setItem(WAITLIST_STORAGE_KEY, JSON.stringify([...emails, email]));
+    return 'saved';
+  } catch {
+    return 'error';
+  }
 }
 
 export default function Tournament() {
   const { t } = useTranslation();
+  const [email, setEmail] = useState('');
+  const [signupStatus, setSignupStatus] = useState<'saved' | 'duplicate' | 'error' | null>(null);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSignupStatus(saveWaitlistEmail(email.trim()));
+  }
 
   return (
-    <main id="main-content" className="xelma-grid-bg min-h-screen">
-      {/* Hero */}
-      <section className="px-4 pt-16 pb-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          {/* Trophy icon */}
-          <div className="mx-auto mb-6 flex size-20 items-center justify-center rounded-2xl bg-[#2C4BFD]/15">
-            <Trophy className="size-10 text-[#BEC7FE]" aria-hidden="true" />
+    <main id="main-content" className="xelma-grid-bg min-h-screen px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:px-8">
+      <section className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16" aria-labelledby="tournament-title">
+        <div>
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-xelma-teal/30 bg-xelma-teal/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">
+            <span className="status-dot status-dot-green" aria-hidden="true" />
+            {t('tournament.pageEyebrow')}
           </div>
-
-          <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
-            {t('tournament.title')}
+          <div className="mb-5 flex size-14 items-center justify-center rounded-2xl border border-xelma-blue/30 bg-xelma-blue/10 text-cyan-200 shadow-[0_0_32px_rgba(44,75,253,0.18)]">
+            <Trophy className="size-7" aria-hidden="true" />
+          </div>
+          <h1 id="tournament-title" className="hero-headline text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+            {t('tournament.heroTitle')}
           </h1>
-
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-gray-400">
-            {t('tournament.description')}
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-gray-300 sm:text-lg">
+            {t('tournament.heroDescription')}
           </p>
-
-          {/* Beta badge */}
-          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-400">
-            <span className="status-dot status-dot-yellow" aria-hidden="true" />
-            Coming Soon
+          <div className="mt-7 flex flex-wrap gap-3 text-sm text-gray-300">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+              <CalendarDays className="size-4 text-cyan-300" aria-hidden="true" />
+              {t('tournament.seasonsTitle')}
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2">
+              <Gift className="size-4 text-cyan-300" aria-hidden="true" />
+              {t('tournament.prizesTitle')}
+            </span>
           </div>
+        </div>
 
-          {/* Disabled CTA */}
-          <div className="mt-8">
+        <div className="glass-card rounded-3xl p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)] sm:p-8">
+          <div className="mb-5 flex size-11 items-center justify-center rounded-xl bg-xelma-blue/15 text-cyan-200">
+            <Sparkles className="size-5" aria-hidden="true" />
+          </div>
+          <h2 className="text-2xl font-bold text-white">{t('tournament.waitlistTitle')}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-gray-400">{t('tournament.waitlistDescription')}</p>
+
+          <form className="mt-6 space-y-3" onSubmit={handleSubmit}>
+            <label htmlFor="tournament-email" className="block text-sm font-medium text-gray-200">
+              {t('tournament.emailLabel')}
+            </label>
+            <input
+              id="tournament-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setSignupStatus(null);
+              }}
+              placeholder={t('tournament.emailPlaceholder')}
+              className="w-full rounded-xl border border-white/15 bg-[#0A0F1A]/80 px-4 py-3 text-white placeholder:text-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+            />
             <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              className="btn-primary inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-bold opacity-50 cursor-not-allowed"
+              type="submit"
+              className="btn-primary inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 font-bold"
             >
-              {t('tournament.joinCTA')}
-              <ChevronRight className="size-4" aria-hidden="true" />
+              {t('tournament.submitCta')}
+              <ArrowRight className="size-4" aria-hidden="true" />
             </button>
-            <p className="mt-3 text-xs text-gray-500">
-              {t('tournament.ctaDisabledHint')}
-            </p>
+          </form>
+
+          <p className="mt-4 text-xs leading-relaxed text-gray-500">{t('tournament.localStorageNote')}</p>
+          <div aria-live="polite" className="mt-4 min-h-6">
+            {signupStatus === 'saved' && (
+              <p role="status" className="flex items-start gap-2 text-sm text-emerald-300">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>{t('tournament.confirmation', { email: email.trim() })}</span>
+              </p>
+            )}
+            {signupStatus === 'duplicate' && (
+              <p role="status" className="text-sm text-cyan-200">{t('tournament.duplicateConfirmation')}</p>
+            )}
+            {signupStatus === 'error' && (
+              <p role="alert" className="text-sm text-rose-300">{t('tournament.storageError')}</p>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Tournament Modes */}
-      <section className="px-4 py-12 sm:px-6 lg:px-8" aria-labelledby="modes-title">
-        <div className="mx-auto max-w-5xl">
-          <h2
-            id="modes-title"
-            className="text-center text-3xl font-bold tracking-tight text-white"
-          >
-            {t('tournament.modesTitle')}
+      <section className="mx-auto mt-20 max-w-6xl" aria-labelledby="tournament-roadmap-title">
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">{t('tournament.roadmapEyebrow')}</p>
+          <h2 id="tournament-roadmap-title" className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            {t('tournament.roadmapTitle')}
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-gray-400">
-            {t('tournament.modesSubtitle')}
-          </p>
-
-          <div className="mt-10 grid gap-6 sm:grid-cols-2">
-            {TOURNAMENT_MODES.map((mode) => (
-              <TournamentModeCard key={mode.id} mode={mode} />
-            ))}
-          </div>
+          <p className="mt-3 leading-relaxed text-gray-400">{t('tournament.roadmapDescription')}</p>
         </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {ROADMAP_CARDS.map(({ title, description, icon: Icon }, index) => (
+            <article key={title} className="glass-card relative overflow-hidden rounded-2xl p-6">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-xelma-blue/80 to-transparent" aria-hidden="true" />
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-gray-500">
+                  {t('tournament.roadmapStep', { number: index + 1 })}
+                </span>
+                <span className="flex size-10 items-center justify-center rounded-xl bg-white/5 text-cyan-200">
+                  <Icon className="size-5" aria-hidden="true" />
+                </span>
+              </div>
+              <h3 className="mt-5 text-xl font-bold text-white">{t(title)}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-400">{t(description)}</p>
+            </article>
+          ))}
+        </div>
+
+        <p className="mt-6 flex items-center gap-2 text-sm text-gray-500">
+          <UsersRound className="size-4 text-cyan-300" aria-hidden="true" />
+          {t('tournament.roadmapNote')}
+        </p>
       </section>
-
-      {/* Roadmap */}
-      <RoadmapTimeline />
-
-      {/* Schedule Placeholder */}
-      <SchedulePlaceholder />
-
-      {/* Bottom spacer */}
-      <div className="h-16" />
     </main>
   );
 }
