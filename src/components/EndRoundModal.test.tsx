@@ -1,13 +1,47 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import EndRoundModal from './EndRoundModal';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const result = {
   isWin: true,
   amount: 42,
   tip: 'Stay patient and size the next prediction carefully.',
 };
+
+// Regression guards for issue #598: the round-resolution cue must come from the
+// unified `useSettingsStore.soundEnabled` path (`playRoundResolutionCue()` in
+// src/utils/audioController.ts, fired by Dashboard), never from an ad-hoc
+// `new Audio(...)` inside this modal. An earlier stub bypassed the Settings
+// gate and pointed at a sound asset that was never shipped.
+describe('EndRoundModal round audio (unified path)', () => {
+  it('never instantiates an Audio element for round resolution', () => {
+    const audioSpy = vi.spyOn(window, 'Audio');
+
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+
+    expect(screen.getByRole('dialog', { name: /spectacular win/i })).toBeInTheDocument();
+    expect(audioSpy).not.toHaveBeenCalled();
+  });
+
+  it('loads no round-resolved audio asset from the DOM', () => {
+    const createElementSpy = vi.spyOn(document, 'createElement');
+
+    render(
+      <EndRoundModal
+        isOpen
+        onClose={vi.fn()}
+        result={{ isWin: false, amount: 15, tip: 'Better luck next round.' }}
+      />,
+    );
+
+    expect(createElementSpy).not.toHaveBeenCalledWith('audio');
+  });
+});
 
 describe('EndRoundModal accessibility', () => {
   it('renders an accessible modal dialog with title and description', () => {
