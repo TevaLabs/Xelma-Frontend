@@ -1,8 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Navbar from './Navbar';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
+import { useConnectionStatus } from '../hooks/useConnectionStatus';
 import '../i18n';
 import i18n from '../i18n';
 
@@ -12,6 +13,10 @@ vi.mock('../store/useWalletStore', () => ({
   selectIsWalletConnected: vi.fn((s: { status: string; publicKey: string | null }) =>
     s.status === 'connected' && Boolean(s.publicKey),
   ),
+}));
+
+vi.mock('../hooks/useConnectionStatus', () => ({
+  useConnectionStatus: vi.fn(),
 }));
 
 // Mock SVG logo import
@@ -49,6 +54,24 @@ function makeStoreMock(overrides: {
   };
 }
 
+function makeConnectionStatusMock(
+  status: 'disconnected' | 'connecting' | 'reconnecting',
+  reconnectAttempts = 0,
+): ReturnType<typeof useConnectionStatus> {
+  return {
+    status,
+    error: null,
+    lastConnected: null,
+    reconnectAttempts,
+    reconnect: vi.fn(),
+    isConnected: false,
+    isConnecting: status === 'connecting',
+    isReconnecting: status === 'reconnecting',
+    isDisconnected: status === 'disconnected',
+    isDegraded: status === 'connecting' || status === 'reconnecting',
+  };
+}
+
 function renderNavbar(path = '/') {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -60,10 +83,13 @@ function renderNavbar(path = '/') {
 describe('Navbar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useConnectionStatus).mockReturnValue(makeConnectionStatusMock('disconnected'));
   });
 
   afterEach(async () => {
-    await i18n.changeLanguage('en');
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
   });
 
   describe('disconnected state', () => {
@@ -157,6 +183,39 @@ describe('Navbar', () => {
       buttons.forEach((btn) => {
         expect(btn).toBeDisabled();
       });
+    });
+  });
+
+  describe('live connection health', () => {
+    beforeEach(() => {
+      vi.mocked(useWalletStore).mockImplementation(makeStoreMock({ status: 'idle' }) as Parameters<typeof vi.mocked>[0]);
+    });
+
+    it('shows an amber degraded indicator while connecting', () => {
+      vi.mocked(useConnectionStatus).mockReturnValue(makeConnectionStatusMock('connecting'));
+
+      renderNavbar();
+
+      const indicators = screen.getAllByRole('status', { name: 'Connecting to live updates' });
+      expect(indicators).toHaveLength(1);
+      expect(indicators[0]).toHaveClass('border-amber-400/30', 'bg-amber-400/10');
+    });
+
+    it('explains reconnect attempts in the indicator tooltip', () => {
+      vi.mocked(useConnectionStatus).mockReturnValue(makeConnectionStatusMock('reconnecting', 3));
+
+      renderNavbar();
+
+      expect(screen.getAllByRole('status', { name: 'Reconnecting to live updates (attempt 3)' })).toHaveLength(1);
+    });
+
+    it('does not show the amber degraded indicator when fully disconnected', () => {
+      vi.mocked(useConnectionStatus).mockReturnValue(makeConnectionStatusMock('disconnected'));
+
+      renderNavbar();
+
+      expect(screen.queryByText('Live updates delayed')).not.toBeInTheDocument();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
   });
 

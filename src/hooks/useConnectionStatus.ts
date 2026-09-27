@@ -26,5 +26,7 @@ export function useConnectionStatus() {
     isConnecting: connectionState.status === 'connecting',
     isReconnecting: connectionState.status === 'reconnecting',
     isDisconnected: connectionState.status === 'disconnected',
+    isDegraded:
+      connectionState.status === 'connecting' || connectionState.status === 'reconnecting',
   };
 }
