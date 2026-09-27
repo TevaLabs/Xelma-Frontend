@@ -39,15 +39,49 @@ vi.mock('sonner', () => ({
 
 import Connect from './Connect';
 import { useWalletStore } from '../store/useWalletStore';
+import { useStellarAddressValidation } from '../hooks/useStellarAddressValidation';
+import { toast } from 'sonner';
 
 const mockUseWalletStore = vi.mocked(useWalletStore);
+const mockUseValidation = vi.mocked(useStellarAddressValidation);
 
 function mockWalletState(status: string, publicKey: string | null, isWatchOnly = false) {
   mockUseWalletStore.mockImplementation((selector: any) => {
-    const store = { status, publicKey, isWatchOnly, disconnect: vi.fn() };
+    const store = {
+      status,
+      publicKey,
+      isWatchOnly,
+      disconnect: vi.fn(),
+      setWatchOnly: vi.fn(),
+      connect: vi.fn(),
+    };
     if (typeof selector === 'function') return selector(store);
     return store;
   });
+}
+
+/** Sets the validation hook result; defaults to the idle/invalid state. */
+function mockValidation(overrides: { state?: string; isValid?: boolean; isValidating?: boolean; errorMessage?: string | null } = {}) {
+  mockUseValidation.mockReturnValue({
+    state: 'idle',
+    isValid: false,
+    isValidating: false,
+    errorMessage: null,
+    ...overrides,
+  } as ReturnType<typeof useStellarAddressValidation>);
+}
+
+/** Grabs the latest store mock object handed to the component. */
+function lastStoreMock() {
+  const calls = mockUseWalletStore.mock.results;
+  return calls[calls.length - 1].value as {
+    status: string;
+    publicKey: string | null;
+    isWatchOnly: boolean;
+    disconnect: ReturnType<typeof vi.fn>;
+    setWatchOnly: ReturnType<typeof vi.fn>;
+    connect: ReturnType<typeof vi.fn>;
+  };
 }
 
 describe('Connect Page', () => {
@@ -200,6 +234,71 @@ describe('Connect Page', () => {
       // Verify no unmocked fetch was triggered
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();
+    });
+  });
+
+  describe('manual watch-only address path (issue #579 regression)', () => {
+    beforeEach(() => {
+      mockValidation();
+    });
+
+    it('submits the manual address through watch-only activation, never the Freighter connect flow', () => {
+      mockWalletState('idle', null);
+      mockValidation({ state: 'valid', isValid: true });
+      render(<Connect />);
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Watch-only: view an address without signing/i }),
+      );
+      const viewBtn = screen.getByRole('button', { name: /View in Watch-Only Mode/i });
+      expect(viewBtn).toBeEnabled();
+      fireEvent.click(viewBtn);
+
+      const store = lastStoreMock();
+      expect(store.setWatchOnly).toHaveBeenCalledTimes(1);
+      expect(store.connect).not.toHaveBeenCalled();
+      // No false "Connected" toast is fired from the page itself
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('keeps the manual submit blocked until validation passes', () => {
+      mockWalletState('idle', null);
+      render(<Connect />);
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Watch-only: view an address without signing/i }),
+      );
+
+      const viewBtn = screen.getByRole('button', { name: /View in Watch-Only Mode/i });
+      expect(viewBtn).toBeDisabled();
+      expect(lastStoreMock().setWatchOnly).not.toHaveBeenCalled();
+    });
+
+    it('shows the watch-only confirmation panel with accurate copy after activation', () => {
+      mockWalletState('connected', 'GBH4QFZVFSLJL4VXK2XEFJGR4D3IUBEN2LO2W3KL6XRB5YVLXUBVQXLH', true);
+      render(<Connect />);
+
+      // Accurate watch-only status messaging — not a "Connected" wallet toast
+      expect(screen.getByText(/Watch-only address active/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Viewing an address without signing capability/i),
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId('wallet-connect')).toBeNull();
+    });
+
+    it('never renders the Freighter flow or a connected state on the manual path while idle', () => {
+      mockWalletState('idle', null);
+      render(<Connect />);
+
+      fireEvent.click(
+        screen.getByRole('button', { name: /Watch-only: view an address without signing/i }),
+      );
+
+      // WalletConnect (Freighter) stays mounted but no connected UI is shown
+      expect(screen.queryByText(/Watch-only address active/i)).toBeNull();
+      expect(screen.queryByRole('button', { name: /Continue to Dashboard/i })).toBeNull();
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
     });
   });
 });

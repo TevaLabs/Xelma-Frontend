@@ -35,6 +35,7 @@ import {
   getNetwork,
   signMessage,
 } from '@stellar/freighter-api';
+import { toast } from 'sonner';
 import { useWalletStore, selectIsWalletConnected } from './useWalletStore';
 
 function resetWalletState() {
@@ -46,6 +47,7 @@ function resetWalletState() {
     errorMessage: null,
     errorCode: null,
     networkMismatch: false,
+    isWatchOnly: false,
   });
 }
 
@@ -283,5 +285,163 @@ describe('useWalletStore', () => {
     expect(clearAuth).toHaveBeenCalled();
     expect(s.errorCode).toBe('AUTH_FAILED');
     expect(s.errorMessage).toMatch(/sign-in/i);
+  });
+
+  describe('setWatchOnly (manual G-address path, issue #579)', () => {
+    const MANUAL_ADDRESS = 'GBH4QFZVFSLJL4VXK2XEFJGR4D3IUBEN2LO2W3KL6XRB5YVLXUBVQXLH';
+
+    beforeEach(() => {
+      vi.resetAllMocks();
+      clearAuth.mockClear();
+      setJwt.mockClear();
+      resetWalletState();
+    });
+
+    it('activates watch-only without any Freighter connection round-trip', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          balances: [{ asset_type: 'native', balance: '3.21' }],
+        }),
+      }) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(MANUAL_ADDRESS);
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('connected');
+      expect(s.isWatchOnly).toBe(true);
+      expect(s.publicKey).toBe(MANUAL_ADDRESS);
+      // Regression guard: the manual path must stay free of Freighter calls
+      expect(isConnected).not.toHaveBeenCalled();
+      expect(requestAccess).not.toHaveBeenCalled();
+      expect(getAddress).not.toHaveBeenCalled();
+    });
+
+    it('never toasts a false "Wallet connected!" on the manual path', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          balances: [{ asset_type: 'native', balance: '1' }],
+        }),
+      }) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(MANUAL_ADDRESS);
+
+      expect(toast.success).toHaveBeenCalledTimes(1);
+      expect(toast.success).not.toHaveBeenCalledWith('Wallet connected!');
+      expect(toast.success).toHaveBeenCalledWith(
+        expect.stringMatching(/watch-only/i),
+      );
+    });
+
+    it('announces accurate watch-only copy without signing capability', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ balances: [] }),
+      }) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(MANUAL_ADDRESS);
+
+      expect(toast.success).toHaveBeenCalledWith(
+        expect.stringContaining('Viewing address without signing capability'),
+      );
+    });
+
+    it('does not start backend authentication for a watch-only address', async () => {
+      const fetchMock = vi.fn((url: string) => {
+        if (url.includes('horizon-testnet')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              balances: [{ asset_type: 'native', balance: '5' }],
+            }),
+          });
+        }
+        return Promise.reject(new Error(`unexpected fetch ${url}`));
+      });
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(MANUAL_ADDRESS);
+
+      expect(fetchMock).not.toHaveBeenCalledWith(
+        expect.stringContaining('/api/auth/'),
+        expect.anything(),
+      );
+      expect(setJwt).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-G addresses with a clear validation error and no success toast', async () => {
+      globalThis.fetch = vi.fn() as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly('SBOG3USROPBWQAHERR3FBWDM3OVSCYJZ2LAYGZNVVTPVJ62V23GZJNCE');
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('error');
+      expect(s.errorCode).toBe('UNKNOWN');
+      expect(s.errorMessage).toMatch(/invalid stellar address/i);
+      expect(s.errorMessage).toMatch(/G-address/i);
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringMatching(/invalid stellar address/i),
+      );
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(s.isWatchOnly).toBe(false);
+      expect(s.publicKey).toBeNull();
+    });
+
+    it('rejects addresses that are not exactly 56 characters', async () => {
+      globalThis.fetch = vi.fn() as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly('GABC');
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('error');
+      expect(s.errorMessage).toMatch(/invalid stellar address/i);
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('clears error state and keeps the address watch-only after a failed attempt recovers', async () => {
+      // First: a failed manual attempt
+      await useWalletStore.getState().setWatchOnly('GABC');
+      expect(useWalletStore.getState().status).toBe('error');
+
+      // Then: a successful retry must leave no stale error fields behind
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          balances: [{ asset_type: 'native', balance: '2' }],
+        }),
+      }) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(MANUAL_ADDRESS);
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('connected');
+      expect(s.isWatchOnly).toBe(true);
+      expect(s.errorMessage).toBeNull();
+      expect(s.errorCode).toBeNull();
+    });
+
+    it('shows a balance warning toast but still activates watch-only when Horizon fails', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Horizon down')) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(MANUAL_ADDRESS);
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('connected');
+      expect(s.isWatchOnly).toBe(true);
+      expect(s.balance).toBeNull();
+      expect(toast.error).toHaveBeenCalledWith(
+        'Could not load balance. The address may not exist on the network.',
+      );
+      // The activation toast must still be the accurate watch-only copy
+      expect(toast.success).toHaveBeenCalledWith(
+        expect.stringMatching(/watch-only mode activated/i),
+      );
+    });
   });
 });
