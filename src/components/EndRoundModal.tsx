@@ -10,7 +10,6 @@ interface EndRoundModalProps {
     amount?: number;
     tip?: string;
   };
-  playResolveSound?: boolean;
 }
 
 /**
@@ -21,7 +20,6 @@ export default function EndRoundModal({
   isOpen,
   onClose,
   result,
-  playResolveSound = false,
 }: EndRoundModalProps) {
   const {
     isWin = false,
@@ -36,13 +34,12 @@ export default function EndRoundModal({
       : `Round result: loss. Net loss minus $${formattedAmount}. ${tip}`
     : '';
 
-  useEffect(() => {
-    if (!isOpen || !playResolveSound) return;
-    // TODO: add audio asset
-    const audio = new Audio('/sounds/round-resolved.mp3');
-    audio.play().catch(() => {});
-    return () => { audio.pause(); };
-  }, [isOpen, playResolveSound]);
+  // Round-resolution audio intentionally does NOT live here. The dashboard
+  // plays the cue once per resolved round via `playRoundResolutionCue()`
+  // (src/utils/audioController.ts), which is gated by the unified
+  // `useSettingsStore.soundEnabled` preference (issue #598). An earlier
+  // ad-hoc `new Audio(...)` path in this modal bypassed that gate and
+  // referenced a sound asset that was never shipped.
 
   useEffect(() => {
     if (isOpen) {
