@@ -94,7 +94,7 @@ describe('WalletConnect', () => {
     it('shows connect button when wallet is not connected', () => {
       render(<WalletConnect />);
 
-      const connectButton = screen.getByRole('button', { name: /connect wallet/i });
+      const connectButton = screen.getByRole('button', { name: /connect/i });
       expect(connectButton).toBeInTheDocument();
       expect(screen.getByTestId('wallet-icon')).toBeInTheDocument();
     });
@@ -104,7 +104,7 @@ describe('WalletConnect', () => {
 
       expect(screen.queryByRole('dialog', { name: /connect a wallet/i })).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
+      fireEvent.click(screen.getByRole('button', { name: /connect/i }));
 
       // Wallet choice is now made in the picker rather than connecting immediately.
       expect(screen.getByRole('dialog', { name: /connect a wallet/i })).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe('WalletConnect', () => {
       mockWalletStore.connect.mockResolvedValue(undefined);
       render(<WalletConnect />);
 
-      fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
+      fireEvent.click(screen.getByRole('button', { name: /connect/i }));
 
       const freighterOption = await screen.findByRole('button', { name: /freighter/i });
       await waitFor(() => expect(freighterOption).not.toBeDisabled());
@@ -127,7 +127,7 @@ describe('WalletConnect', () => {
     it('has correct styling for connect button', () => {
       render(<WalletConnect />);
 
-      const connectButton = screen.getByRole('button', { name: /connect wallet/i });
+      const connectButton = screen.getByRole('button', { name: /connect/i });
       expect(connectButton).toHaveClass('bg-[#2C4BFD]', 'hover:bg-[#1a3bf0]', 'text-white');
     });
   });
@@ -167,7 +167,7 @@ describe('WalletConnect', () => {
     it('shows checking state', () => {
       render(<WalletConnect />);
 
-      expect(screen.getByText('Checking wallet…')).toBeInTheDocument();
+      expect(screen.getByText('Checking…')).toBeInTheDocument();
       expect(screen.getByTestId('loader-icon')).toHaveClass('animate-spin');
     });
 
@@ -263,11 +263,55 @@ describe('WalletConnect', () => {
       render(<WalletConnect />);
 
       const warning = screen.getByRole('status');
-      expect(warning).toHaveTextContent('Switch to Testnet in Freighter');
+      expect(warning).toHaveTextContent('Switch to Testnet');
       expect(warning).toHaveClass('text-red-600', 'dark:text-red-400');
       // WalletConnect's own banner and the <NetworkMismatchCard /> both render an
       // <AlertCircle />, so expect at least one.
       expect(screen.getAllByTestId('alert-icon').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('shows compact pending auth message', () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'connected',
+          publicKey: 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      vi.mocked(useAuthStore).mockImplementation((selector: any) => {
+        const store = { ...mockAuthStore, isAuthenticated: false };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      render(<WalletConnect />);
+
+      expect(screen.getByText('Finalizing authentication…')).toBeInTheDocument();
+    });
+
+    it('shows compact auth failure message with retry and disconnect', () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'connected',
+          publicKey: 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          errorCode: 'AUTH_FAILED',
+          errorMessage: 'Auth failed',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      render(<WalletConnect />);
+
+      const authFailure = screen.getByRole('alert');
+      expect(authFailure).toHaveTextContent('Auth failed');
+
+      const retryButton = screen.getByRole('button', { name: /retry/i });
+      const disconnectButton = screen.getByText('Disconnect');
+
+      expect(retryButton).toBeInTheDocument();
+      expect(disconnectButton).toBeInTheDocument();
     });
   });
 
@@ -309,7 +353,7 @@ describe('WalletConnect', () => {
       render(<WalletConnect />);
 
       const errorAlert = screen.getByRole('alert');
-      expect(errorAlert).toHaveTextContent('User denied access');
+      expect(errorAlert).toHaveTextContent('Access denied');
 
       const retryButton = screen.getByRole('button', { name: /retry/i });
       fireEvent.click(retryButton);
@@ -347,11 +391,11 @@ describe('WalletConnect', () => {
       expect(balanceContainer).toHaveClass('hidden', 'md:flex');
     });
 
-    it('applies responsive spacing classes', () => {
+    it('applies compact spacing classes', () => {
       render(<WalletConnect />);
 
       const container = screen.getByText('GTES...WXYZ').closest('.flex');
-      expect(container).toHaveClass('gap-1', 'sm:gap-2');
+      expect(container).toHaveClass('gap-1.5');
     });
   });
 
@@ -359,7 +403,7 @@ describe('WalletConnect', () => {
     it('has proper ARIA attributes for buttons', () => {
       render(<WalletConnect />);
 
-      const connectButton = screen.getByRole('button');
+      const connectButton = screen.getByRole('button', { name: /connect/i });
       expect(connectButton).toHaveAttribute('type', 'button');
     });
 
@@ -518,7 +562,7 @@ describe('WalletConnect', () => {
       render(<WalletConnect />);
 
       // Should show connect button instead of connected state
-      expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /connect/i })).toBeInTheDocument();
     });
 
     it('handles null error message in error state', () => {
@@ -534,7 +578,7 @@ describe('WalletConnect', () => {
       render(<WalletConnect />);
 
       // Should show connect button instead of error state
-      expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /connect/i })).toBeInTheDocument();
     });
 
     it('handles rapid state changes', () => {
@@ -570,7 +614,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
       rerender(<WalletConnect />);
-      expect(screen.getByText('Connection failed')).toBeInTheDocument();
+      expect(screen.getByText('Connection error')).toBeInTheDocument();
     });
   });
 });
