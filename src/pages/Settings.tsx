@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   CheckCircle2,
@@ -139,6 +139,31 @@ export default function Settings() {
 
   const { reduced, systemPreference, override } = useReducedMotion();
 
+  // Issue #618 — deep-link target for the NetworkMismatchCard's
+  // "Open network settings" CTA (`/settings#network`). Scrolls the Network
+  // section into view when the page is opened with that hash so users coming
+  // from a network mismatch land directly on the relevant control.
+  const networkSectionRef = useRef<HTMLElement | null>(null);
+
+  // Guard against StrictMode double-invokes / stale closure races on deep
+  // link mount. A ref snapshot stops the scroll effect from reading a stale
+  // `reduced` value if the effect re-runs after the first mount.
+  const reducedRef = useRef(reduced);
+  useEffect(() => {
+    reducedRef.current = reduced;
+  }, [reduced]);
+
+  useEffect(() => {
+    if (window.location.hash !== '#network') return;
+    const timer = window.setTimeout(() => {
+      networkSectionRef.current?.scrollIntoView({
+        behavior: reducedRef.current ? 'auto' : 'smooth',
+        block: 'start',
+      });
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [reduced]);
+
   // Wire the audio controller to read the live store value.
   useEffect(() => {
     bindSoundPreference(() => useSettingsStore.getState().soundEnabled);
@@ -244,8 +269,10 @@ export default function Settings() {
 
         {/* Network badge */}
         <section
+          ref={networkSectionRef}
+          id="network"
           aria-labelledby="settings-network-heading"
-          className="glass-card mb-6 rounded-xl p-6 sm:p-8"
+          className="glass-card mb-6 scroll-mt-24 rounded-xl p-6 sm:p-8"
           data-testid="settings-section-network"
         >
           <header className="mb-6 flex items-center gap-3">
