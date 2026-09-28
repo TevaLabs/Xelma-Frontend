@@ -1,35 +1,85 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, type LucideIcon } from 'lucide-react';
+import styled from 'styled-components';
+import { glassTerminal } from '../../styles/terminal';
 
-interface ComingSoonPageProps {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-}
+const ComingSoonContainer = styled.div`
+  ${glassTerminal}
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+  padding: 2rem;
+  position: relative;
 
-export default function ComingSoonPage({ icon: Icon, title, description }: ComingSoonPageProps) {
+  #main-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+`;
+
+const ComingSoonContent = styled.div`
+  max-width: 800px;
+  margin: 0 auto;
+`;
+
+const ComingSoonTitle = styled.h1`
+  font-size: 2.5rem;
+  margin-bottom: 1.5rem;
+  color: #fff;
+`;
+
+const ComingSoonSubtitle = styled.p`
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  color: #ccc;
+`;
+
+const HomeButton = styled.button`
+  background-color: #4a6fa5;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.6rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 1rem;
+
+  &:hover {
+    background-color: #3a5a8f;
+  }
+`;
+
+const ComingSoonPage: React.FC = () => {
   const navigate = useNavigate();
 
+  const handleBackToHome = () => {
+    navigate('/');
+  };
+
   return (
-    <main className="xelma-grid-bg flex min-h-screen items-center justify-center px-4">
-      <div className="glass-card mx-auto max-w-md rounded-2xl p-10 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2C4BFD]/15">
-          <Icon className="h-8 w-8 text-[#BEC7FE]" aria-hidden />
-        </div>
-
-        <h1 className="mb-3 text-2xl font-black text-white">{title}</h1>
-
-        <p className="mb-8 text-sm leading-6 text-gray-400">{description}</p>
-
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-5 py-3 text-sm font-bold text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Go back
-        </button>
-      </div>
-    </main>
+    <ComingSoonContainer id="main-content">
+      <ComingSoonContent>
+        <ComingSoonTitle>Coming Soon</ComingSoonTitle>
+        <ComingSoonSubtitle>
+          We're working hard to bring you an amazing experience. Check back soon!
+        </ComingSoonSubtitle>
+        <HomeButton onClick={handleBackToHome}>Back to Home</HomeButton>
+      </ComingSoonContent>
+    </ComingSoonContainer>
   );
-}
+};
+
+export default ComingSoonPage;
