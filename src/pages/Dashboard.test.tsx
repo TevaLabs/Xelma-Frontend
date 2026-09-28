@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '../i18n';
 import i18n from '../i18n';
@@ -220,10 +220,27 @@ vi.mock('../components/EndRoundModal', () => ({
 }));
 
 vi.mock('../components/BetModal', () => ({
-  default: ({ isOpen, onClose, onSuccess }: any) => (
+  default: ({ isOpen, onClose, onSuccess, onPending, onPredictionError }: any) => (
     <div data-testid="bet-modal" data-open={isOpen}>
       <button onClick={onClose} data-testid="close-bet-modal">Close</button>
       <button onClick={() => onSuccess('tx-123')} data-testid="success-bet-modal">Success</button>
+      <button
+        onClick={() =>
+          onPending?.({
+            id: 'optimistic-1',
+            asset: 'BTC',
+            mode: 'updown',
+            stake: 10,
+            status: 'PENDING',
+          })
+        }
+        data-testid="pending-bet-modal"
+      >
+        Pending
+      </button>
+      <button onClick={() => onPredictionError?.()} data-testid="error-bet-modal">
+        Error
+      </button>
     </div>
   ),
 }));
@@ -595,6 +612,65 @@ describe('Dashboard', () => {
       fireEvent.click(closeButton);
 
       expect(modal).toHaveAttribute('data-open', 'false');
+    });
+  });
+
+  describe('optimistic pending prediction row (issue #615)', () => {
+    it('shows a pending row in Recent Predictions immediately, without waiting for an API refetch', async () => {
+      render(<Dashboard />);
+      // Let the on-mount fetchActivities/fetchStats settle before recording
+      // the baseline call count.
+      await act(async () => {});
+      const callsBeforePending = vi.mocked(predictionsApi.getUserHistory).mock.calls.length;
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      fireEvent.click(screen.getByTestId('pending-bet-modal'));
+
+      expect(screen.getByText('Pending...')).toBeInTheDocument();
+      // The row appeared purely from local state — no additional history
+      // fetch was triggered to produce it.
+      expect(predictionsApi.getUserHistory).toHaveBeenCalledTimes(callsBeforePending);
+    });
+
+    it('does not show a duplicate row once the history refetch after success returns the confirmed prediction', async () => {
+      vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([]);
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      fireEvent.click(screen.getByTestId('pending-bet-modal'));
+      expect(screen.getByText('Pending...')).toBeInTheDocument();
+
+      // The confirmed prediction is now what the API returns on refetch.
+      vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([
+        { id: 'optimistic-1', asset: 'BTC', mode: 'updown', stake: 10, isWin: true },
+      ] as never);
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('success-bet-modal'));
+      });
+
+      // Only one row for this prediction: the optimistic "Pending..." row is
+      // gone, replaced by exactly one confirmed row, not both at once.
+      expect(screen.queryByText('Pending...')).not.toBeInTheDocument();
+      const activityList = screen.getByRole('heading', { name: 'Recent Predictions' })
+        .closest('section')!;
+      expect(within(activityList).getAllByRole('listitem')).toHaveLength(1);
+      expect(within(activityList).getByText('Correct')).toBeInTheDocument();
+    });
+
+    it('marks the row failed on the error path, and removes it once the modal is dismissed', () => {
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      fireEvent.click(screen.getByTestId('pending-bet-modal'));
+      expect(screen.getByText('Pending...')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('error-bet-modal'));
+      expect(screen.getByText('Failed')).toBeInTheDocument();
+      expect(screen.queryByText('Pending...')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('close-bet-modal'));
+      expect(screen.queryByText('Failed')).not.toBeInTheDocument();
     });
   });
 

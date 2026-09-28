@@ -49,6 +49,15 @@ Several UI surfaces are intentionally left as contributor rebuild tasks for the
 This section documents how those stubs work, how to claim them, and what
 “done” means.
 
+**The `Stellar Wave` label** marks an issue as part of this rebuild program
+rather than a general bug or feature request. Filter by it in the issue
+tracker (the links throughout this section do this for you) to see the
+current wave's open work; a `good first issue` label alongside it marks a
+task suited to a first contribution. Every wave issue links back to the
+`ContributorTaskPlaceholder` stub(s) it covers, if any — some wave issues
+(this document's own updates, for example) are process/docs work with no
+stub involved.
+
 ### How stubs work
 
 1. **`ContributorTaskPlaceholder` shell** — `src/components/ContributorTaskPlaceholder.tsx`
@@ -167,6 +176,7 @@ you may need these additional environment variables. Add them to your local `.en
 - [ ] Keep the PR focused on one concern.
 - [ ] Run `pnpm lint` and fix reported issues.
 - [ ] Run `pnpm test:unit` for unit coverage.
+- [ ] Run `pnpm test:a11y` if you touched the Landing or Dashboard pages — it fails the build on serious/critical WCAG 2.0/2.1 A/AA violations (see [README's Accessibility smoke tests section](./README.md#accessibility-smoke-tests)).
 - [ ] Run `pnpm test:e2e` to ensure Playwright smoke tests pass.
 - [ ] Run `pnpm build` for the TypeScript/Vite production build.
 - [ ] Include screenshots or a short screen recording for visible UI changes.
@@ -205,7 +215,7 @@ To run a local demo against mock socket data using MSW:
 
 Newcomers can run and demo the full client UI — including wallet connection, claiming rewards, and placing predictions — in **under 15 minutes** without installing the Freighter browser extension.
 
-For the complete reference guide, see [`docs/freighter-less-fixtures.md`](file:///Users/apple/Documents/GitHub/Xelma-Frontend/docs/freighter-less-fixtures.md).
+For the complete reference guide, see [`docs/freighter-less-fixtures.md`](./docs/freighter-less-fixtures.md).
 
 ### Quick Demo Options
 

@@ -10,6 +10,7 @@ application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 - **Backend repo:** https://github.com/TevaLabs/Xelma-Backend
 - **Issue tracker:** https://github.com/TevaLabs/Xelma-Frontend/issues
 - **Design reference:** [Figma – Xelma](https://www.figma.com/design/HQp2j9epTTKq6vggiGQRzl/Untitled?node-id=22-685&p=f&t=FZBmcBq74PBjmbF1-0)
+- **Contributing:** see [CONTRIBUTING.md](./CONTRIBUTING.md) for local setup, the Stellar Wave contributor rebuild workflow, and the PR checklist.
 
 
 ---
@@ -26,6 +27,7 @@ application built with Vite, Tailwind CSS, Zustand, and Socket.IO.
 - [Localization](#localization)
 - [Testing](#testing)
 - [React Compiler / ESLint notes](#react-compiler--eslint-notes)
+- [Contributing](./CONTRIBUTING.md)
 
 ---
 
