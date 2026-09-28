@@ -22,6 +22,9 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   });
 }
 
+// App is forced-dark via Tailwind CSS dark: utilities.
+// next-themes and any ThemeProvider/ThemeContext have been intentionally removed.
+// See: https://github.com/TevaLabs/Xelma-Frontend/issues/589
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
