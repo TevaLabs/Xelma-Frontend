@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StatsCard from './StatsCard';
 import { useWalletStore } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
-import type { MockUserStats } from '../types';
+import type { UserStats } from '../lib/api-client';
 
 // Keep the real selectors (selectIsWalletConnected derives from state) and only
 // stub the hook itself so we can drive wallet state per test.
@@ -33,7 +33,7 @@ vi.mock('./RankProgressBar', () => ({
   ),
 }));
 
-const baseStats: MockUserStats = {
+const baseStats: UserStats = {
   balance: 750.5,
   pendingWinnings: 0,
   totalWins: 12,
@@ -59,7 +59,7 @@ function setWalletState({ status = 'idle', publicKey = null }: WalletStateOverri
   );
 }
 
-function renderCard(stats: Partial<MockUserStats> = {}, props: Partial<Parameters<typeof StatsCard>[0]> = {}) {
+function renderCard(stats: Partial<UserStats> = {}, props: Partial<Parameters<typeof StatsCard>[0]> = {}) {
   return render(<StatsCard stats={{ ...baseStats, ...stats }} {...props} />);
 }
 
