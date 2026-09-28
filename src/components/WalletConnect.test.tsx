@@ -1,8 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import WalletConnect from './WalletConnect';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
+import QRCode from 'qrcode';
+import { toast } from 'sonner';
+import { FRIENDBOT_ENABLED, friendbotUrl } from '../lib/friendbot';
 
 // Mock the stores
 vi.mock('../store/useWalletStore', () => ({
@@ -19,6 +22,17 @@ vi.mock('../store/useWalletStore', () => ({
   selectNeedsFunding: vi.fn(() => false),
 }));
 vi.mock('../store/useAuthStore');
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+vi.mock('qrcode', () => ({
+  default: {
+    toString: vi.fn(),
+  },
+}));
 
 // Report Freighter as installed so the picker offers it in jsdom.
 vi.mock('../lib/wallets', async () => {
@@ -44,6 +58,9 @@ vi.mock('lucide-react', () => ({
   AlertTriangle: ({ className, ...props }: any) => <div data-testid="alert-triangle-icon" className={className} {...props} />,
   Download: ({ className, ...props }: any) => <div data-testid="download-icon" className={className} {...props} />,
   ExternalLink: ({ className, ...props }: any) => <div data-testid="external-link-icon" className={className} {...props} />,
+  Copy: ({ className, ...props }: any) => <div data-testid="copy-icon" className={className} {...props} />,
+  Check: ({ className, ...props }: any) => <div data-testid="check-icon" className={className} {...props} />,
+  QrCode: ({ className, ...props }: any) => <div data-testid="qr-icon" className={className} {...props} />,
   // Used by the WalletPicker rendered alongside the connect button.
   X: ({ className, ...props }: any) => <div data-testid="close-icon" className={className} {...props} />,
 }));
@@ -571,6 +588,132 @@ describe('WalletConnect', () => {
       });
       rerender(<WalletConnect />);
       expect(screen.getByText('Connection failed')).toBeInTheDocument();
+    });
+  });
+
+  describe('copy address', () => {
+    const TEST_PUBLIC_KEY = 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let writeText: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'connected',
+          publicKey: TEST_PUBLIC_KEY,
+          balance: '100.50 XLM',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText },
+        configurable: true,
+      });
+    });
+
+    afterEach(() => {
+      delete (navigator as { clipboard?: Clipboard }).clipboard;
+    });
+
+    it('copies the full public key to the clipboard', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Copy wallet address' }));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(TEST_PUBLIC_KEY));
+      expect(toast.success).toHaveBeenCalledWith('Address copied');
+      expect(await screen.findByRole('button', { name: 'Address copied' })).toBeInTheDocument();
+    });
+
+    it('reports failure when no clipboard mechanism is available', async () => {
+      writeText.mockRejectedValue(new Error('denied'));
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Copy wallet address' }));
+
+      await waitFor(() => expect(toast.error).toHaveBeenCalled());
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('QR receive panel', () => {
+    const TEST_PUBLIC_KEY = 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    beforeEach(() => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'connected',
+          publicKey: TEST_PUBLIC_KEY,
+          balance: '100.50 XLM',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      vi.mocked(QRCode.toString).mockResolvedValue('<svg data-testid="qr-svg"></svg>');
+    });
+
+    it('is hidden until the QR toggle is clicked', () => {
+      render(<WalletConnect />);
+
+      expect(screen.queryByTestId('qr-receive-panel')).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Show receive QR code' }),
+      ).toBeInTheDocument();
+    });
+
+    it('opens and encodes the connected address as a QR code', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Show receive QR code' }));
+
+      expect(screen.getByTestId('qr-receive-panel')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(QRCode.toString).toHaveBeenCalledWith(
+          TEST_PUBLIC_KEY,
+          expect.objectContaining({ type: 'svg' }),
+        ),
+      );
+      expect(await screen.findByTestId('qr-svg')).toBeInTheDocument();
+      expect(screen.getByText(TEST_PUBLIC_KEY)).toBeInTheDocument();
+    });
+
+    it('closes the panel via the close button', () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Show receive QR code' }));
+      expect(screen.getByTestId('qr-receive-panel')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close receive QR panel' }));
+      expect(screen.queryByTestId('qr-receive-panel')).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Show receive QR code' }),
+      ).toBeInTheDocument();
+    });
+
+    it('keeps disconnect working while the panel is open', () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Show receive QR code' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Disconnect wallet' }));
+
+      expect(mockWalletStore.disconnect).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers the Friendbot faucet link only where it is enabled', () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Show receive QR code' }));
+
+      const faucetLink = screen.queryByRole('link', {
+        name: /friendbot|testnet xlm/i,
+      });
+      if (FRIENDBOT_ENABLED) {
+        expect(faucetLink).toBeInTheDocument();
+        expect(faucetLink).toHaveAttribute('href', friendbotUrl(TEST_PUBLIC_KEY));
+      } else {
+        expect(faucetLink).not.toBeInTheDocument();
+      }
     });
   });
 });
