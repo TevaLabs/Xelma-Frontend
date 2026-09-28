@@ -407,4 +407,110 @@ describe('PriceChart', () => {
       );
     });
   });
+
+  describe('Timeframe selector', () => {
+    const TIMEFRAME_KEY = 'xelma-price-chart-timeframe';
+
+    const loadSeries = [
+      { time: 600, value: 1.0 },
+      { time: 610, value: 1.1 },
+      { time: 620, value: 1.2 },
+      { time: 900, value: 1.3 },
+      { time: 910, value: 1.4 },
+    ];
+
+    beforeEach(() => {
+      localStorage.clear();
+      // SOL has no mock-data fast path, so series data comes from the API mock.
+      (priceApi.getPriceSeries as any).mockResolvedValue(loadSeries);
+    });
+
+    afterEach(() => {
+      localStorage.clear();
+    });
+
+    const renderWithLoadedData = async () => {
+      const view = render(<PriceChart height={300} asset={'SOL' as Asset} />);
+      await vi.waitFor(() => {
+        expect(mockSeriesApi.setData).toHaveBeenCalled();
+        const last = mockSeriesApi.setData.mock.calls.at(-1)?.[0];
+        // Resolved API data is non-empty at every timeframe (1m keeps all 5
+        // points; coarser settings collapse them into buckets).
+        expect(last && last.length).toBeGreaterThan(0);
+      }, { timeout: 3000 });
+      return view;
+    };
+
+    it('renders 1m / 5m / 15m chips with 1m selected by default', async () => {
+      await renderWithLoadedData();
+
+      const group = screen.getByRole('group', { name: 'Chart timeframe' });
+      expect(group).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '1m' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '5m' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: '15m' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('selects the clicked chip and persists the choice', async () => {
+      await renderWithLoadedData();
+
+      fireEvent.click(screen.getByRole('button', { name: '5m' }));
+
+      expect(screen.getByRole('button', { name: '5m' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '1m' })).toHaveAttribute('aria-pressed', 'false');
+      expect(localStorage.getItem(TIMEFRAME_KEY)).toBe('5m');
+    });
+
+    it('restores the persisted timeframe on mount', async () => {
+      localStorage.setItem(TIMEFRAME_KEY, '15m');
+
+      await renderWithLoadedData();
+
+      expect(screen.getByRole('button', { name: '15m' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '1m' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('falls back to 1m when the stored value is invalid', async () => {
+      localStorage.setItem(TIMEFRAME_KEY, '1h');
+
+      await renderWithLoadedData();
+
+      expect(screen.getByRole('button', { name: '1m' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('remaps the series client-side without recreating the chart', async () => {
+      await renderWithLoadedData();
+
+      const removeSeriesCallsBefore = mockChartApi.removeSeries.mock.calls.length;
+      const createChartCallsBefore = (createChart as any).mock.calls.length;
+
+      fireEvent.click(screen.getByRole('button', { name: '5m' }));
+
+      await vi.waitFor(() => {
+        const last = mockSeriesApi.setData.mock.calls.at(-1)[0];
+        // 600/610/620 collapse into the 600 bucket, 900/910 into the 900 bucket.
+        expect(last).toEqual([
+          { time: 600, value: 1.2 },
+          { time: 900, value: 1.4 },
+        ]);
+      }, { timeout: 3000 });
+
+      // No chart/series teardown: switching timeframe only updates data.
+      expect((createChart as any).mock.calls.length).toBe(createChartCallsBefore);
+      expect(mockChartApi.removeSeries.mock.calls.length).toBe(removeSeriesCallsBefore);
+      expect(mockChartApi.remove).not.toHaveBeenCalled();
+    });
+
+    it('keeps the 1m series untouched when selecting the already-active chip', async () => {
+      await renderWithLoadedData();
+
+      const setDataCallsBefore = mockSeriesApi.setData.mock.calls.length;
+
+      fireEvent.click(screen.getByRole('button', { name: '1m' }));
+
+      // Same timeframe → no state change → no data effect re-run.
+      expect(mockSeriesApi.setData.mock.calls.length).toBe(setDataCallsBefore);
+      expect(localStorage.getItem(TIMEFRAME_KEY)).toBeNull();
+    });
+  });
 });
