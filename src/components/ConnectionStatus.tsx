@@ -25,11 +25,11 @@ export function ConnectionStatus({
 
   const getStatusColor = () => {
     switch (status) {
-      case 'connected': return 'text-green-700 bg-green-50 border-green-200';
-      case 'connecting': return 'text-blue-700 bg-blue-50 border-blue-200';
-      case 'reconnecting': return 'text-yellow-800 bg-yellow-50 border-yellow-200';
-      case 'disconnected': return 'text-red-700 bg-red-50 border-red-200';
-      default: return 'text-gray-700 bg-gray-50 border-gray-200';
+      case 'connected': return 'bg-emerald-500/10 text-emerald-200 border border-emerald-400/30';
+      case 'connecting': return 'bg-sky-500/10 text-sky-200 border border-sky-400/30';
+      case 'reconnecting': return 'bg-amber-500/10 text-amber-200 border border-amber-400/30';
+      case 'disconnected': return 'bg-red-500/10 text-red-200 border border-red-400/30';
+      default: return 'bg-slate-500/10 text-slate-200 border border-slate-400/30';
     }
   };
 
@@ -83,7 +83,7 @@ export function ConnectionStatus({
       {isDisconnected && (
         <button
           onClick={reconnect}
-          className="ml-2 px-2 py-1 text-xs bg-white border border-current rounded hover:bg-opacity-80 transition-colors"
+          className="ml-2 rounded border border-current/40 bg-slate-900/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-100 transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
         >
           Retry
         </button>
@@ -100,11 +100,11 @@ export function ConnectionIndicator({ className = '' }: { className?: string }) 
 
   const getIndicatorColor = () => {
     switch (status) {
-      case 'connected': return 'bg-green-500';
-      case 'connecting': return 'bg-blue-500 animate-pulse';
-      case 'reconnecting': return 'bg-yellow-500 animate-pulse';
-      case 'disconnected': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'connected': return 'bg-emerald-400';
+      case 'connecting': return 'bg-sky-400 animate-pulse';
+      case 'reconnecting': return 'bg-amber-400 animate-pulse';
+      case 'disconnected': return 'bg-red-400';
+      default: return 'bg-slate-400';
     }
   };
 
@@ -117,7 +117,7 @@ export function ConnectionIndicator({ className = '' }: { className?: string }) 
       {isDisconnected && (
         <button
           onClick={reconnect}
-          className="text-xs text-gray-600 hover:text-gray-800 underline"
+          className="text-xs font-medium text-slate-300 underline decoration-slate-400 underline-offset-2 transition-colors hover:text-white"
           title="Reconnect to live updates"
         >
           Reconnect

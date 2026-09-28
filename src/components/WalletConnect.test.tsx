@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import WalletConnect from './WalletConnect';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -260,7 +261,11 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      render(
+        <MemoryRouter>
+          <WalletConnect />
+        </MemoryRouter>,
+      );
 
       const warning = screen.getByRole('status');
       expect(warning).toHaveTextContent('Switch to Testnet in Freighter');
@@ -334,7 +339,11 @@ describe('WalletConnect', () => {
     });
 
     it('hides network warning on mobile', () => {
-      render(<WalletConnect />);
+      render(
+        <MemoryRouter>
+          <WalletConnect />
+        </MemoryRouter>,
+      );
 
       const warning = screen.getByRole('status');
       expect(warning).toHaveClass('hidden', 'md:flex');
@@ -480,7 +489,11 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      render(
+        <MemoryRouter>
+          <WalletConnect />
+        </MemoryRouter>,
+      );
 
       const warning = screen.getByRole('status');
       expect(warning).toHaveClass('text-red-600', 'dark:text-red-400');

@@ -42,8 +42,9 @@ describe('ConnectionStatus', () => {
       isDisconnected: false,
     });
 
-    render(<ConnectionStatus showWhenConnected={true} />);
+    const { container } = render(<ConnectionStatus showWhenConnected={true} />);
     expect(screen.getByText('Live updates active')).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('bg-emerald-500/10', 'text-emerald-200', 'border-emerald-400/30');
   });
 
   it('should render connecting state', () => {
@@ -178,7 +179,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-green-500');
+    const indicator = container.querySelector('.bg-emerald-400');
     expect(indicator).toBeInTheDocument();
   });
 
@@ -190,7 +191,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-blue-500.animate-pulse');
+    const indicator = container.querySelector('.bg-sky-400.animate-pulse');
     expect(indicator).toBeInTheDocument();
   });
 
@@ -202,7 +203,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-yellow-500.animate-pulse');
+    const indicator = container.querySelector('.bg-amber-400.animate-pulse');
     expect(indicator).toBeInTheDocument();
   });
 
@@ -214,7 +215,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-red-500');
+    const indicator = container.querySelector('.bg-red-400');
     expect(indicator).toBeInTheDocument();
   });
 
