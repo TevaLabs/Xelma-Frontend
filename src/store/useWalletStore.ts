@@ -11,6 +11,7 @@ import {
   isExpectedNetwork,
   networkPassphraseFor,
 } from '../lib/stellarNetwork';
+import { validateStellarAddressFormat } from '../utils/validateStellarAddress';
 
 const API_BASE = getApiBaseUrl();
 
@@ -240,21 +241,24 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     });
 
     try {
-      // Validate Stellar G-address format
-      if (!address.startsWith('G') || address.length !== 56) {
-        throw new Error('Invalid Stellar address. Must be a G-address (56 characters starting with G).');
+      const normalized = address.trim().toUpperCase();
+
+      // A real G-address check (Base32 Ed25519 public key), not just prefix + length,
+      // so a typo never lands in the store as a watchable address.
+      if (!validateStellarAddressFormat(normalized)) {
+        throw new Error('Invalid Stellar address. Enter a valid G-address (56 characters starting with G).');
       }
 
       let formattedBalance: string | null = null;
       try {
-        formattedBalance = await fetchFormattedBalance(address);
+        formattedBalance = await fetchFormattedBalance(normalized);
       } catch {
         formattedBalance = null;
         toast.error('Could not load balance. The address may not exist on the network.');
       }
 
       set({
-        publicKey: address,
+        publicKey: normalized,
         network: EXPECTED_NETWORK_LABEL.toLowerCase(),
         balance: formattedBalance,
         status: 'connected',

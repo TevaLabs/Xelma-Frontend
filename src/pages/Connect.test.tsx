@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock useStellarAddressValidation
@@ -39,20 +39,70 @@ vi.mock('sonner', () => ({
 
 import Connect from './Connect';
 import { useWalletStore } from '../store/useWalletStore';
+import { useStellarAddressValidation } from '../hooks/useStellarAddressValidation';
+import { toast } from 'sonner';
 
 const mockUseWalletStore = vi.mocked(useWalletStore);
+const mockValidation = vi.mocked(useStellarAddressValidation);
 
-function mockWalletState(status: string, publicKey: string | null, isWatchOnly = false) {
+/** A real, well-formed Stellar G-address (all-zero ed25519 public key). */
+const VALID_ADDRESS = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
+
+type ValidationState =
+  | 'idle'
+  | 'validating'
+  | 'valid'
+  | 'invalid-format'
+  | 'wrong-network'
+  | 'not-found'
+  | 'network-error';
+
+function mockWalletState(
+  status: string,
+  publicKey: string | null,
+  isWatchOnly = false,
+  overrides: Record<string, unknown> = {},
+) {
   mockUseWalletStore.mockImplementation((selector: any) => {
-    const store = { status, publicKey, isWatchOnly, disconnect: vi.fn() };
+    const store = {
+      status,
+      publicKey,
+      isWatchOnly,
+      disconnect: vi.fn(),
+      connect: vi.fn(),
+      setWatchOnly: vi.fn().mockResolvedValue(undefined),
+      ...overrides,
+    };
     if (typeof selector === 'function') return selector(store);
     return store;
   });
 }
 
+function mockValidationState(state: ValidationState, errorMessage = '') {
+  mockValidation.mockReturnValue({
+    state,
+    isValid: state === 'valid',
+    isValidating: state === 'validating',
+    errorMessage,
+    validate: vi.fn(),
+  } as unknown as ReturnType<typeof useStellarAddressValidation>);
+}
+
+function openWatchOnlyPanel() {
+  fireEvent.click(
+    screen.getByRole('button', { name: /Watch-only: view an address without signing/i }),
+  );
+}
+
 describe('Connect Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockValidation.mockReturnValue({
+      state: 'idle',
+      isValid: false,
+      isValidating: false,
+      errorMessage: null,
+    } as unknown as ReturnType<typeof useStellarAddressValidation>);
     mockWalletState('idle', null);
   });
 
@@ -132,7 +182,9 @@ describe('Connect Page', () => {
       expect(screen.getByLabelText('Stellar Address')).toBeInTheDocument();
 
       // View button should appear
-      expect(screen.getByRole('button', { name: /View in Watch-Only Mode/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /View in Watch-Only Mode/i }),
+      ).toBeInTheDocument();
     });
 
     it('hides watch-only panel content when toggle is clicked twice', () => {
@@ -189,6 +241,158 @@ describe('Connect Page', () => {
 
       // Assert the WalletConnect mock (Freighter flow) is never rendered
       expect(screen.queryByTestId('wallet-connect')).toBeNull();
+    });
+  });
+
+  describe('manual address -> watch-only flow', () => {
+    it('activates watch-only mode through the wallet store for a valid G-address', async () => {
+      const setWatchOnly = vi.fn().mockResolvedValue(undefined);
+      mockWalletState('idle', null, false, { setWatchOnly });
+      mockValidationState('valid');
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      fireEvent.change(screen.getByLabelText('Stellar Address'), {
+        target: { value: VALID_ADDRESS },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /View in Watch-Only Mode/i }));
+      });
+
+      expect(setWatchOnly).toHaveBeenCalledTimes(1);
+      expect(setWatchOnly).toHaveBeenCalledWith(VALID_ADDRESS);
+    });
+
+    it('never routes the manual path through the Freighter connect action', async () => {
+      const connect = vi.fn();
+      const setWatchOnly = vi.fn().mockResolvedValue(undefined);
+      mockWalletState('idle', null, false, { connect, setWatchOnly });
+      mockValidationState('valid');
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      fireEvent.change(screen.getByLabelText('Stellar Address'), {
+        target: { value: VALID_ADDRESS },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /View in Watch-Only Mode/i }));
+      });
+
+      expect(connect).not.toHaveBeenCalled();
+      expect(setWatchOnly).toHaveBeenCalledWith(VALID_ADDRESS);
+    });
+
+    it('does not toast a Freighter connection for the manual path', async () => {
+      const setWatchOnly = vi.fn().mockResolvedValue(undefined);
+      mockWalletState('idle', null, false, { setWatchOnly });
+      mockValidationState('valid');
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      fireEvent.change(screen.getByLabelText('Stellar Address'), {
+        target: { value: VALID_ADDRESS },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /View in Watch-Only Mode/i }));
+      });
+
+      // The page itself must not announce a connection at all; the store owns that
+      // copy and it is always watch-only wording.
+      expect(toast.success).not.toHaveBeenCalled();
+      const announced = [...vi.mocked(toast.success).mock.calls, ...vi.mocked(toast.error).mock.calls]
+        .flat()
+        .filter((msg): msg is string => typeof msg === 'string')
+        .join(' ');
+      expect(announced).not.toMatch(/freighter|wallet connected/i);
+    });
+
+    it('does not activate watch-only mode for an invalid address', () => {
+      const setWatchOnly = vi.fn().mockResolvedValue(undefined);
+      mockWalletState('idle', null, false, { setWatchOnly });
+      mockValidationState('invalid-format');
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      fireEvent.change(screen.getByLabelText('Stellar Address'), {
+        target: { value: 'NOT-AN-ADDRESS' },
+      });
+
+      const viewBtn = screen.getByRole('button', { name: /View in Watch-Only Mode/i });
+      expect(viewBtn).toBeDisabled();
+
+      fireEvent.click(viewBtn);
+      expect(setWatchOnly).not.toHaveBeenCalled();
+    });
+
+    it('shows the validation error message for an invalid address', () => {
+      mockValidationState(
+        'invalid-format',
+        'Invalid Stellar address format. Address must be 56 characters and valid Base32.',
+      );
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      expect(
+        screen.getByText(/Invalid Stellar address format/i),
+      ).toBeInTheDocument();
+    });
+
+    it('surfaces a not-found error and keeps the View button disabled', () => {
+      mockValidationState('not-found', 'Account not found on the selected network.');
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      expect(
+        screen.getByText(/Account not found on the selected network/i),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /View in Watch-Only Mode/i })).toBeDisabled();
+    });
+
+    it('disables the View button and skips validation while an address is being checked', () => {
+      const setWatchOnly = vi.fn().mockResolvedValue(undefined);
+      mockWalletState('idle', null, false, { setWatchOnly });
+      mockValidationState('validating');
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      fireEvent.change(screen.getByLabelText('Stellar Address'), {
+        target: { value: VALID_ADDRESS },
+      });
+
+      const viewBtn = screen.getByRole('button', { name: /Validating\.\.\./i });
+      expect(viewBtn).toBeDisabled();
+
+      fireEvent.click(viewBtn);
+      expect(setWatchOnly).not.toHaveBeenCalled();
+    });
+
+    it('uppercases and strips spaces before activating watch-only mode', async () => {
+      const setWatchOnly = vi.fn().mockResolvedValue(undefined);
+      mockWalletState('idle', null, false, { setWatchOnly });
+      mockValidationState('valid');
+
+      render(<Connect />);
+      openWatchOnlyPanel();
+
+      fireEvent.change(screen.getByLabelText('Stellar Address'), {
+        target: { value: VALID_ADDRESS.toLowerCase() },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /View in Watch-Only Mode/i }));
+      });
+
+      expect(setWatchOnly).toHaveBeenCalledWith(VALID_ADDRESS);
     });
   });
 
