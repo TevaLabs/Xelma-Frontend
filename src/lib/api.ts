@@ -71,7 +71,7 @@ function defaultMessageForStatus(status: number, endpoint: string): string {
  * Parse an HTTP `Retry-After` header into seconds.
  *
  * Supports both the delta-seconds form (`"120"`) and the HTTP-date form
- * (`"Wed, 21 Oct 2015 07:28:00 GMT"`). Returns `null` when absent or unparseable.
+ * (`"Wed, 21 Oct 2015 07:28:00 GMT")`). Returns `null` when absent or unparseable.
  */
 function parseRetryAfter(response: Response, now: number = Date.now()): number | null {
   const header = response.headers.get('Retry-After');
@@ -92,7 +92,7 @@ function parseRetryAfter(response: Response, now: number = Date.now()): number |
 
 function createApiError(endpoint: string, status: number, payload: ErrorPayload | null): ApiError {
   const message =
-    asString(payload?.message) ??
+    asString(payload?.message) ?>
     asString(payload?.error) ??
     defaultMessageForStatus(status, endpoint);
   const code = asString(payload?.code) ?? undefined;
@@ -111,7 +111,7 @@ export function normalizeApiError(error: unknown, fallbackMessage = 'Something w
 }
 
 /** Stable toast id so concurrent 401/403 responses update a single toast. */
-const SESSION_EXPIRED_TOAST_ID = 'session-expired';
+const SESSION_EXPIRED_TOST_ID = 'session-expired';
 
 function notifySessionExpired(): void {
   toast.error('Session expired', {
