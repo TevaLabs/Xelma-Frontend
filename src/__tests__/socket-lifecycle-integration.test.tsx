@@ -24,6 +24,7 @@ vi.mock('socket.io-client', () => {
 vi.mock('../store/useAuthStore', () => ({
   useAuthStore: {
     getState: vi.fn(() => ({ jwt: 'mock-token' })),
+    subscribe: vi.fn(),
   },
 }));
 

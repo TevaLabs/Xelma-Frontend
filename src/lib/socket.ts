@@ -341,5 +341,15 @@ export const appSocket = {
 // Export connection status store for components
 export { connectionStore };
 
+// Listen for auth changes to update socket connection
+useAuthStore.subscribe((state, prevState) => {
+  if (state.jwt !== prevState.jwt) {
+    if (socket.connected || socketService.getConnectionState().status === 'connecting') {
+      socketService.forceReconnect();
+    }
+  }
+});
+
+
 
 
