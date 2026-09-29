@@ -1,12 +1,14 @@
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import '../i18n';
 import Dashboard from './Dashboard';
 import RoundCard from '../components/RoundCard';
 import BetModal from '../components/BetModal';
 import { mockRounds } from '../data/mockData';
+import '../i18n';
+import i18n from '../i18n';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useRoundStore } from '../store/useRoundStore';
@@ -77,6 +79,10 @@ describe('Dashboard Terminal & Round Flows', () => {
       isAuthenticated: true,
       jwt: 'mock-jwt-token',
     });
+  });
+
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
   });
 
   describe('Wallet-gated behavior', () => {

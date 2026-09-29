@@ -119,6 +119,7 @@ function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 
 const DailyTip = () => {
+  const { t } = useTranslation();
   const [tip, setTip] = useState<Tip | null>(() => {
     const today = new Date().toISOString().slice(0, 10);
     const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
@@ -195,7 +196,7 @@ const DailyTip = () => {
           to="/learn"
           className="text-xs font-semibold text-xelma-teal-bright hover:underline"
         >
-          View all guides &rarr;
+          {t('dashboard.viewAllGuides')} &rarr;
         </Link>
       </div>
     </div>
@@ -454,7 +455,7 @@ const Dashboard = () => {
   };
 
   const getEndRoundResult = (round: Round | null) => {
-    const defaultTip = 'Stay tuned for the next round.';
+    const defaultTip = t('dashboard.stayTuned');
 
     if (!round) {
       return {
@@ -532,7 +533,7 @@ const Dashboard = () => {
               aria-pressed={isChatOpen}
               className="btn-ghost inline-flex min-h-[40px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
             >
-              {isChatOpen ? "Hide community chat" : "Community chat"}
+              {isChatOpen ? t('dashboard.hideCommunityChat') : t('dashboard.communityChat')}
             </button>
           </div>
         )}
@@ -548,7 +549,7 @@ const Dashboard = () => {
                 sseConnection.error && (
                   <div className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-900/20">
                     <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      Round updates: {sseConnection.error}
+                      {t('dashboard.roundUpdates', { error: sseConnection.error })}
                     </p>
                   </div>
                 )}
@@ -693,7 +694,7 @@ const Dashboard = () => {
                   void useRoundStore.getState().fetchActiveRound();
                 }}
               >
-                Refresh
+                {t('dashboard.refresh')}
               </button>
             }
           />
