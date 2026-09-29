@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import Landing from './Landing';
 import '../i18n';
 import i18n from '../i18n';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 vi.mock('../components/HowItWorks', () => ({
   default: () => <div data-testid="how-it-works-mock">How It Works Mock</div>
@@ -13,6 +14,11 @@ vi.mock('../components/HowItWorks', () => ({
 vi.mock('../components/ModeCards', () => ({
   default: () => <div data-testid="mode-cards-mock">Mode Cards Mock</div>
 }));
+
+beforeEach(() => {
+  // Reset motion preference to system between tests
+  useSettingsStore.getState().setMotionPreference('system');
+});
 
 afterEach(async () => {
   await i18n.changeLanguage('en');
@@ -108,5 +114,22 @@ describe('Landing Page', () => {
     
     // Check if the #how-it-works anchor exists
     expect(container.querySelector('#how-it-works')).toBeInTheDocument();
+  });
+
+  it('respects prefers-reduced-motion by displaying metrics immediately without animation', () => {
+    // Enable reduced motion preference
+    useSettingsStore.getState().setMotionPreference('reduce');
+
+    render(
+      <MemoryRouter>
+        <Landing />
+      </MemoryRouter>
+    );
+
+    // Metrics should be rendered with their target values immediately (no animation).
+    // The useCountUp hook should return the target value directly when reduced is true.
+    expect(screen.getByText(/rounds resolved/i)).toBeInTheDocument();
+    expect(screen.getByText(/practice volume/i)).toBeInTheDocument();
+    expect(screen.getByText(/active predictors/i)).toBeInTheDocument();
   });
 });

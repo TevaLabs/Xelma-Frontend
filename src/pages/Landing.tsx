@@ -6,14 +6,33 @@ import ModeCards from '../components/ModeCards';
 import GlassCard from '../components/ui/GlassCard';
 import StatusPill from '../components/ui/StatusPill';
 import { useNetworkStats } from '../hooks/useNetworkStats';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
+/**
+ * Count-up animation for metric values.
+ *
+ * When prefers-reduced-motion is active, displays the target value immediately
+ * without animation per WCAG guidelines. Otherwise animates over durationMs with
+ * eased cubic out curve for smooth visual feedback.
+ *
+ * Preserves intermediate counter state during stats updates (mock -> live) so
+ * the animation always begins from the currently displayed value, not zero.
+ */
 function useCountUp(target: number, durationMs = 1800) {
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(target);
   // Track the last displayed value so re-targeting (mock -> live stats) animates
   // smoothly from where it is rather than snapping back to zero.
-  const latestRef = useRef(0);
+  const latestRef = useRef(target);
+  const { reduced } = useReducedMotion();
 
   useEffect(() => {
+    // Under reduced motion, jump immediately to the target value.
+    if (reduced) {
+      latestRef.current = target;
+      setValue(target);
+      return;
+    }
+
     let frame = 0;
     const startValue = latestRef.current;
     const start = performance.now();
@@ -29,7 +48,7 @@ function useCountUp(target: number, durationMs = 1800) {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [target, durationMs]);
+  }, [target, durationMs, reduced]);
 
   return value;
 }
@@ -100,29 +119,40 @@ export default function Landing() {
             )}
           </div>
 
-          <div className="mx-auto mt-4 grid max-w-3xl gap-4 sm:grid-cols-3">
-            <GlassCard className="rounded-xl p-5 text-left">
-              <p className="text-2xl font-black text-white">{formatStat(rounds, 'rounds')}</p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-300">
-                {t('landing.roundsResolved')}
-              </p>
-            </GlassCard>
-            <GlassCard className="rounded-xl p-5 text-left">
-              <p className="text-2xl font-black text-cyan-300">
-                {formatStat(vxlm, 'vxlm')} vXLM
-              </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-300">
-                {t('landing.practiceVolume')}
-              </p>
-            </GlassCard>
-            <GlassCard className="rounded-xl p-5 text-left">
-              <p className="text-2xl font-black text-[#BEC7FE]">
-                {formatStat(players, 'players')}
-              </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-wider text-gray-300">
-                {t('landing.activePredictors')}
-              </p>
-            </GlassCard>
+          {/* Metrics Strip: glass tokens with responsive spacing */}
+          <div className="mx-auto mt-8 w-full max-w-4xl px-4 sm:px-0">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
+              {/* Rounds Resolved */}
+              <GlassCard className="rounded-2xl p-6 sm:p-7 text-left transition-all hover:border-xelma-blue/30">
+                <p className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+                  {t('landing.roundsResolved')}
+                </p>
+                <p className="mt-3 text-3xl sm:text-4xl font-black text-white tabular-nums">
+                  {formatStat(rounds, 'rounds')}
+                </p>
+              </GlassCard>
+
+              {/* Practice Volume */}
+              <GlassCard className="rounded-2xl p-6 sm:p-7 text-left transition-all hover:border-xelma-teal/30">
+                <p className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+                  {t('landing.practiceVolume')}
+                </p>
+                <p className="mt-3 text-3xl sm:text-4xl font-black text-cyan-300 tabular-nums">
+                  {formatStat(vxlm, 'vxlm')}
+                </p>
+                <p className="mt-1 text-xs font-medium text-cyan-400/60">vXLM</p>
+              </GlassCard>
+
+              {/* Active Predictors */}
+              <GlassCard className="rounded-2xl p-6 sm:p-7 text-left transition-all hover:border-xelma-blue/30">
+                <p className="text-sm font-semibold uppercase tracking-wider text-gray-400">
+                  {t('landing.activePredictors')}
+                </p>
+                <p className="mt-3 text-3xl sm:text-4xl font-black text-[#BEC7FE] tabular-nums">
+                  {formatStat(players, 'players')}
+                </p>
+              </GlassCard>
+            </div>
           </div>
         </div>
       </section>
