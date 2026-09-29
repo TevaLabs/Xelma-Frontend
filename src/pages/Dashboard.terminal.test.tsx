@@ -145,7 +145,7 @@ describe('Dashboard Terminal & Round Flows', () => {
 
       // Verify modal open interaction
       expect(screen.getByText('Confirm Prediction')).toBeInTheDocument();
-      expect(screen.getByText('25 XLM')).toBeInTheDocument();
+      expect(screen.getAllByText('25 XLM')[0]).toBeInTheDocument();
 
       // Confirm prediction
       const confirmBtn = screen.getByRole('button', { name: /confirm/i });

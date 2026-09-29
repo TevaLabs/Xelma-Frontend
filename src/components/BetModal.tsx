@@ -527,7 +527,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               <button
                 type="button"
                 role="tab"
+                id="bet-mode-tab-direction"
+                aria-controls="bet-mode-panel-direction"
                 aria-selected={mode === 'direction'}
+                tabIndex={mode === 'direction' ? 0 : -1}
                 onClick={() => { setMode('direction'); setFormError(''); }}
                 className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'direction' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
               >
@@ -536,7 +539,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               <button
                 type="button"
                 role="tab"
+                id="bet-mode-tab-precision"
+                aria-controls="bet-mode-panel-precision"
                 aria-selected={mode === 'precision'}
+                tabIndex={mode === 'precision' ? 0 : -1}
                 onClick={() => { setMode('precision'); setFormError(''); }}
                 className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'precision' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
               >
@@ -544,12 +550,17 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               </button>
             </div>
 
-            <div className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6">
+            {/* Direction tab panel */}
+            <div
+              id="bet-mode-panel-direction"
+              role="tabpanel"
+              aria-labelledby="bet-mode-tab-direction"
+              hidden={mode !== 'direction'}
+              className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6"
+            >
               <div className="flex justify-between">
                 <span className="text-gray-400">Mode</span>
-                <span className="font-semibold">
-                  {mode === 'precision' ? 'Legend Mode (Precision)' : 'UP/DOWN Match'}
-                </span>
+                <span className="font-semibold">UP/DOWN Match</span>
               </div>
 
               <div>
@@ -574,30 +585,9 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
                 </div>
               </div>
 
-              {mode === 'precision' && (
-                <div>
-                  <label htmlFor="bet-modal-exact-price" className="mb-2 block text-sm text-gray-400">
-                    Exact Price Target
-                  </label>
-                  <input
-                    id="bet-modal-exact-price"
-                    type="number"
-                    inputMode="decimal"
-                    min={PRICE_MIN}
-                    max={PRICE_MAX}
-                    step="0.0001"
-                    value={exactPrice}
-                    onChange={(event) => { setExactPrice(event.target.value); setFormError(''); }}
-                    className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-yellow-400"
-                    placeholder="0.2295"
-                  />
-                  {exactPrice && <p className="mt-2 text-xs font-semibold text-yellow-400">${exactPrice}</p>}
-                </div>
-              )}
-
               <div className="border-t border-gray-800 pt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="bet-modal-stake" className="text-sm text-gray-400">Stake</label>
+                  <label htmlFor="bet-modal-stake-direction" className="text-sm text-gray-400">Stake</label>
                   <div className="flex items-center gap-1" role="group" aria-label="Stake presets">
                     <button
                       type="button"
@@ -630,7 +620,115 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
                 </div>
                 <div className="flex items-center gap-2">
                   <input
-                    id="bet-modal-stake"
+                    id="bet-modal-stake-direction"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.0000001"
+                    value={stake}
+                    onChange={(event) => handleStakeChange(event.target.value)}
+                    className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
+                    placeholder="15"
+                  />
+                  <span className="font-bold text-cyan-400">XLM</span>
+                </div>
+                {stake && <p className="mt-2 text-xs text-cyan-300">{stake} XLM</p>}
+                {inlineStakeError && <p className="mt-2 text-xs font-semibold text-red-400" role="alert">{inlineStakeError}</p>}
+              </div>
+
+              {formError && <p className="text-sm font-semibold text-red-400" role="alert">{formError}</p>}
+            </div>
+
+            {/* Precision tab panel */}
+            <div
+              id="bet-mode-panel-precision"
+              role="tabpanel"
+              aria-labelledby="bet-mode-tab-precision"
+              hidden={mode !== 'precision'}
+              className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6"
+            >
+              <div className="flex justify-between">
+                <span className="text-gray-400">Mode</span>
+                <span className="font-semibold">Legend Mode (Precision)</span>
+              </div>
+
+              <div>
+                <span className="mb-2 block text-sm text-gray-400">Direction</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['UP', 'DOWN'] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setDirection(option)}
+                      className={`rounded-lg border px-3 py-2 font-bold transition ${
+                        direction === option
+                          ? option === 'UP'
+                            ? 'border-green-400 bg-green-500/15 text-green-400'
+                            : 'border-red-400 bg-red-500/15 text-red-400'
+                          : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="bet-modal-exact-price" className="mb-2 block text-sm text-gray-400">
+                  Exact Price Target
+                </label>
+                <input
+                  id="bet-modal-exact-price"
+                  type="number"
+                  inputMode="decimal"
+                  min={PRICE_MIN}
+                  max={PRICE_MAX}
+                  step="0.0001"
+                  value={exactPrice}
+                  onChange={(event) => { setExactPrice(event.target.value); setFormError(''); }}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-yellow-400"
+                  placeholder="0.2295"
+                />
+                {exactPrice && <p className="mt-2 text-xs font-semibold text-yellow-400">${exactPrice}</p>}
+              </div>
+
+              <div className="border-t border-gray-800 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="bet-modal-stake-precision" className="text-sm text-gray-400">Stake</label>
+                  <div className="flex items-center gap-1" role="group" aria-label="Stake presets">
+                    <button
+                      type="button"
+                      onClick={() => handlePresetClick(0.25)}
+                      disabled={arePresetsDisabled}
+                      className="rounded bg-gray-800 px-2 py-0.5 text-xs font-semibold text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      aria-label="Set stake to 25% of balance"
+                    >
+                      25%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePresetClick(0.5)}
+                      disabled={arePresetsDisabled}
+                      className="rounded bg-gray-800 px-2 py-0.5 text-xs font-semibold text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      aria-label="Set stake to 50% of balance"
+                    >
+                      50%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePresetClick(1.0)}
+                      disabled={arePresetsDisabled}
+                      className="rounded bg-gray-800 px-2 py-0.5 text-xs font-semibold text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      aria-label="Set stake to Max available balance"
+                    >
+                      Max
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="bet-modal-stake-precision"
                     type="number"
                     inputMode="decimal"
                     min="0"
