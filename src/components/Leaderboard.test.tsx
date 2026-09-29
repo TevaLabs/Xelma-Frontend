@@ -1,5 +1,6 @@
-﻿import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Leaderboard from './Leaderboard';
 import { leaderboardApi } from '../lib/api-client';
@@ -29,6 +30,23 @@ function renderLeaderboard() {
       <Leaderboard />
     </MemoryRouter>,
   );
+}
+
+/** Renders the Leaderboard and exposes the live query string, which is where
+ *  the filter selection actually lands. */
+function renderLeaderboardWithLocationSpy() {
+  let currentSearch = '';
+  function LocationSpy() {
+    currentSearch = useLocation().search;
+    return null;
+  }
+  const result = render(
+    <MemoryRouter initialEntries={['/leaderboard']}>
+      <Leaderboard />
+      <LocationSpy />
+    </MemoryRouter>,
+  );
+  return { ...result, search: () => currentSearch };
 }
 
 describe('Leaderboard filter tabs — keyboard roving', () => {
@@ -128,5 +146,121 @@ describe('Leaderboard filter tabs — keyboard roving', () => {
     expect(tabs[2]).toHaveAttribute('aria-selected', 'true');
     expect(tabs[2]).toHaveAttribute('tabindex', '0');
     expect(tabs[0]).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('ArrowDown and ArrowUp rove forward and backward', async () => {
+    // Leaderboard also accepts Up/Down (AssetTabs is Left/Right only) so the
+    // chips stay operable for users who navigate vertically.
+    const tabs = await renderAndWait();
+    tabs[0].focus();
+
+    fireEvent.keyDown(tabs[0], { key: 'ArrowDown' });
+    expect(tabs[1]).toHaveFocus();
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(tabs[1], { key: 'ArrowUp' });
+    expect(tabs[0]).toHaveFocus();
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps exactly one tab tabbable after a full keyboard cycle', async () => {
+    const tabs = await renderAndWait();
+    tabs[0].focus();
+
+    // Walk forwards through every tab, including the wrap past the end.
+    for (let i = 0; i < 4; i += 1) {
+      const current = tabs.findIndex((t) => t === document.activeElement);
+      fireEvent.keyDown(tabs[current], { key: 'ArrowRight' });
+
+      const tabbable = tabs.filter((t) => t.getAttribute('tabindex') === '0');
+      expect(tabbable).toHaveLength(1);
+      expect(tabbable[0]).toHaveAttribute('aria-selected', 'true');
+      expect(document.activeElement).toBe(tabbable[0]);
+    }
+
+    expect(tabs[0]).toHaveFocus();
+  });
+
+  it('activates the focused filter with Enter', async () => {
+    // Enter/Space activation is native <button> behaviour, not a key handler
+    // in the component — so this must go through user-event, which emulates
+    // the browser's synthesised click. fireEvent.keyDown never fires one, so a
+    // test written that way would assert nothing at all.
+    const user = userEvent.setup();
+    const tabs = await renderAndWait();
+
+    // Focus a tab *without* selecting it (select a different one via click),
+    // so a passing test proves Enter activated the focused chip rather than
+    // merely re-confirming the already-selected one.
+    tabs[1].focus();
+    fireEvent.click(tabs[0]);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{Enter}');
+
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[1]).toHaveAttribute('tabindex', '0');
+    expect(tabs[0]).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('activates the focused filter with Space', async () => {
+    const user = userEvent.setup();
+    const tabs = await renderAndWait();
+
+    tabs[3].focus();
+    fireEvent.click(tabs[0]);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard(' ');
+
+    expect(tabs[3]).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[3]).toHaveAttribute('tabindex', '0');
+    expect(tabs[0]).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('exposes an accessible name and correct tablist wiring for each chip', async () => {
+    const tabs = await renderAndWait();
+
+    const tablist = screen.getByRole('tablist');
+    expect(tablist).toHaveAttribute('aria-label', 'Time range filter');
+    // Horizontal orientation, so Left/Right are the expected primary keys.
+    expect(tablist).not.toHaveAttribute('aria-orientation', 'vertical');
+
+    for (const tab of tabs) {
+      expect(tab.tagName).toBe('BUTTON');
+      expect(tab).toHaveAttribute('type', 'button');
+    }
+  });
+
+  it('applies the filter selection itself, not just focus movement', async () => {
+    // Selection is driven by the ?filter= query param, so assert the actual
+    // effect rather than only the chip's aria-selected. This is the test that
+    // would catch "focus moved but the filter never changed".
+    const user = userEvent.setup();
+    const { search } = renderLeaderboardWithLocationSpy();
+    await waitFor(() => expect(screen.getByRole('tablist')).toBeInTheDocument());
+
+    const tabs = screen.getAllByRole('tab');
+    tabs[2].focus();
+    await user.keyboard('{Enter}');
+
+    expect(search()).toContain('filter=weekly');
+    expect(tabs[2]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('starts the roving tabindex on the filter supplied by the URL', async () => {
+    // The tab stop must follow the active filter, not always default to the
+    // first chip — otherwise a deep-linked ?filter=monthly link is wrong for
+    // keyboard users on first Tab.
+    render(
+      <MemoryRouter initialEntries={['/leaderboard?filter=monthly']}>
+        <Leaderboard />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByRole('tablist')).toBeInTheDocument());
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((t) => t.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1', '0']);
+    expect(tabs[3]).toHaveAttribute('aria-selected', 'true');
   });
 });

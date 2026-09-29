@@ -38,9 +38,9 @@ function resolveNetwork(override?: FooterNetwork): FooterNetwork {
   return passphrase.toLowerCase().includes('test') ? 'TESTNET' : 'PUBLIC';
 }
 
-// Badge colors are sourced from `networkBadgeMeta` (single source of truth)
+// Badge colors are sourced from `resolveNetworkBadge` (single source of truth)
 // so Footer pills stay visually consistent with the Navbar / NetworkBadge.
-// Testnet = amber, Public/mainnet = cyan.
+// Testnet = amber, Public/mainnet = emerald.
 const NETWORK_META: Record<
   FooterNetwork,
   { label: string; description: string; badgeClass: string }

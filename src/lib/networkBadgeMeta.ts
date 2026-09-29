@@ -28,8 +28,9 @@ const COLOR_CLASSES = {
   testnet: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
 } as const;
 
-export function resolveNetworkBadge(): NetworkBadgeMeta {
-  const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
+export function resolveNetworkBadge(network?: string): NetworkBadgeMeta {
+  const target = (network ?? NETWORK).toUpperCase();
+  const isMainnet = target === 'PUBLIC' || target === 'MAINNET';
   return {
     label: isMainnet ? 'Mainnet' : 'Testnet',
     isMainnet,
