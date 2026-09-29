@@ -10,6 +10,6 @@ export default defineConfig({
         // Several legacy suites mock the same modules with different export shapes.
         // Keep file execution isolated and deterministic in the CI suite.
         fileParallelism: false,
-        exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**'],
+        exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/cypress/**', '**/.{idea,git,cache,output,temp,kilo}/**', '**/.kilo/**'],
     },
 });

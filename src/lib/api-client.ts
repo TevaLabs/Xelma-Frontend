@@ -1,6 +1,7 @@
 import type { Guide, Tip } from '../types/education';
 import type { NotificationItem } from '../types/notification';
 import { apiFetch } from './api';
+import { markOnboardingStepComplete } from '../utils/onboarding';
 import {
     validateApiResponse,
     RoundSchema,
@@ -111,10 +112,16 @@ export const predictionsApi = {
         }
     },
     submit: async (prediction: SubmitPredictionRequest) => {
-        return apiFetch<UserPrediction>('/api/predictions/submit', {
+        const result = await apiFetch<UserPrediction>('/api/predictions/submit', {
             method: 'POST',
             body: JSON.stringify(prediction),
         });
+        try {
+            markOnboardingStepComplete('predict');
+        } catch {
+            // Ignore onboarding update errors
+        }
+        return result;
     },
 };
 
