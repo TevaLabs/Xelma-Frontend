@@ -181,6 +181,55 @@ describe('RecentActivity', () => {
     });
   });
 
+  describe('empty filter guidance copy', () => {
+    it('shows guidance inline when the incorrect filter has zero results', () => {
+      const allWonItems: RecentActivityItem[] = [
+        { id: '1', asset: 'BTC', result: 'Won', amount: 10, mode: 'updown' },
+        { id: '3', asset: 'XLM', result: 'Won', amount: 20, mode: 'updown' },
+      ];
+      render(<RecentActivity items={allWonItems} />);
+
+      fireEvent.click(screen.getByRole('tab', { name: /^incorrect/i }));
+
+      expect(screen.getByText('No incorrect predictions yet')).toBeInTheDocument();
+      expect(screen.getByText('Your incorrect predictions will appear here.')).toBeInTheDocument();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    });
+
+    it('shows guidance inline when the correct filter has zero results', () => {
+      const allLostItems: RecentActivityItem[] = [
+        { id: '2', asset: 'ETH', result: 'Lost', amount: 5, mode: 'precision' },
+      ];
+      render(<RecentActivity items={allLostItems} />);
+
+      fireEvent.click(screen.getByRole('tab', { name: /^correct/i }));
+
+      expect(screen.getByText('No correct predictions yet')).toBeInTheDocument();
+      expect(screen.getByText('Your correct predictions will appear here.')).toBeInTheDocument();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    });
+
+    it('keeps the status region role on zero-result filters', () => {
+      const allLostItems: RecentActivityItem[] = [
+        { id: '2', asset: 'ETH', result: 'Lost', amount: 5, mode: 'precision' },
+      ];
+      render(<RecentActivity items={allLostItems} />);
+
+      fireEvent.click(screen.getByRole('tab', { name: /^correct/i }));
+
+      expect(
+        screen.getByRole('status', { name: /no matching predictions/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('does not replace the generic empty state with filter jargon when the list is empty', () => {
+      render(<RecentActivity items={[]} />);
+      fireEvent.click(screen.getByRole('tab', { name: /^correct/i }));
+      expect(screen.getByText(/no predictions yet/i)).toBeInTheDocument();
+      expect(screen.queryByText(/no correct predictions yet/i)).not.toBeInTheDocument();
+    });
+  });
+
   describe('loading and error states', () => {
     it('renders a loading state with skeletons', () => {
       render(<RecentActivity items={[]} isLoading={true} />);

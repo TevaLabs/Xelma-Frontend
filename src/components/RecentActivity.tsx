@@ -13,6 +13,12 @@ const FILTER_LABELS: Record<FilterOption, string> = {
   incorrect: 'Incorrect',
 };
 
+const FILTER_EMPTY_HELPER: Record<FilterOption, string> = {
+  all: 'Make your first prediction to see your activity here.',
+  correct: 'Your correct predictions will appear here.',
+  incorrect: 'Your incorrect predictions will appear here.',
+};
+
 interface RecentActivityProps {
   items: RecentActivityItem[];
   isLoading?: boolean;
@@ -144,9 +150,12 @@ export default function RecentActivity({ items, isLoading, error, onRetry }: Rec
               </p>
             </>
           ) : (
-            <p className="text-sm font-medium text-gray-400">
-              No {activeFilter === 'correct' ? 'correct' : 'incorrect'} predictions yet
-            </p>
+            <>
+              <p className="text-sm font-medium text-gray-400">
+                No {activeFilter === 'correct' ? 'correct' : 'incorrect'} predictions yet
+              </p>
+              <p className="text-xs text-gray-600">{FILTER_EMPTY_HELPER[activeFilter]}</p>
+            </>
           )}
         </div>
       ) : (
