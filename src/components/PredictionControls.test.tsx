@@ -380,4 +380,106 @@ describe('PredictionControls', () => {
       expect(helpBtn).toHaveAttribute('aria-expanded', 'false');
     });
   });
+
+  describe('Keyboard Shortcuts', () => {
+    it('renders hint UI documenting keys', () => {
+      render(<PredictionControls />);
+      expect(screen.getByText(/Keyboard shortcuts:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Press U or Arrow Up for UP/i)).toBeInTheDocument();
+    });
+
+    it('triggers UP prediction on keydown (U or ArrowUp)', () => {
+      const onPrediction = vi.fn();
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+          onPrediction={onPrediction}
+        />
+      );
+
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+        target: { value: '10' },
+      });
+
+      fireEvent.keyDown(document, { key: 'u' });
+
+      expect(onPrediction).toHaveBeenCalledWith({
+        direction: 'UP',
+        stake: '10',
+        exactPrice: undefined,
+        isLegend: false,
+      });
+    });
+
+    it('triggers DOWN prediction on keydown (D or ArrowDown)', () => {
+      const onPrediction = vi.fn();
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+          onPrediction={onPrediction}
+        />
+      );
+
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+        target: { value: '10' },
+      });
+
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+
+      expect(onPrediction).toHaveBeenCalledWith({
+        direction: 'DOWN',
+        stake: '10',
+        exactPrice: undefined,
+        isLegend: false,
+      });
+    });
+
+    it('submits prediction on Enter keydown', () => {
+      const onPrediction = vi.fn();
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+          onPrediction={onPrediction}
+        />
+      );
+
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+        target: { value: '10' },
+      });
+
+      fireEvent.keyDown(document, { key: 'Enter' });
+
+      expect(onPrediction).toHaveBeenCalledWith({
+        direction: 'UP',
+        stake: '10',
+        exactPrice: undefined,
+        isLegend: false,
+      });
+    });
+
+    it('ignores shortcuts when typing inside an input element', () => {
+      const onPrediction = vi.fn();
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          isRoundActive={true}
+          walletBalance="100.00 XLM"
+          onPrediction={onPrediction}
+        />
+      );
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake Amount/i });
+      fireEvent.change(stakeInput, { target: { value: '10' } });
+
+      fireEvent.keyDown(stakeInput, { key: 'u' });
+
+      expect(onPrediction).not.toHaveBeenCalled();
+    });
+  });
 });

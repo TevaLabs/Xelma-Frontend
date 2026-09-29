@@ -425,4 +425,56 @@ describe('BetModal Component', () => {
       expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
     });
   });
+
+  describe('Keyboard Shortcuts', () => {
+    it('documents key shortcuts in hint UI', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      expect(screen.getByText(/Keyboard shortcuts:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Press U or Arrow Up for UP/i)).toBeInTheDocument();
+    });
+
+    it('changes direction using keyboard keys (u, d, ArrowUp, ArrowDown)', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, direction: 'UP' }} />
+      );
+
+      const downOption = screen.getByRole('button', { name: 'DOWN' });
+      const upOption = screen.getByRole('button', { name: 'UP' });
+
+      fireEvent.keyDown(document, { key: 'd' });
+      expect(downOption).toHaveClass('border-red-400');
+
+      fireEvent.keyDown(document, { key: 'u' });
+      expect(upOption).toHaveClass('border-green-400');
+    });
+
+    it('triggers confirm on Enter keydown', async () => {
+      vi.mocked(place_bet).mockResolvedValue({ txHash: 'tx_enter_key', ledger: 100 });
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.keyDown(document, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(place_bet).toHaveBeenCalledWith('GUSER123', 'UP', '15', expect.any(Function));
+      });
+    });
+
+    it('ignores shortcuts when focus is inside text input', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, direction: 'UP' }} />
+      );
+
+      const stakeInput = screen.getByLabelText('Stake');
+      fireEvent.keyDown(stakeInput, { key: 'd' });
+
+      expect(screen.getByRole('button', { name: 'UP' })).toHaveClass('border-green-400');
+    });
+  });
 });

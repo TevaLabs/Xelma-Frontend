@@ -374,7 +374,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) return;
 
       const key = e.key;
       if (key === 'u' || key === 'U' || key === 'ArrowUp') {
