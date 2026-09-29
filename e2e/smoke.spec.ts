@@ -66,6 +66,47 @@ test.describe('Smoke Tests - Critical Routes', () => {
         body: JSON.stringify({ message: 'No active round' }),
       }),
     );
+    // Mock education content so the Learn page renders its sections instead of
+    // its error state (no backend runs during e2e — requests to
+    // http://localhost:3000 would otherwise fail with ERR_CONNECTION_REFUSED).
+    await page.route('**/api/education/guides', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 'guide-1',
+            title: 'Reading the Market',
+            description: 'How to interpret short-term price action before you stake.',
+            category: 'Basics',
+            readTime: '5 min read',
+            createdAt: '2026-01-01T00:00:00.000Z',
+          },
+        ]),
+      }),
+    );
+    await page.route('**/api/education/tip', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'tip-1',
+          title: 'Alpha tip of the day',
+          content: 'Wait for candle confirmation before entering a position.',
+          category: 'Strategy',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        }),
+      }),
+    );
+    // Stub the round-events SSE stream so the EventSource does not retry
+    // against a backend that does not exist during e2e runs.
+    await page.route('**/api/rounds/events', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        body: 'retry: 600000\n\n',
+      }),
+    );
   });
   test('Landing page loads and renders correctly', async ({ page }) => {
     await page.goto('/');
@@ -124,5 +165,73 @@ test.describe('Smoke Tests - Critical Routes', () => {
     const mainHeading = page.locator('h1');
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
+  });
+
+  test('Learn page loads and renders correctly', async ({ page }) => {
+    await page.goto('/learn');
+    await page.waitForLoadState('networkidle');
+
+    // Verify page title
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    // Verify main heading is present
+    const mainHeading = page.locator('h1');
+    await expect(mainHeading).toBeVisible();
+    await expect(mainHeading).toContainText('Academy');
+
+    // Verify Expert Guides section heading is present
+    const guidesHeading = page.locator('h2').filter({ hasText: 'Expert Guides' });
+    await expect(guidesHeading).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Profile page loads and renders correctly', async ({ page }) => {
+    await page.goto('/profile');
+    await page.waitForLoadState('networkidle');
+
+    // Verify page title
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    // Verify main heading is present
+    const mainHeading = page.locator('h1');
+    await expect(mainHeading).toBeVisible();
+    await expect(mainHeading).toContainText('Profile');
+
+    // Verify profile section label
+    const profileLabel = page.locator('p').filter({ hasText: 'Player identity' });
+    await expect(profileLabel).toBeVisible();
+  });
+
+  test('Pools page loads and renders correctly', async ({ page }) => {
+    await page.goto('/pools');
+    await page.waitForLoadState('networkidle');
+
+    // Verify page title
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    // Verify main heading is present
+    const mainHeading = page.locator('h1');
+    await expect(mainHeading).toBeVisible();
+    await expect(mainHeading).toContainText('Liquidity Pools');
+
+    // Verify subtitle is present
+    const subtitle = page.locator('p').filter({ hasText: 'Transparency and historical stats' });
+    await expect(subtitle).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Tournament page loads and renders correctly', async ({ page }) => {
+    await page.goto('/tournament');
+    await page.waitForLoadState('networkidle');
+
+    // Verify page title
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    // Verify main heading is present
+    const mainHeading = page.locator('h1');
+    await expect(mainHeading).toBeVisible();
+
+    // Verify Coming Soon badge is present (scope to the page's <main> — the
+    // navbar also renders a "Coming Soon" chip, which breaks strict mode)
+    const comingSoonBadge = page.locator('#main-content').getByText('Coming Soon');
+    await expect(comingSoonBadge).toBeVisible();
   });
 });
