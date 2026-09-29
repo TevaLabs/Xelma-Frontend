@@ -36,6 +36,9 @@ import {
   signMessage,
 } from '@stellar/freighter-api';
 import { useWalletStore, selectIsWalletConnected } from './useWalletStore';
+import { toast } from 'sonner';
+
+const VALID_G_ADDRESS = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
 
 function resetWalletState() {
   useWalletStore.setState({
@@ -46,6 +49,7 @@ function resetWalletState() {
     errorMessage: null,
     errorCode: null,
     networkMismatch: false,
+    isWatchOnly: false,
   });
 }
 
@@ -283,5 +287,96 @@ describe('useWalletStore', () => {
     expect(clearAuth).toHaveBeenCalled();
     expect(s.errorCode).toBe('AUTH_FAILED');
     expect(s.errorMessage).toMatch(/sign-in/i);
+  });
+});
+
+describe('useWalletStore setWatchOnly', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    clearAuth.mockClear();
+    setJwt.mockClear();
+    resetWalletState();
+  });
+
+  it('activates watch-only mode with the address, balance and no signing', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ balances: [{ asset_type: 'native', balance: '7.25' }] }),
+    }) as unknown as typeof fetch;
+
+    await useWalletStore.getState().setWatchOnly(VALID_G_ADDRESS);
+
+    const s = useWalletStore.getState();
+    expect(s.isWatchOnly).toBe(true);
+    expect(s.status).toBe('connected');
+    expect(s.publicKey).toBe(VALID_G_ADDRESS);
+    expect(s.balance).toBe('7.25 XLM');
+    expect(s.errorMessage).toBeNull();
+  });
+
+  it('normalizes casing and surrounding whitespace before storing the address', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ balances: [{ asset_type: 'native', balance: '1' }] }),
+    }) as unknown as typeof fetch;
+
+    await useWalletStore.getState().setWatchOnly(`  ${VALID_G_ADDRESS.toLowerCase()}  `);
+
+    expect(useWalletStore.getState().publicKey).toBe(VALID_G_ADDRESS);
+  });
+
+  it('toasts watch-only copy, never a Freighter connection', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ balances: [{ asset_type: 'native', balance: '1' }] }),
+    }) as unknown as typeof fetch;
+
+    await useWalletStore.getState().setWatchOnly(VALID_G_ADDRESS);
+
+    expect(toast.success).toHaveBeenCalledWith(expect.stringMatching(/watch-only/i));
+    const messages = vi.mocked(toast.success).mock.calls.flat().join(' ');
+    expect(messages).not.toMatch(/wallet connected|freighter/i);
+  });
+
+  it('rejects a non-G-address and leaves no watch-only state behind', async () => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+
+    await useWalletStore.getState().setWatchOnly('S'.repeat(56));
+
+    const s = useWalletStore.getState();
+    expect(s.isWatchOnly).toBe(false);
+    expect(s.status).toBe('error');
+    expect(s.publicKey).toBeNull();
+    expect(s.errorMessage).toMatch(/g-address/i);
+    expect(toast.error).toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects a 56-character string that is not a real Stellar address', async () => {
+    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+
+    await useWalletStore.getState().setWatchOnly('G'.repeat(56));
+
+    const s = useWalletStore.getState();
+    expect(s.isWatchOnly).toBe(false);
+    expect(s.status).toBe('error');
+    expect(s.publicKey).toBeNull();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('still activates watch-only when the balance cannot be read', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+
+    await useWalletStore.getState().setWatchOnly(VALID_G_ADDRESS);
+
+    const s = useWalletStore.getState();
+    expect(s.isWatchOnly).toBe(true);
+    expect(s.status).toBe('connected');
+    expect(s.publicKey).toBe(VALID_G_ADDRESS);
+    expect(s.balance).toBeNull();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/balance/i));
   });
 });

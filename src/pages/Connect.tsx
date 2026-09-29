@@ -61,12 +61,15 @@ const Connect = () => {
 
   // Handle connect button click
   const handleConnect = async () => {
+    if (isValidating) return;
+
     if (!isValid) {
-      toast.error('Please enter a valid Stellar address');
+      toast.error(errorMessage || 'Please enter a valid Stellar address');
       return;
     }
 
-    // Use watch-only mode for manual address connection
+    // Manual addresses are never a Freighter connection: the store's watch-only
+    // action is the single entry point that flips the wallet into watch-only mode.
     await setWatchOnly(address);
   };
 
