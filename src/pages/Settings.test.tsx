@@ -20,6 +20,7 @@ vi.mock('lucide-react', () => ({
   RefreshCw: (props: React.SVGProps<SVGSVGElement>) => (
     <svg data-testid="icon-refresh" {...props} />
   ),
+  Rows3: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-rows" {...props} />,
   Settings: (props: React.SVGProps<SVGSVGElement>) => (
     <svg data-testid="icon-settings" {...props} />
   ),
@@ -103,6 +104,15 @@ describe('<Settings />', () => {
     renderSettings();
     fireEvent.click(screen.getByTestId('settings-toggle-streamer'));
     expect(useSettingsStore.getState().streamerMode).toBe(true);
+  });
+
+  it('toggles compact dashboard and stores result', () => {
+    renderSettings();
+    const toggle = screen.getByTestId('settings-toggle-compact');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(toggle);
+    expect(useSettingsStore.getState().compactMode).toBe(true);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 
   it('renders all three motion-presence radio options', () => {

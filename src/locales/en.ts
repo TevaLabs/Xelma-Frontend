@@ -65,6 +65,11 @@ const en = {
       message: 'Connect your wallet to make predictions.',
       connectNow: 'Connect Now',
     },
+    spectate: {
+      title: 'Spectate mode',
+      description: 'Watch live prices, round timelines and open rounds. Connect a wallet to place predictions.',
+      connectToPredict: 'Connect wallet to predict',
+    },
     emptyState: {
       noActiveRounds: {
         title: 'No Active Rounds',

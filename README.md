@@ -115,6 +115,8 @@ bundle.
 | `VITE_STELLAR_HORIZON_URL`        | optional | `src/lib/horizon.ts`          | Derived from `VITE_STELLAR_NETWORK`                       | Horizon endpoint for account balances and trustlines. Defaults to `horizon-testnet.stellar.org`, or `horizon.stellar.org` on `PUBLIC`/`MAINNET`. Set only to override. |
 | `VITE_STELLAR_FRIENDBOT_URL`      | optional | `src/lib/friendbot.ts`        | `https://friendbot.stellar.org`                           | Testnet faucet used by the "Fund with Friendbot" CTA. Ignored on `PUBLIC`/`MAINNET`, where the CTA is hidden. |
 | `VITE_XELMA_CONTRACT_ID`          | ✅ prod  | `src/lib/xelma-contract.ts`   | Testnet placeholder contract id                           | Deployed Xelma Soroban contract id (`C…`) for the target network.       |
+| `VITE_ENABLE_MSW`                 | optional | `src/main.tsx`                | unset                                                     | Dev only. `true` serves education/stats/pools from MSW fixtures (see [Mock API](#mock-api-msw)). |
+| `VITE_MSW_SCENARIO`               | optional | `src/test/msw/browser.ts`     | unset                                                     | `error` makes every mocked endpoint fail (requires `VITE_ENABLE_MSW`). |
 
 ### `.env` examples
 
@@ -325,6 +327,37 @@ Run the full CI gate (lint + build + tests):
 ```bash
 pnpm test
 ```
+
+### Mock API (MSW)
+
+Fixtures and handlers for the education, stats and pools endpoints live in
+`src/test/msw/` (`fixtures.ts`, `handlers.ts`). Each endpoint has a happy-path handler
+(`handlers`) and an error handler (`errorHandlers`).
+
+**In unit tests** — opt in per file:
+
+```ts
+import { server } from '../test/msw/server';
+import { errorHandlers } from '../test/msw/handlers';
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+// inside a test: force the error path
+server.use(...errorHandlers.pools);
+```
+
+**In the browser** — run Learn, Dashboard and Pools with no backend:
+
+```bash
+npx msw init public/ --save   # one-time: generates public/mockServiceWorker.js
+echo "VITE_ENABLE_MSW=true" >> .env.local
+pnpm dev
+```
+
+Set `VITE_MSW_SCENARIO=error` alongside it to make every mocked endpoint return a 500.
+The worker only starts in dev builds and is off unless `VITE_ENABLE_MSW=true`.
 
 ### Accessibility smoke tests
 

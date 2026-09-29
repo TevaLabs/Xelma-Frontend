@@ -444,13 +444,21 @@ describe('NotificationsPanel', () => {
     });
   });
 
-  describe('dark mode support', () => {
-    it('includes dark mode classes', () => {
+  describe('glass terminal theme', () => {
+    it('uses the glass-card surface with light-on-dark text', () => {
       render(<NotificationsPanel {...defaultProps} />);
 
       const panel = screen.getByRole('dialog');
-      expect(panel).toHaveClass('bg-white', 'dark:bg-gray-900');
-      expect(panel).toHaveClass('border-gray-200', 'dark:border-gray-800');
+      expect(panel).toHaveClass('glass-card', 'text-white');
+      expect(panel).not.toHaveClass('bg-white');
+    });
+
+    it('does not rely on dark: variant overrides', () => {
+      mockStore.list = mockNotifications;
+      render(<NotificationsPanel {...defaultProps} />);
+
+      const panel = screen.getByRole('dialog');
+      expect(panel.outerHTML).not.toMatch(/dark:/);
     });
   });
 
