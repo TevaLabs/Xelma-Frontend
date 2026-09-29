@@ -28,6 +28,19 @@ const COLOR_CLASSES = {
   testnet: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
 } as const;
 
+/**
+ * Per-network badge metadata keyed by the network identifiers the UI uses
+ * (`TESTNET` / `PUBLIC`). Consumers that need to style a pill for *both*
+ * networks at once — e.g. the Footer, which documents what each network means
+ * regardless of which one is active — read from here instead of re-deriving
+ * color classes, which is what caused the one-off hex drift this module
+ * exists to prevent.
+ */
+export const networkBadgeMeta = {
+  TESTNET: { badgeClass: COLOR_CLASSES.testnet },
+  PUBLIC: { badgeClass: COLOR_CLASSES.mainnet },
+} as const satisfies Record<string, { badgeClass: string }>;
+
 export function resolveNetworkBadge(): NetworkBadgeMeta {
   const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
   return {
