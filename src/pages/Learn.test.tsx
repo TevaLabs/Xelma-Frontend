@@ -106,4 +106,33 @@ describe('LearnPage', () => {
         });
         expect(screen.getByText(/No tip today/i)).toBeInTheDocument();
     });
+
+    describe('main-content landmark', () => {
+        it('exposes exactly one focusable #main-content while loading', () => {
+            mockedEducationApi.getGuides.mockReturnValue(new Promise(() => { }));
+            mockedEducationApi.getTip.mockReturnValue(new Promise(() => { }));
+
+            render(<LearnPage />);
+
+            const landmarks = document.querySelectorAll('#main-content');
+            expect(landmarks).toHaveLength(1);
+            expect(landmarks[0].tagName).toBe('MAIN');
+            expect(landmarks[0]).toHaveAttribute('tabindex', '-1');
+        });
+
+        it('keeps exactly one focusable #main-content once the guides load', async () => {
+            mockedEducationApi.getGuides.mockResolvedValue(mockGuides);
+            mockedEducationApi.getTip.mockResolvedValue(mockTip);
+
+            render(<LearnPage />);
+
+            await waitFor(() => {
+                expect(screen.getByText('How to Predict')).toBeInTheDocument();
+            });
+            const landmarks = document.querySelectorAll('#main-content');
+            expect(landmarks).toHaveLength(1);
+            expect(landmarks[0].tagName).toBe('MAIN');
+            expect(landmarks[0]).toHaveAttribute('tabindex', '-1');
+        });
+    });
 });

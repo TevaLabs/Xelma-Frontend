@@ -348,6 +348,17 @@ describe('Dashboard', () => {
     });
   });
 
+  describe('main-content landmark', () => {
+    it('exposes exactly one focusable #main-content for the global skip link', () => {
+      render(<Dashboard />);
+
+      const landmarks = document.querySelectorAll('#main-content');
+      expect(landmarks).toHaveLength(1);
+      expect(landmarks[0].tagName).toBe('MAIN');
+      expect(landmarks[0]).toHaveAttribute('tabindex', '-1');
+    });
+  });
+
   describe('spectate mode (wallet disconnected)', () => {
     const disconnect = () =>
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {

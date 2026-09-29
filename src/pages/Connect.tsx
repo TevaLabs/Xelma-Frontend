@@ -99,7 +99,11 @@ const Connect = () => {
   };
 
   return (
-    <div className="xelma-grid-bg min-h-screen relative flex items-center justify-center overflow-hidden px-4 py-12">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="xelma-grid-bg min-h-screen relative flex items-center justify-center overflow-hidden px-4 py-12"
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" />
       <div className="pointer-events-none absolute -left-24 top-32 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 top-16 h-96 w-96 rounded-full bg-[#2C4BFD]/8 blur-3xl" />
@@ -307,7 +311,7 @@ const Connect = () => {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

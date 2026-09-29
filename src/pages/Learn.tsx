@@ -62,24 +62,24 @@ const LearnPage = () => {
 
     if (loading) {
         return (
-            <div className="xelma-grid-bg min-h-screen relative flex items-center justify-center overflow-hidden">
+            <main id="main-content" tabIndex={-1} className="xelma-grid-bg min-h-screen relative flex items-center justify-center overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" aria-hidden />
                 <LoadingState message="Fetching the latest alpha..." className="min-h-[60vh] relative z-10" />
-            </div>
+            </main>
         );
     }
 
     if (error) {
         return (
-            <div className="xelma-grid-bg min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
+            <main id="main-content" tabIndex={-1} className="xelma-grid-bg min-h-screen relative flex items-center justify-center px-4 overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" aria-hidden />
                 <ErrorState message={error} onRetry={fetchData} className="min-h-[60vh] max-w-lg w-full relative z-10" />
-            </div>
+            </main>
         );
     }
 
     return (
-        <div className="xelma-grid-bg min-h-screen relative text-[#F3F4F6] px-4 py-8 lg:py-12">
+        <main id="main-content" tabIndex={-1} className="xelma-grid-bg min-h-screen relative text-[#F3F4F6] px-4 py-8 lg:py-12">
             {/* Ambient glows */}
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" aria-hidden />
             <div className="pointer-events-none absolute -left-24 top-32 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl" aria-hidden />
@@ -163,7 +163,7 @@ const LearnPage = () => {
                     </aside>
                 </div>
             </div>
-        </div>
+        </main>
     );
 };
 

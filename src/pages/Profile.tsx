@@ -111,7 +111,11 @@ export default function Profile() {
 
   return (
     <>
-      <main className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8"
+      >
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>

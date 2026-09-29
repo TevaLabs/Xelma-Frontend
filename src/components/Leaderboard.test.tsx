@@ -129,4 +129,13 @@ describe('Leaderboard filter tabs — keyboard roving', () => {
     expect(tabs[2]).toHaveAttribute('tabindex', '0');
     expect(tabs[0]).toHaveAttribute('tabindex', '-1');
   });
+
+  it('exposes exactly one focusable #main-content landmark for the global skip link', async () => {
+    await renderAndWait();
+
+    const landmarks = document.querySelectorAll('#main-content');
+    expect(landmarks).toHaveLength(1);
+    expect(landmarks[0].tagName).toBe('MAIN');
+    expect(landmarks[0]).toHaveAttribute('tabindex', '-1');
+  });
 });

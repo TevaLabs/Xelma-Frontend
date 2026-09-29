@@ -520,6 +520,7 @@ const Dashboard = () => {
   return (
     <main
       id="main-content"
+      tabIndex={-1}
       data-density={compactMode ? "compact" : "comfortable"}
       className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8"
     >

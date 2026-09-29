@@ -176,4 +176,13 @@ describe('<Settings />', () => {
     fireEvent.click(screen.getByTestId('settings-test-sound'));
     expect(playTestTone).toHaveBeenCalled();
   });
+
+  it('exposes exactly one focusable #main-content landmark for the global skip link', () => {
+    renderSettings();
+
+    const landmarks = document.querySelectorAll('#main-content');
+    expect(landmarks).toHaveLength(1);
+    expect(landmarks[0].tagName).toBe('MAIN');
+    expect(landmarks[0]).toHaveAttribute('tabindex', '-1');
+  });
 });
