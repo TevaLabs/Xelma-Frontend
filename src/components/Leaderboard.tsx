@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo, useRef, useCallback, type KeyboardEvent }
 import { useSearchParams } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
-import Avatar from '../assets/avatar.svg';
+import { Crown } from 'lucide-react';
+import IdenticonAvatar from './IdenticonAvatar';
 import { leaderboardApi, type LeaderboardEntry } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
@@ -36,7 +37,7 @@ function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser
   const id = String(entry.id ?? entry.userId ?? index);
   const name = entry.username ?? entry.name ?? 'Anonymous';
   const xlm = Number(entry.xlm ?? entry.score ?? 0);
-  const avatar = entry.avatar && typeof entry.avatar === 'string' ? entry.avatar : Avatar;
+  const avatar = entry.avatar && typeof entry.avatar === 'string' ? entry.avatar : '';
   return { id, name, avatar, xlm };
 }
 
@@ -285,12 +286,20 @@ const Leaderboard = () => {
             <div key={rank} className={`${order} flex flex-col items-center w-full md:w-1/3 group`}>
               <div className={`relative ${rank === 1 ? 'mb-5' : 'mb-4'} ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className={`${avatarSize} ${border} rounded-full overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.2)] z-10 relative bg-[#111827] ring-2 ring-cyan-400/20 ring-offset-2 ring-offset-[#0A0F1A]`}>
-                  <img src={user.avatar} alt={`${medal} medal: ${user.name}`} className="w-full h-full object-cover" />
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={`${medal} medal: ${user.name}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <IdenticonAvatar address={user.id} name={user.name} className="w-full h-full object-cover" />
+                  )}
                 </div>
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-cyan-500 text-white text-sm font-extrabold py-1 px-3.5 rounded-full shadow-[0_0_14px_rgba(6,182,212,0.45)] z-20 whitespace-nowrap min-w-[32px] text-center border-2 border-[#0A0F1A]">
                   #{rank}
                 </div>
-                {rank === 1 && <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-4xl" aria-hidden="true">👑</div>}
+                {rank === 1 && (
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-[#FFD700] animate-bounce drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]" aria-hidden="true">
+                    <Crown size={36} fill="currentColor" />
+                  </div>
+                )}
               </div>
               <p className={`font-bold text-white ${rank === 1 ? 'text-2xl' : 'text-lg'} mb-1 group-hover:text-cyan-200 ${TRANSITION_COLORS}`}>
                 {user.name}
@@ -344,11 +353,15 @@ const Leaderboard = () => {
                           {virtualRow.index + 4}
                         </span>
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-900 border border-white/10 group-hover:border-cyan-500/30 transition-colors shrink-0">
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-full h-full object-cover"
-                          />
+                          {user.avatar ? (
+                            <img
+                              src={user.avatar}
+                              alt={user.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <IdenticonAvatar address={user.id} name={user.name} className="w-full h-full object-cover" />
+                          )}
                         </div>
                         <span className="font-bold text-white text-lg group-hover:text-cyan-200 transition-colors truncate">
                           {user.name}

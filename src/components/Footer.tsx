@@ -50,11 +50,13 @@ const NETWORK_META: Record<
     label: 'Stellar Testnet',
     description: 'Sandbox network — no real funds settle here.',
     badgeClass: NETWORK_COLOR_CLASSES.testnet,
+    badgeClass: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
   },
   PUBLIC: {
     label: 'Stellar Mainnet',
     description: 'Public Stellar network (production).',
     badgeClass: NETWORK_COLOR_CLASSES.mainnet,
+    badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
   },
 };
 
