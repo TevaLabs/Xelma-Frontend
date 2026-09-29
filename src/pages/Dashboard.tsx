@@ -510,7 +510,11 @@ const Dashboard = () => {
   }, [resolvedRound, endRoundResult.isWin, soundEnabled]);
 
   return (
-    <main id="main-content" className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8"
+    >
       {/* Opt-in community chat (ported from the legacy /play view). Self-positions
           as a fixed slide-over, so mounting it does not shift the terminal layout. */}
       {isChatOpen && <ChatSidebar />}

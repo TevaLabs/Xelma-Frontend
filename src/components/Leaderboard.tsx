@@ -170,7 +170,11 @@ const Leaderboard = () => {
   // ---------------------------------------------------------------------------
 
   const containerWrapper = (children: React.ReactNode) => (
-    <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8"
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" />
       <div className="relative w-full max-w-4xl mx-auto">
         <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center mb-16 tracking-tight">
@@ -178,7 +182,7 @@ const Leaderboard = () => {
         </h1>
         {children}
       </div>
-    </div>
+    </main>
   );
 
   if (loading) {
@@ -198,7 +202,11 @@ const Leaderboard = () => {
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="xelma-grid-bg min-h-screen text-[#F3F4F6] relative overflow-hidden px-4 pb-12 pt-8"
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" />
       <div className="pointer-events-none absolute -left-24 top-32 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 top-16 h-96 w-96 rounded-full bg-[#2C4BFD]/5 blur-3xl" />
@@ -373,7 +381,7 @@ const Leaderboard = () => {
           />
         ) : null}
       </div>
-    </div>
+    </main>
   );
 };
 
