@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import BetModal from '../BetModal';
 import { useWalletStore } from '../../store/useWalletStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -68,14 +68,17 @@ describe('BetModal Component', () => {
   });
 
   it('renders confirmation screen with correct prediction details when open', () => {
-    render(
+    const { container } = render(
       <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
     );
 
     expect(screen.getByText('Confirm Prediction')).toBeInTheDocument();
     expect(screen.getByText('UP/DOWN Match')).toBeInTheDocument();
-    expect(screen.getByText('UP')).toBeInTheDocument();
-    expect(screen.getByText('15 XLM')).toBeInTheDocument();
+    // Direction buttons exist in the visible direction panel
+    const directionPanel = container.querySelector('#bet-mode-panel-direction');
+    expect(directionPanel).not.toBeNull();
+    expect(within(directionPanel!).getByText('UP')).toBeInTheDocument();
+    expect(screen.getAllByText('15 XLM')[0]).toBeInTheDocument();
   });
 
   it('renders precision prediction details when isLegend is true', () => {
@@ -86,13 +89,16 @@ describe('BetModal Component', () => {
       exactPrice: '0.2295',
     };
 
-    render(
+    const { container } = render(
       <BetModal isOpen={true} onClose={vi.fn()} predictionData={legendPrediction} />
     );
 
     expect(screen.getByText('Legend Mode (Precision)')).toBeInTheDocument();
-    expect(screen.getByText('DOWN')).toBeInTheDocument();
-    expect(screen.getByText('50 XLM')).toBeInTheDocument();
+    // Precision panel is active; scope direction button check to that panel
+    const precisionPanel = container.querySelector('#bet-mode-panel-precision');
+    expect(precisionPanel).not.toBeNull();
+    expect(within(precisionPanel!).getByText('DOWN')).toBeInTheDocument();
+    expect(screen.getAllByText('50 XLM')[0]).toBeInTheDocument();
     expect(screen.getByText('$0.2295')).toBeInTheDocument();
   });
 
@@ -281,7 +287,7 @@ describe('BetModal Component', () => {
       render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={prediction} />
       );
-      expect(screen.getByText('0 XLM')).toBeInTheDocument();
+      expect(screen.getAllByText('0 XLM')[0]).toBeInTheDocument();
     });
 
     it('displays large stake amounts correctly', () => {
@@ -289,7 +295,7 @@ describe('BetModal Component', () => {
       render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={prediction} />
       );
-      expect(screen.getByText('1000000 XLM')).toBeInTheDocument();
+      expect(screen.getAllByText('1000000 XLM')[0]).toBeInTheDocument();
     });
 
     it('displays decimal stake amounts correctly', () => {
@@ -297,46 +303,50 @@ describe('BetModal Component', () => {
       render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={prediction} />
       );
-      expect(screen.getByText('10.5 XLM')).toBeInTheDocument();
+      expect(screen.getAllByText('10.5 XLM')[0]).toBeInTheDocument();
     });
   });
 
   describe('direction toggle', () => {
     it('displays UP direction with green color', () => {
-      render(
+      const { container } = render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
       );
 
-      const directionElement = screen.getByText('UP');
+      // Scope to the active (direction) panel to avoid duplicate elements
+      const directionPanel = container.querySelector('#bet-mode-panel-direction')!;
+      const directionElement = within(directionPanel).getByText('UP');
       expect(directionElement).toBeInTheDocument();
       expect(directionElement).toHaveClass('text-green-400');
     });
 
     it('displays DOWN direction with red color', () => {
       const prediction = { ...defaultPrediction, direction: 'DOWN' as const };
-      render(
+      const { container } = render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={prediction} />
       );
 
-      const directionElement = screen.getByText('DOWN');
+      const directionPanel = container.querySelector('#bet-mode-panel-direction')!;
+      const directionElement = within(directionPanel).getByText('DOWN');
       expect(directionElement).toBeInTheDocument();
       expect(directionElement).toHaveClass('text-red-400');
     });
 
     it('updates direction when predictionData changes', () => {
-      const { rerender } = render(
+      const { rerender, container } = render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, direction: 'UP' as const }} />
       );
 
-      expect(screen.getByText('UP')).toHaveClass('text-green-400');
-      expect(screen.getByText('DOWN')).not.toHaveClass('text-red-400');
+      const directionPanel = container.querySelector('#bet-mode-panel-direction')!;
+      expect(within(directionPanel).getByText('UP')).toHaveClass('text-green-400');
+      expect(within(directionPanel).getByText('DOWN')).not.toHaveClass('text-red-400');
 
       rerender(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, direction: 'DOWN' as const }} />
       );
 
-      expect(screen.getByText('DOWN')).toHaveClass('text-red-400');
-      expect(screen.getByText('UP')).not.toHaveClass('text-green-400');
+      expect(within(directionPanel).getByText('DOWN')).toHaveClass('text-red-400');
+      expect(within(directionPanel).getByText('UP')).not.toHaveClass('text-green-400');
     });
   });
 
@@ -346,13 +356,15 @@ describe('BetModal Component', () => {
       vi.mocked(place_precision_prediction).mockResolvedValue({ txHash: 'tx_hash_precision', ledger: 123 });
       vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 2 } as any);
 
-      render(
+      const { container } = render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
       );
 
       fireEvent.click(screen.getByRole('tab', { name: 'Precision' }));
       fireEvent.change(screen.getByLabelText('Exact Price Target'), { target: { value: '0.4321' } });
-      fireEvent.change(screen.getByLabelText('Stake'), { target: { value: '22.5' } });
+      // Scope stake input to the precision panel to avoid ambiguity with the direction panel
+      const precisionPanel = container.querySelector('#bet-mode-panel-precision')!;
+      fireEvent.change(within(precisionPanel).getByLabelText('Stake'), { target: { value: '22.5' } });
       fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() => {
@@ -423,6 +435,93 @@ describe('BetModal Component', () => {
 
       expect(screen.getByText('Confirm Prediction')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+    });
+  });
+
+  describe('tab aria-controls / aria-labelledby relationships (issue #692)', () => {
+    it('Direction tab has aria-controls pointing to the direction panel id', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const directionTab = screen.getByRole('tab', { name: 'Direction' });
+      expect(directionTab).toHaveAttribute('id', 'bet-mode-tab-direction');
+      expect(directionTab).toHaveAttribute('aria-controls', 'bet-mode-panel-direction');
+    });
+
+    it('Precision tab has aria-controls pointing to the precision panel id', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const precisionTab = screen.getByRole('tab', { name: 'Precision' });
+      expect(precisionTab).toHaveAttribute('id', 'bet-mode-tab-precision');
+      expect(precisionTab).toHaveAttribute('aria-controls', 'bet-mode-panel-precision');
+    });
+
+    it('direction panel has role=tabpanel and aria-labelledby pointing to the direction tab', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const panel = container.querySelector('#bet-mode-panel-direction');
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('role', 'tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'bet-mode-tab-direction');
+    });
+
+    it('precision panel has role=tabpanel and aria-labelledby pointing to the precision tab', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const panel = container.querySelector('#bet-mode-panel-precision');
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('role', 'tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'bet-mode-tab-precision');
+    });
+
+    it('direction panel is visible and precision panel is hidden when mode is direction', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const directionPanel = container.querySelector('#bet-mode-panel-direction');
+      const precisionPanel = container.querySelector('#bet-mode-panel-precision');
+
+      expect(directionPanel).not.toHaveAttribute('hidden');
+      expect(precisionPanel).toHaveAttribute('hidden');
+    });
+
+    it('precision panel is visible and direction panel is hidden when mode is precision', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Precision' }));
+
+      const directionPanel = container.querySelector('#bet-mode-panel-direction');
+      const precisionPanel = container.querySelector('#bet-mode-panel-precision');
+
+      expect(precisionPanel).not.toHaveAttribute('hidden');
+      expect(directionPanel).toHaveAttribute('hidden');
+    });
+
+    it('active tab has aria-selected=true and inactive tab has aria-selected=false', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const directionTab = screen.getByRole('tab', { name: 'Direction' });
+      const precisionTab = screen.getByRole('tab', { name: 'Precision' });
+
+      expect(directionTab).toHaveAttribute('aria-selected', 'true');
+      expect(precisionTab).toHaveAttribute('aria-selected', 'false');
+
+      fireEvent.click(precisionTab);
+
+      expect(precisionTab).toHaveAttribute('aria-selected', 'true');
+      expect(directionTab).toHaveAttribute('aria-selected', 'false');
     });
   });
 });
