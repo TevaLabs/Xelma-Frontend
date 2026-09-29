@@ -19,6 +19,21 @@ export function useConnectionStatus() {
     socketService.forceReconnect();
   };
 
+  const statusMessage = (() => {
+    switch (connectionState.status) {
+      case 'connected':
+        return 'Connected';
+      case 'connecting':
+        return 'Connecting…';
+      case 'reconnecting':
+        return 'Reconnecting…';
+      case 'disconnected':
+        return 'Disconnected. Messages cannot be sent until the connection is restored.';
+      default:
+        return 'Connection status unknown.';
+    }
+  })();
+
   return {
     ...connectionState,
     reconnect,
@@ -26,5 +41,7 @@ export function useConnectionStatus() {
     isConnecting: connectionState.status === 'connecting',
     isReconnecting: connectionState.status === 'reconnecting',
     isDisconnected: connectionState.status === 'disconnected',
+    statusMessage,
+    canSend: connectionState.status === 'connected',
   };
 }
