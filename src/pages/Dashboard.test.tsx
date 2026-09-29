@@ -356,6 +356,9 @@ describe('Dashboard', () => {
       expect(landmarks).toHaveLength(1);
       expect(landmarks[0].tagName).toBe('MAIN');
       expect(landmarks[0]).toHaveAttribute('tabindex', '-1');
+    });
+  });
+
   describe('spectate mode (wallet disconnected)', () => {
     const disconnect = () =>
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
