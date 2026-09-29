@@ -211,6 +211,7 @@ export default function TxStatusTimeline({
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
           <h3 className="text-lg font-semibold">{title}</h3>
           <p className="mt-1 text-sm text-gray-400">{hint}</p>
+          <p className="mt-2 text-xs text-gray-500">Close is disabled while the transaction is in flight.</p>
         </div>
       </div>
     );

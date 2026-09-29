@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import BetModal from './BetModal';
 import type { PredictionData } from './BetModal';
 
@@ -221,6 +221,99 @@ describe('BetModal — transaction pending state (#163)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/prediction submitted/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Dismiss blocking while in-flight (#163)', () => {
+    let resolveBet!: (value: { txHash: string }) => void;
+
+    function startInFlight() {
+      placeBetImpl = () =>
+        new Promise<{ txHash: string }>((resolve) => {
+          resolveBet = resolve;
+        });
+      const utils = renderOpen();
+      fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+      return utils;
+    }
+
+    it('ignores backdrop click while transaction is in-flight', async () => {
+      const { onClose, container } = startInFlight();
+
+      await waitFor(() => {
+        expect(screen.getByText(/preparing transaction/i)).toBeInTheDocument();
+      });
+
+      const backdrop = container.querySelector('[data-testid="bet-modal-backdrop"]');
+      expect(backdrop).toBeInTheDocument();
+      fireEvent.click(backdrop as Element);
+
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'TX1' });
+    });
+
+    it('does not render a close (X) affordance while in-flight', async () => {
+      startInFlight();
+
+      await waitFor(() => {
+        expect(screen.getByText(/preparing transaction/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /close/i })).not.toBeInTheDocument();
+
+      resolveBet({ txHash: 'TX1' });
+    });
+
+    it('ignores Escape key while transaction is in-flight', async () => {
+      const { onClose } = startInFlight();
+
+      await waitFor(() => {
+        expect(screen.getByText(/preparing transaction/i)).toBeInTheDocument();
+      });
+
+      fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'TX1' });
+    });
+
+    it('allows close via X after success terminal state', async () => {
+      const { onClose } = renderOpen();
+      fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/prediction submitted/i)).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /close/i }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows close via X after error terminal state', async () => {
+      placeBetImpl = async () => { throw new Error('User rejected'); };
+      const { onClose } = renderOpen();
+      fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/transaction failed/i)).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /close/i }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows Escape to close after success terminal state', async () => {
+      const { onClose } = renderOpen();
+      fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/prediction submitted/i)).toBeInTheDocument();
+      });
+
+      fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
 
