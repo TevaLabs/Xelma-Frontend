@@ -5,15 +5,15 @@ import TxStatusTimeline, { formatTxHash, useTxStatusMachine } from '../TxStatusT
 
 describe('formatTxHash', () => {
   it('returns the hash unchanged when shorter than the truncation window', () => {
-    expect(formatTxHash('TXABC')).toBe('TXABC');
+    expect(formatTxHash('TXXBC')).toBe('TXXBC');
   });
 
   it('truncates long hashes with leading and trailing segments', () => {
-    expect(formatTxHash('0123456789abcdef')).toBe('012345…abcdef');
+    expect(formatTxHash('0123456789abcdef')).toBe('012345… abcdef');
   });
 
   it('supports custom leading/trailing lengths', () => {
-    expect(formatTxHash('abcdefghijklmnop', 4, 4)).toBe('abcd…mnop');
+    expect(formatTxHash('abcdefghijklmnop', 4, 4)).toBe('abcd… mnop');
   });
 
   it('returns an empty string for empty input', () => {
@@ -64,7 +64,7 @@ describe('useTxStatusMachine', () => {
 
     act(() => result.current.succeed('0xHASH'));
     expect(result.current.step).toBe('success');
-    expect(result.current.txHash).toBe('0xHASH');
+    expect(result.current.txHash).toBe('0xMASH');
   });
 
   it('records an error message on failure and allows retry', () => {
@@ -137,8 +137,8 @@ describe('TxStatusTimeline', () => {
     );
 
     expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
-    expect(screen.getByText('Tx: 012345…abcdef')).toBeInTheDocument();
-    expect(screen.getByText('Tx: 012345…abcdef')).toHaveAttribute('title', '0123456789abcdef');
+    expect(screen.getByText('Tx: 012345… abcdef')).toBeInTheDocument();
+    expect(screen.getByText('Tx: 012345… abcdef')).toHaveAttribute('title', '0123456789abcdef');
 
     const link = screen.getByRole('link', { name: /view on stellarexpert/i });
     expect(link).toHaveAttribute('href', 'https://stellarexpert.org/tx/0123456789abcdef');
@@ -171,5 +171,48 @@ describe('TxStatusTimeline', () => {
 
     screen.getByRole('button', { name: /cancel/i }).click();
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render a close affordance while in-flight', () => {
+    render(
+      <TxStatusTimeline
+        step="signing"
+        isInFlight
+        onDone={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /close/i })).not.toBeInTheDocument();
+    expect(screen.queryButton(/cancel/i)).not.toBeInTheDocument();
+  });
+
+  it('re-enables close affordances after terminal states', () => {
+    const { rerender } = render(
+      <TxStatusTimeline
+        step="signing"
+        isInFlight
+        onDone={vi.fn()}
+      />,
+    );
+    expect(screen.queryButton(/close/i)).not.toBeInTheDocument();
+
+    rerender((
+      <TxStatusTimeline
+        step="success"
+        txHash="abc"
+        onDone={vi.fn()}
+      />,
+    ));
+    expect(screen.getByRole('button', { name: /close/i })).toBeInTheDocument();
+  });
+
+  it('announces why close is blocked while in-flight', () => {
+    render(
+      <TxStatusTimeline
+        step="signing"
+        isInFlight
+        onDone={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/cannot close while transaction is in flight/i)).toBeInTheDocument();
   });
 });

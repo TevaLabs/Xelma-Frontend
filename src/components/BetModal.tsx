@@ -237,6 +237,16 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const availableBalance = parseBalance(balance);
   const arePresetsDisabled = !isConnected || availableBalance <= 0 || tx.isInFlight;
 
+  // Issue: block dismissal while a transaction is in flight. Escape and
+  // backdrop/X are ignored until the tx reaches a terminal state (success or
+  // error), at which point close works again.
+  const isDismissBlocked = tx.isInFlight;
+
+  const requestClose = useCallback(() => {
+    if (isDismissBlocked) return;
+    onClose();
+  }, [isDismissBlocked, onClose]);
+
   const handlePresetClick = (percentage: number) => {
     const calculatedStake = computePresetStake(balance, percentage);
     handleStakeChange(calculatedStake);
@@ -354,6 +364,23 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     return () => window.clearTimeout(timer);
   }, [tx.step, tx.errorMessage]);
 
+  // Escape policy: while a transaction is in flight, Escape is ignored along
+  // with backdrop and X. Once the tx settles (success/error), Escape closes
+  // the modal like any other dismiss affordance.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (isDismissBlocked) return;
+      e.preventDefault();
+      requestClose();
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, isDismissBlocked, requestClose]);
+
   // Issue #413 — pool-imbalance soft warning. Present only for UP/DOWN rounds
   // (direction mode) when one side holds at least the imbalance threshold of
   // the pool. Informational and dismissible; it never blocks the submit.
@@ -407,12 +434,20 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           {outcomeAnnouncement}
         </div>
       )}
-      <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
+      <div
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`}
+        onClick={requestClose}
+        aria-hidden="true"
+        data-testid="bet-modal-backdrop"
+      />
       <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
         <button
-          onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-white"
+          onClick={requestClose}
+          disabled={isDismissBlocked}
+          className="absolute right-4 top-4 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="Close"
+          aria-disabled={isDismissBlocked}
+          title={isDismissBlocked ? 'Cannot close while the transaction is in flight' : undefined}
         >
           ✕
         </button>
@@ -752,7 +787,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
             successTitle="Prediction Submitted!"
             successMessage="Your prediction has been successfully written on-chain and registered."
             onRetry={handleConfirm}
-            onDone={onClose}
+            onDone={requestClose}
           />
         )}
       </div>

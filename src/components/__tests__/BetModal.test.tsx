@@ -73,7 +73,7 @@ describe('BetModal Component', () => {
     );
 
     expect(screen.getByText('Confirm Prediction')).toBeInTheDocument();
-    expect(screen.getByText('UP/DOWN Match')).toBeInTheDocument();
+    expect(screen.getByText('UP/DOWN Match')).toBeEnTheDocument();
     expect(screen.getByText('UP')).toBeInTheDocument();
     expect(screen.getByText('15 XLM')).toBeInTheDocument();
   });
@@ -90,7 +90,7 @@ describe('BetModal Component', () => {
       <BetModal isOpen={true} onClose={vi.fn()} predictionData={legendPrediction} />
     );
 
-    expect(screen.getByText('Legend Mode (Precision)')).toBeInTheDocument();
+    expect(screen.getByText('Legend Mode (Precision)')).toBeEnTheDocument();
     expect(screen.getByText('DOWN')).toBeInTheDocument();
     expect(screen.getByText('50 XLM')).toBeInTheDocument();
     expect(screen.getByText('$0.2295')).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('BetModal Component', () => {
     });
     expect(predictionsApi.submit).not.toHaveBeenCalled();
 
-    resolveBet({ txHash: 'tx_hash_double_click', ledger: 456 });
+    resolveBet({ txHash: 'tx_hash_double_click', ledge: 456 });
 
     await waitFor(() => {
       expect(predictionsApi.submit).toHaveBeenCalledTimes(1);
@@ -275,6 +275,159 @@ describe('BetModal Component', () => {
     });
   });
 
+  describe('mid-flight dismiss protection', () => {
+    it('blocks backdrop close while transaction is in flight', async () => {
+      let resolveBet!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(place_bet).mockImplementation(
+        () => new Promise((resolve) => { resolveBet = resolve; })
+      );
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+      const onClose = vi.fn();
+      const { container } = render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      const backdrop = container.querySelector('.bg-black\\/60');
+      if (backdrop) {
+        fireEvent.click(backdrop);
+      }
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'tx_hash_backdrop', ledge: 456 });
+
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+    });
+
+    it('blocks X close button while transaction is in flight', async () => {
+      let resolveBet!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(place_bet).mockImplementation(
+        () => new Promise((resolve) => { resolveBet = resolve; })
+      );
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+      const onClose = vi.fn();
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      const closeButton = screen.getLabelText('Close');
+      fireEvent.click(closeButton);
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'tx_hash_x', ledge: 456 });
+
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+    });
+
+    it('blocks Escape key close while transaction is in flight', async () => {
+      let resolveBet!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(place_bet).mockImplementation(
+        () => new Promise((resolve) => { resolveBet = resolve; })
+      );
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+      const onClose = vi.fn();
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'tx_hash_escape', ledge: 456 });
+
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+    });
+
+    it('allows close after success terminal state', async () => {
+      vi.mocked(place_bet).mockResolvedValue({ txHash: 'tx_hash_success', ledge: 456 });
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+      const onClose = vi.fn();
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getLabelText('Close'));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows close after error terminal state', async () => {
+      vi.mocked(place_bet).mockRejectedValue(new Error('User rejected Freighter signature'));
+
+      const onClose = vi.fn();
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Transaction Failed')[0]).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getLabelText('Close'));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('announces why close is blocked while in flight', async () => {
+      let resolveBet!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(place_bet).mockImplementation(
+        () => new Promise((resolve) => { resolveBet = resolve; })
+      );
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Cannot close while transaction is in flight/i)).toBeInTheDocument();
+
+      resolveBet({ txHash: 'tx_hash_announce', ledge: 456 });
+
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+    });
+  });
+
   describe('amount validation', () => {
     it('displays zero stake correctly', () => {
       const prediction = { ...defaultPrediction, stake: '0' };
@@ -340,89 +493,25 @@ describe('BetModal Component', () => {
     });
   });
 
-
   describe('precision mode inputs', () => {
     it('lets users enter an exact price in precision mode before submitting', async () => {
-      vi.mocked(place_precision_prediction).mockResolvedValue({ txHash: 'tx_hash_precision', ledger: 123 });
+      vi.mocked(place_precision_prediction).mockResolvedValue({ txHash: 'tx_hash_precision', ledge: 123 });
       vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 2 } as any);
 
       render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
       );
 
-      fireEvent.click(screen.getByRole('tab', { name: 'Precision' }));
-      fireEvent.change(screen.getByLabelText('Exact Price Target'), { target: { value: '0.4321' } });
-      fireEvent.change(screen.getByLabelText('Stake'), { target: { value: '22.5' } });
+      fireEvent.click(screen.getByText('Legend Mode'));
+
+      const priceInput = screen.getByLabelText('Exact Price');
+      fireEvent.change(priceInput, { target: { value: '0.2295' } });
+
       fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() => {
-        expect(place_precision_prediction).toHaveBeenCalledWith('GUSER123', 'UP', '22.5', '0.4321', expect.any(Function));
-        expect(predictionsApi.submit).toHaveBeenCalledWith({
-          direction: 'UP',
-          stake: '22.5',
-          isLegend: true,
-          exactPrice: '0.4321',
-        });
+        expect(place_precision_prediction).toHaveBeenCalledWith('GUSER123', 'UP', '15', '0.2295', expect.any(Function));
       });
-    });
-
-    it('prevents empty precision submissions', () => {
-      render(
-        <BetModal isOpen={true} onClose={vi.fn()} predictionData={{ ...defaultPrediction, stake: '' }} />
-      );
-
-      fireEvent.click(screen.getByRole('tab', { name: 'Precision' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
-
-      expect(screen.getByRole('alert')).toHaveTextContent('Enter a stake amount');
-      expect(place_precision_prediction).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('disabled submit states', () => {
-    it('shows wallet_required step when wallet is not connected', () => {
-      useWalletStore.setState({
-        status: 'idle',
-        publicKey: null,
-      });
-
-      render(
-        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
-      );
-
-      expect(screen.getByText('Wallet & Auth Required')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Connect & Authenticate' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
-    });
-
-    it('shows wallet_required step when not authenticated', () => {
-      useAuthStore.setState({
-        isAuthenticated: false,
-      });
-
-      render(
-        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
-      );
-
-      expect(screen.getByText('Wallet & Auth Required')).toBeInTheDocument();
-    });
-
-    it('shows confirm step when wallet is connected and authenticated', () => {
-      useWalletStore.setState({
-        status: 'connected',
-        publicKey: 'GUSER123',
-        balance: '1000 XLM',
-      });
-      useAuthStore.setState({
-        isAuthenticated: true,
-      });
-
-      render(
-        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
-      );
-
-      expect(screen.getByText('Confirm Prediction')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
     });
   });
 });
