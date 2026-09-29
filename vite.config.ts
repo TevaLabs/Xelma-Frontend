@@ -17,6 +17,8 @@ export default defineConfig({
         'branding/concept-a/xelma-logo-concept-a-512.png',
         'manifest.webmanifest',
         'offline.html',
+        'og-cover-1200x630.png',
+        'social-preview.png',
       ],
       manifest: false,
       workbox: {

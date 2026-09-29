@@ -250,6 +250,9 @@ Frontend features depend on backend endpoints contractually. Issue
 [`#152` — Document backend dependency matrix for frontend features](https://github.com/TevaLabs/Xelma-Frontend/issues/152)
 is documented in [`docs/BACKEND_DEPENDENCIES.md`](./docs/BACKEND_DEPENDENCIES.md), which serves as the single source of truth for endpoint dependencies, real-time WebSocket events, graceful degradation behavior, and mock availability across all feature areas. If a frontend feature ships against an endpoint the backend doesn't expose (or vice versa), update both sides in the same PR rather than relying on tribal knowledge.
 
+### 7. Social preview
+
+Landing page link previews use static OG/Twitter tags in `index.html` pointing to `public/og-cover-1200x630.png` (1200×630) at the absolute production URL. `public/social-preview.png` is retained as an unused fallback. To update, overwrite the cover keeping the same filename, size, and <1MB weight, then rebuild.
 ---
 
 ## Education & Learn page
