@@ -1,4 +1,4 @@
-﻿import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Leaderboard from './Leaderboard';
@@ -16,8 +16,8 @@ vi.mock('../store/useWalletStore', async (importActual) => {
   return { ...actual, useWalletStore: vi.fn() };
 });
 
-function setWalletState() {
-  const state = { publicKey: null, status: 'idle' as const };
+function setWalletState(publicKey: string | null = null) {
+  const state = { publicKey, status: publicKey ? 'connected' as const : 'idle' as const };
   vi.mocked(useWalletStore).mockImplementation((selector: any) =>
     typeof selector === 'function' ? selector(state) : state,
   );
@@ -128,5 +128,86 @@ describe('Leaderboard filter tabs — keyboard roving', () => {
     expect(tabs[2]).toHaveAttribute('aria-selected', 'true');
     expect(tabs[2]).toHaveAttribute('tabindex', '0');
     expect(tabs[0]).toHaveAttribute('tabindex', '-1');
+  });
+});
+
+/**
+ * Issue #660 — the sticky current-user row used to match only on
+ * `u.id === walletPublicKey`, but `mapEntryToUser` derives `id` from
+ * `entry.id ?? entry.userId`, which is often an opaque database id rather
+ * than the wallet G-address. Connected players never saw themselves.
+ */
+describe('Leaderboard current-wallet row (#660)', () => {
+  const MY_WALLET = 'GAAA0000000000000000000000000000000000000000000000000000AAAAAA';
+
+  function mockEntries(entries: unknown[]) {
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(entries as never);
+  }
+
+  it('highlights the sticky "you" row when the API returns publicKey distinct from a numeric id', async () => {
+    setWalletState(MY_WALLET);
+    mockEntries([
+      { id: 1, publicKey: MY_WALLET, username: 'Me', xlm: 900 },
+      { id: 2, username: 'Alice', xlm: 300 },
+    ]);
+    renderLeaderboard();
+
+    await waitFor(() => expect(screen.getByText(/current wallet summary/i)).toBeInTheDocument());
+    // "Me" appears in both the sticky summary and the ranked list.
+    expect(screen.getAllByText('Me').length).toBeGreaterThan(0);
+    expect(screen.getByText(/rank #1/i)).toBeInTheDocument();
+  });
+
+  it('matches on walletAddress and address variants of the identity field', async () => {
+    setWalletState(MY_WALLET);
+    mockEntries([{ id: 'u-77', walletAddress: MY_WALLET, username: 'Me', xlm: 50 }]);
+    renderLeaderboard();
+    await waitFor(() => expect(screen.getAllByText('Me').length).toBeGreaterThan(0));
+    expect(screen.getByText(/rank #1/i)).toBeInTheDocument();
+  });
+
+  it('does not falsely match an unrelated user whose opaque id collides with the wallet string', async () => {
+    setWalletState(MY_WALLET);
+    // This row carries its own walletAddress that differs from the connected
+    // wallet; its id happens to equal the connected wallet string, which must
+    // not produce a "you" highlight in the sticky summary.
+    mockEntries([
+      { id: MY_WALLET, publicKey: 'GBBB0000000000000000000000000000000000000000000000000000BBBBBB', username: 'Impostor', xlm: 10 },
+    ]);
+    renderLeaderboard();
+
+    await waitFor(() => expect(screen.getByText(/current wallet summary/i)).toBeInTheDocument());
+    // The impostor stays in the ranked list but is never claimed as "you".
+    expect(screen.getByText('Impostor')).toBeInTheDocument();
+    expect(screen.getByText(/unranked/i)).toBeInTheDocument();
+    expect(screen.queryByText(/rank #/i)).not.toBeInTheDocument();
+  });
+
+  it('falls back to id comparison only for address-less rows whose id is the wallet itself', async () => {
+    setWalletState(MY_WALLET);
+    mockEntries([{ id: MY_WALLET, username: 'Legacy', xlm: 77 }]);
+    renderLeaderboard();
+    await waitFor(() => expect(screen.getAllByText('Legacy').length).toBeGreaterThan(0));
+    expect(screen.getByText(/rank #1/i)).toBeInTheDocument();
+  });
+
+  it('falls back gracefully to the Unranked summary when the wallet has no row', async () => {
+    setWalletState(MY_WALLET);
+    mockEntries([{ id: 1, username: 'Alice', xlm: 300 }]);
+    renderLeaderboard();
+
+    await waitFor(() => expect(screen.getByText(/current wallet summary/i)).toBeInTheDocument());
+    expect(screen.getByText(/unranked/i)).toBeInTheDocument();
+    // Truncated address (first 4 + last 4 chars) is shown instead of a name.
+    expect(screen.getByText(/GAAA\.\.\.AAAA/)).toBeInTheDocument();
+  });
+
+  it('never renders the sticky row when no wallet is connected', async () => {
+    setWalletState(null);
+    mockEntries([{ id: 1, username: 'Alice', xlm: 300 }]);
+    renderLeaderboard();
+
+    await waitFor(() => expect(screen.getByRole('tablist')).toBeInTheDocument());
+    expect(screen.queryByText(/current wallet summary/i)).not.toBeInTheDocument();
   });
 });

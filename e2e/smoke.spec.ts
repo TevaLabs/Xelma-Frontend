@@ -125,4 +125,29 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+
+  // Issue #658: a second `path="*"` route redirecting to `/` used to shadow
+  // the NotFound page, so unknown URLs bounced back to the landing page.
+  test('Unknown route renders the branded 404 page instead of redirecting home', async ({ page }) => {
+    await page.goto('/definitely-not-a-route');
+    await page.waitForLoadState('networkidle');
+
+    // Still on the unknown URL — no silent redirect to the landing page.
+    await expect(page).toHaveURL(/\/definitely-not-a-route$/);
+
+    // Branded 404 UI is rendered.
+    await expect(page.getByRole('heading', { level: 1, name: /this path doesn't exist/i })).toBeVisible();
+    await expect(page.getByText('Unknown route')).toBeVisible();
+
+    // Skip-to-content link and layout chrome (navbar) still work on the 404.
+    const skipLink = page.getByRole('link', { name: /skip to main content/i });
+    await expect(skipLink).toBeVisible();
+    await expect(skipLink).toHaveAttribute('href', '#main-content');
+    await expect(page.getByRole('main')).toHaveAttribute('id', 'main-content');
+    await expect(page.getByRole('navigation').first()).toBeVisible();
+
+    // 404 CTAs lead to real destinations.
+    await expect(page.getByRole('link', { name: /back to home/i })).toHaveAttribute('href', '/');
+    await expect(page.getByRole('link', { name: /open terminal/i })).toHaveAttribute('href', '/dashboard');
+  });
 });

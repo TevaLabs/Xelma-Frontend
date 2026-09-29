@@ -58,7 +58,12 @@ function App() {
                 <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
-                <Route path="*" element={<NotFound />} />                </Routes>
+                {/* Single catch-all (#658): unknown paths render the branded
+                    404 page. There is deliberately no second wildcard that
+                    redirects to `/` — the legacy /play redirect above is an
+                    explicit route, separate from this fallback. */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
             </RouteTransition>
           </Suspense>
         </LazyBoundary>

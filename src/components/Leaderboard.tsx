@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import clsx from 'clsx';
 import Avatar from '../assets/avatar.svg';
 import { leaderboardApi, type LeaderboardEntry } from '../lib/api-client';
+import { mapEntryToUser, type MappedLeaderboardUser } from '../lib/api-schemas';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
 import { PanelHeader } from './ui/PanelHeader';
@@ -17,27 +18,41 @@ import { TRANSITION, TRANSITION_COLORS, TRANSFORM_TRANSITION } from '../utils/mo
 const FILTER_OPTIONS = ['all', 'daily', 'weekly', 'monthly'] as const;
 type FilterOption = typeof FILTER_OPTIONS[number];
 
-const FILTER_PARAM = 'filter';
-const ROW_HEIGHT = 80; // px – fixed height for every virtualised row
-const OVERSCAN = 5;
-
 function isValidFilter(value: string | null): value is FilterOption {
   return FILTER_OPTIONS.includes(value as FilterOption);
 }
 
-interface LeaderboardUser {
-  id: string;
-  name: string;
-  avatar: string;
-  xlm: number;
+const FILTER_PARAM = 'filter';
+const ROW_HEIGHT = 80; // px – fixed height for every virtualised row
+const OVERSCAN = 5;
+
+// Issue #660 — `mapEntryToUser` lives in lib/api-schemas so it stays unit
+// testable against the many identity shapes the API returns (opaque ids,
+// publicKey / walletAddress / address fields).
+type LeaderboardUser = MappedLeaderboardUser;
+
+function toLeaderboardUser(entry: LeaderboardEntry, index: number): LeaderboardUser {
+  return mapEntryToUser(entry, index, Avatar);
 }
 
-function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser {
-  const id = String(entry.id ?? entry.userId ?? index);
-  const name = entry.username ?? entry.name ?? 'Anonymous';
-  const xlm = Number(entry.xlm ?? entry.score ?? 0);
-  const avatar = entry.avatar && typeof entry.avatar === 'string' ? entry.avatar : Avatar;
-  return { id, name, avatar, xlm };
+/**
+ * True when `user` is the connected wallet (issue #660).
+ *
+ * Match on the wallet address the API actually returned. Only when the row
+ * carried no address at all do we fall back to comparing the raw `id` string;
+ * rows whose opaque/numeric id merely happens to equal the wallet string
+ * already went through the `walletAddress === walletPublicKey` branch, so the
+ * fallback stays exact-string equality with no fuzzy matching.
+ */
+function isCurrentUser(
+  user: Pick<LeaderboardUser, 'id' | 'walletAddress'>,
+  walletPublicKey: string,
+): boolean {
+  if (!walletPublicKey) return false;
+  if (user.walletAddress) {
+    return user.walletAddress === walletPublicKey;
+  }
+  return user.id === walletPublicKey;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,7 +126,7 @@ const Leaderboard = () => {
     setError(null);
     try {
       const data = await leaderboardApi.getLeaderboard('UP_DOWN');
-      const mapped = (Array.isArray(data) ? data : []).map(mapEntryToUser);
+      const mapped = (Array.isArray(data) ? data : []).map(toLeaderboardUser);
       setUsers(mapped);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
@@ -132,13 +147,17 @@ const Leaderboard = () => {
   // ── Sorting & derived data ─────────────────────────────────────────────────
   const sortedUsers = useMemo(() => [...users].sort((a, b) => b.xlm - a.xlm), [users]);
 
+  // Issue #660 — match the connected wallet against the address the API
+  // returned, not the (often opaque) row id. When no row matches — e.g. the
+  // player is unranked or the API omits identity fields — the sticky summary
+  // falls back to the truncated address with an "Unranked" badge.
   const currentUser = useMemo(() => {
     if (!walletPublicKey) return null;
-    return sortedUsers.find((u) => u.id === walletPublicKey) ?? null;
+    return sortedUsers.find((u) => isCurrentUser(u, walletPublicKey)) ?? null;
   }, [sortedUsers, walletPublicKey]);
 
   const currentUserRank = currentUser
-    ? sortedUsers.findIndex((u) => u.id === currentUser.id) + 1
+    ? sortedUsers.findIndex((u) => isCurrentUser(u, walletPublicKey ?? '')) + 1
     : null;
 
   const walletShortAddress = walletPublicKey
@@ -316,7 +335,7 @@ const Leaderboard = () => {
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const user = restUsers[virtualRow.index];
-                const isCurrent = currentUser?.id === user.id;
+                const isCurrent = currentUser !== null && isCurrentUser(user, walletPublicKey ?? '');
 
                 return (
                   <li
