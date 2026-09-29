@@ -1,96 +1,70 @@
-import { cn } from "../../lib/utils";
-import type { ReactNode } from "react";
+import React, { ReactNode } from 'react';
+import { Chip } from '@/components/ui/Chip';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
-interface PanelHeaderStatus {
-  label: string;
-  variant?: "success" | "warning" | "error" | "info" | "default";
-}
+export type PanelHeaderVariant = 'default' | 'hero';
 
-interface PanelHeaderProps {
+export interface PanelHeaderProps {
   title: string;
   subtitle?: string;
-  icon?: ReactNode;
   action?: ReactNode;
-  status?: PanelHeaderStatus;
+  actions?: ReactNode[];
+  variant?: PanelHeaderVariant;
+  status?: {
+    label: string;
+    value: string;
+    variant?: 'success' | 'warning' | 'danger';
+  };
   className?: string;
-  variant?: "default" | "hero";
 }
 
-const statusStyles: Record<string, string> = {
-  success: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30",
-  warning: "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-amber-500/30",
-  error: "bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-rose-500/30",
-  info: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 ring-cyan-500/30",
-  default: "bg-gray-500/15 text-gray-700 dark:text-gray-300 ring-gray-500/30",
-};
-
-const statusDotStyles: Record<string, string> = {
-  success: "bg-emerald-500",
-  warning: "bg-amber-400 animate-pulse",
-  error: "bg-rose-500",
-  info: "bg-cyan-500",
-  default: "bg-gray-500",
-};
-
-export function PanelHeader({
+export const PanelHeader = ({
   title,
   subtitle,
-  icon,
   action,
+  actions,
+  variant = 'default',
   status,
   className,
-  variant = "default",
-}: PanelHeaderProps) {
-  if (variant === "hero") {
-    return (
-      <div className={cn("flex flex-col items-center gap-8", className)}>
-        <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center tracking-tight">
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="text-sm text-gray-400 text-center">{subtitle}</p>
-        )}
-        {action && <div>{action}</div>}
-      </div>
-    );
-  }
-
-  const statusClass = status ? statusStyles[status.variant ?? "default"] : "";
-  const dotClass = status ? statusDotStyles[status.variant ?? "default"] : "";
-
+}: PanelHeaderProps) => {
   return (
-    <div className={cn("flex items-center justify-between", className)}>
-      <div className="flex items-center gap-3 min-w-0">
-        {icon && <div className="shrink-0">{icon}</div>}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-gray-900 dark:text-white text-lg truncate">
-              {title}
-            </h3>
-            {status && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 whitespace-nowrap",
-                  statusClass,
-                )}
-              >
-                <span className={cn("h-1.5 w-1.5 rounded-full", dotClass)} />
-                {status.label}
-              </span>
-            )}
-          </div>
-          {subtitle && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {subtitle}
-            </p>
-          )}
-        </div>
-      </div>
-      {action && (
-        <div className="flex items-center gap-2 shrink-0">{action}</div>
+    <div
+      className={cn(
+        'flex flex-col gap-2',
+        variant === 'hero' && 'rounded-xl p-6 border border-border',
+        className
       )}
+    >
+      <div className='flex items-center justify-between'>
+        <div className='flex-1'>
+          <h3 className='text-lg font-semibold'>{title}</h3>
+          {subtitle && <p className='text-sm text-muted-foreground'>{subtitle}</p>}
+        </div>
+
+        {status && (
+          <Chip
+            variant='outline'
+            className='ml-2'
+            size='sm'
+          >
+            {status.label}: {status.value}
+          </Chip>
+        )}
+      </div>
+
+      <div className='flex items-center gap-2'>
+        {action && <div className='flex-1'>{action}</div>}
+        {actions && (
+          <div className='flex gap-2'>
+            {actions.map((action, index) => (
+              <Button key={index} variant='ghost' size='sm'>
+                {action}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
-}
-
-export default PanelHeader;
+};

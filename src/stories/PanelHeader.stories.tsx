@@ -1,34 +1,56 @@
-import type React from 'react';
-import PanelHeader from '../components/ui/PanelHeader';
+import type { Meta, StoryObj } from '@storybook/react';
+import { PanelHeader } from '@/components/ui/PanelHeader';
 
-export default {
-  title: 'Glass Card Primitives/PanelHeader',
-  decorators: [
-    (Story: React.FC) => (
-      <div style={{ background: '#0A0F1A', padding: '24px', minHeight: '200px' }}>
-        <Story />
-      </div>
-    ),
-  ],
+const meta = {
+  title: 'Components/PanelHeader',
+  component: PanelHeader,
+  tags: ['autodocs'],
+  argTypes: {
+    variant: {
+      control: { type: 'select' },
+      options: ['default', 'hero'],
+    },
+    status: {
+      control: { type: 'object' },
+    },
+  },
+} satisfies Meta<typeof PanelHeader>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    title: 'Default Panel',
+    subtitle: 'Subtitle text goes here',
+    action: 'View all',
+  },
 };
 
-export const TitleOnly = () => <PanelHeader title="Market Overview" />;
+export const WithStatus: Story = {
+  args: {
+    title: 'With Status',
+    status: {
+      label: 'Status',
+      value: 'Active',
+      variant: 'success',
+    },
+  },
+};
 
-export const WithSubtitle = () => (
-  <PanelHeader title="Active Rounds" subtitle="Live prediction markets" />
-);
+export const HeroVariant: Story = {
+  args: {
+    variant: 'hero',
+    title: 'Hero Panel',
+    subtitle: 'Detailed description of the hero content',
+    actions: ['Action 1', 'Action 2', 'Action 3'],
+  },
+};
 
-export const WithActions = () => (
-  <PanelHeader
-    title="Leaderboard"
-    subtitle="Top traders this week"
-    action={<button style={{ padding: '6px 12px', borderRadius: 8 }}>View All</button>}
-  />
-);
-
-export const LongTitle = () => (
-  <PanelHeader
-    title="Recent Prediction History & Analytics"
-    subtitle="Your last 30 days of activity"
-  />
-);
+export const WithMultipleActions: Story = {
+  args: {
+    title: 'Multiple Actions',
+    actions: ['Primary', 'Secondary', 'Tertiary'],
+  },
+};
