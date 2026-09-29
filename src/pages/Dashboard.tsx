@@ -228,6 +228,7 @@ const Dashboard = () => {
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isEventLogOpen, setIsEventLogOpen] = useState(false);
+  const [eventLogRoundFilter, setEventLogRoundFilter] = useState<string | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
   const [dashboardMode, setDashboardMode] = useState<DashboardMode>(() => {
@@ -257,6 +258,12 @@ const Dashboard = () => {
   const handlePriceUpdate = useCallback((price: number) => {
     currentPriceRef.current = price;
   }, []);
+
+  // Seed the event log round filter from the active round when opening the drawer.
+  const handleOpenEventLog = useCallback(() => {
+    setEventLogRoundFilter(activeRoundId !== null ? String(activeRoundId) : null);
+    setIsEventLogOpen(true);
+  }, [activeRoundId]);
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
