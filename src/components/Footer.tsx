@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import Logo from '../assets/logo.svg';
 import { cn } from '../lib/utils';
 import { XELMA_CONTRACT_ID } from '../lib/stellarConfig';
-import { networkBadgeMeta } from '../lib/networkBadgeMeta';
+import { resolveNetworkBadge } from '../lib/networkBadgeMeta';
 import { FREIGHTER_NETWORK_DOCS, STELLAR_NETWORKS_DOCS } from '../lib/stellarNetwork';
 
 export type FooterNetwork = 'TESTNET' | 'PUBLIC';
@@ -39,9 +39,9 @@ function resolveNetwork(override?: FooterNetwork): FooterNetwork {
   return passphrase.toLowerCase().includes('test') ? 'TESTNET' : 'PUBLIC';
 }
 
-// Badge colors are sourced from `networkBadgeMeta` (single source of truth)
+// Badge colors are sourced from `resolveNetworkBadge` (single source of truth)
 // so Footer pills stay visually consistent with the Navbar / NetworkBadge.
-// Testnet = amber, Public/mainnet = cyan.
+// Testnet = amber, Public/mainnet = emerald.
 const NETWORK_META: Record<
   FooterNetwork,
   { label: string; description: string; badgeClass: string }
@@ -49,12 +49,12 @@ const NETWORK_META: Record<
   TESTNET: {
     label: 'Stellar Testnet',
     description: 'Sandbox network — no real funds settle here.',
-    badgeClass: networkBadgeMeta.TESTNET.badgeClass,
+    badgeClass: resolveNetworkBadge('TESTNET').colorClasses,
   },
   PUBLIC: {
     label: 'Stellar Mainnet',
     description: 'Public Stellar network (production).',
-    badgeClass: networkBadgeMeta.PUBLIC.badgeClass,
+    badgeClass: resolveNetworkBadge('PUBLIC').colorClasses,
   },
 };
 
