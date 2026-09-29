@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import Logo from '../assets/logo.svg';
 import { cn } from '../lib/utils';
 import { XELMA_CONTRACT_ID } from '../lib/stellarConfig';
-import { resolveNetworkBadge } from '../lib/networkBadgeMeta';
 import { FREIGHTER_NETWORK_DOCS, STELLAR_NETWORKS_DOCS } from '../lib/stellarNetwork';
 
 export type FooterNetwork = 'TESTNET' | 'PUBLIC';
@@ -49,12 +48,12 @@ const NETWORK_META: Record<
   TESTNET: {
     label: 'Stellar Testnet',
     description: 'Sandbox network — no real funds settle here.',
-    badgeClass: resolveNetworkBadge('TESTNET').colorClasses,
+    badgeClass: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
   },
   PUBLIC: {
     label: 'Stellar Mainnet',
     description: 'Public Stellar network (production).',
-    badgeClass: resolveNetworkBadge('PUBLIC').colorClasses,
+    badgeClass: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
   },
 };
 
