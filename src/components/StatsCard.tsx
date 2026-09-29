@@ -16,6 +16,13 @@ interface StatsCardProps {
   onRetry?: () => void;
 }
 
+/**
+ * Stable id for the visible claim helper text. The Claim Rewards button points
+ * at it via `aria-describedby` so assistive tech announces *why* the button is
+ * disabled instead of relying on a `title` tooltip.
+ */
+const CLAIM_REASON_ID = 'stats-card-claim-reason';
+
 export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCardProps) {
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
@@ -26,6 +33,22 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
 
   const pendingWinnings = stats?.pendingWinnings || 0;
   const canClaim = isWalletConnected && pendingWinnings > 0 && !tx.isInFlight;
+
+  // Why the Claim Rewards button is unavailable (wallet disconnected / nothing
+  // pending). Surfaced to assistive tech via `aria-describedby` referencing the
+  // visible helper text — a `title` tooltip alone is not reliably announced.
+  // Cleared while a claim is in flight so no stale reason is announced.
+  const isClaiming = tx.isInFlight;
+  const disabledReason = isClaiming
+    ? null
+    : !isWalletConnected
+      ? 'Connect wallet to claim'
+      : pendingWinnings === 0
+        ? 'No pending rewards to claim'
+        : null;
+  const claimHelperText = isClaiming
+    ? 'Claiming…'
+    : (disabledReason ?? 'Ready to claim');
 
   const handleClaim = async () => {
     // Guard against double-submits while a claim is already in-flight.
@@ -162,26 +185,33 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
         )}
       </dl>
 
-      {tx.step === 'idle' ? (
+      {(tx.step === 'idle' || tx.isInFlight) && (
         <>
           <button
             type="button"
             disabled={!canClaim}
             onClick={handleClaim}
-            title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
+            aria-busy={isClaiming}
+            aria-describedby={disabledReason ? CLAIM_REASON_ID : undefined}
             className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
               ${canClaim 
                 ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' 
                 : 'cursor-not-allowed border-white/10 bg-white/5 text-gray-500'}`}
           >
-            Claim Rewards
+            {isClaiming ? 'Claiming…' : 'Claim Rewards'}
           </button>
-          <p className="mt-2 text-center text-xs text-gray-400">
-            {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
+          <p
+            id={CLAIM_REASON_ID}
+            className="mt-2 text-center text-xs text-gray-400"
+            aria-live="polite"
+          >
+            {claimHelperText}
           </p>
         </>
-      ) : (
-        <div className="mt-6">
+      )}
+
+      {tx.step !== 'idle' && (
+        <div className="mt-6" aria-busy={tx.isInFlight}>
           <TxStatusTimeline
             step={tx.step}
             txHash={tx.txHash}

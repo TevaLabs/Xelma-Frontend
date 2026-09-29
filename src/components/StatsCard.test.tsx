@@ -128,7 +128,13 @@ describe('StatsCard', () => {
 
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
-      expect(button).toHaveAttribute('title', 'Connect wallet to claim');
+
+      // Issue #590: the disabled reason must be exposed to assistive tech via
+      // aria-describedby pointing at the visible helper text — not title-only.
+      expect(button).toHaveAttribute('aria-describedby');
+      const description = document.getElementById(button.getAttribute('aria-describedby')!);
+      expect(description).toHaveTextContent('Connect wallet to claim');
+      expect(button).not.toHaveAttribute('title');
     });
 
     it('is disabled when connected but there are no pending winnings', () => {
@@ -137,7 +143,9 @@ describe('StatsCard', () => {
 
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
-      expect(button).toHaveAttribute('title', 'No pending rewards');
+      expect(button).toHaveAttribute('aria-describedby');
+      const description = document.getElementById(button.getAttribute('aria-describedby')!);
+      expect(description).toHaveTextContent('No pending rewards to claim');
     });
 
     it('is enabled when connected and there are pending winnings', () => {
@@ -146,7 +154,71 @@ describe('StatsCard', () => {
 
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeEnabled();
-      expect(button).toHaveAttribute('title', 'Claim your rewards');
+      // Ready to claim — no disabled reason, so no description is attached.
+      expect(button).not.toHaveAttribute('aria-describedby');
+      expect(screen.getByText('Ready to claim')).toBeInTheDocument();
+    });
+  });
+
+  describe('claim button accessibility (issue #590)', () => {
+    it('keeps the disabled reason and the visible helper text in sync', () => {
+      setWalletState({ status: 'idle', publicKey: null });
+      renderCard({ pendingWinnings: 1000 });
+
+      const button = screen.getByRole('button', { name: /claim rewards/i });
+      const describedById = button.getAttribute('aria-describedby');
+      expect(describedById).toBeTruthy();
+
+      const helper = document.getElementById(describedById!);
+      expect(helper).toHaveTextContent('Connect wallet to claim');
+      expect(helper).toHaveAttribute('aria-live', 'polite');
+      expect(button).not.toHaveAttribute('title');
+    });
+
+    it('clears the accessible description and announces the claiming state while in flight', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      let resolveClaim!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(claim_winnings).mockImplementation(
+        () =>
+          new Promise<{ txHash: string; ledger: number }>((resolve) => {
+            resolveClaim = resolve;
+          }),
+      );
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      const claimingButton = await screen.findByRole('button', { name: /claiming/i });
+      expect(claimingButton).toBeDisabled();
+      expect(claimingButton).toHaveAttribute('aria-busy', 'true');
+      expect(claimingButton).not.toHaveAttribute('aria-describedby');
+      expect(screen.queryByText('Connect wallet to claim')).not.toBeInTheDocument();
+      expect(screen.queryByText('No pending rewards to claim')).not.toBeInTheDocument();
+
+      resolveClaim({ txHash: 'abc', ledger: 1 });
+      await waitFor(() => {
+        expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
+      });
+    });
+
+    it('restores an enabled, un-busy claim button with no stale description after the claim resolves', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockResolvedValue({ txHash: 'abc123', ledger: 1 });
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /close/i }));
+
+      const button = await screen.findByRole('button', { name: /claim rewards/i });
+      expect(button).toBeEnabled();
+      expect(button).toHaveAttribute('aria-busy', 'false');
+      expect(button).not.toHaveAttribute('aria-describedby');
+      expect(screen.getByText('Ready to claim')).toBeInTheDocument();
     });
   });
 
@@ -193,11 +265,13 @@ describe('StatsCard', () => {
       await waitFor(() => {
         expect(screen.getByText('Preparing Claim...')).toBeInTheDocument();
       });
-      expect(screen.queryByRole('button', { name: /claim rewards/i })).not.toBeInTheDocument();
 
       await waitFor(() => {
         expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
       });
+      // Issue #590: at success the claim button (renamed "Claiming…" while in
+      // flight) is fully replaced by the success screen — no stale state lingers.
+      expect(screen.queryByRole('button', { name: /claim/i })).not.toBeInTheDocument();
       expect(screen.getByText('Tx: 012345…abcdef')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /view on stellarexpert/i })).toHaveAttribute(
         'href',
@@ -221,8 +295,12 @@ describe('StatsCard', () => {
         expect(screen.getByText('Preparing Claim...')).toBeInTheDocument();
       });
 
-      // Button is replaced by the timeline while in-flight, so it cannot be re-clicked.
-      expect(screen.queryByRole('button', { name: /claim rewards/i })).not.toBeInTheDocument();
+      // The button stays mounted as a disabled "Claiming…" control while
+      // in-flight (the async-button pattern used across the app), so it cannot
+      // be re-clicked and no stale reason is announced.
+      const claimingButton = screen.getByRole('button', { name: /claiming/i });
+      expect(claimingButton).toBeDisabled();
+      expect(claimingButton).toHaveAttribute('aria-busy', 'true');
 
       resolveClaim({ txHash: 'abc', ledger: 1 });
       await waitFor(() => {
