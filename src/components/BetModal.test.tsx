@@ -267,4 +267,53 @@ describe('BetModal — transaction pending state (#163)', () => {
       expect(screen.queryByRole('button', { name: /Set stake to 25% of balance/i })).not.toBeInTheDocument();
     });
   });
+
+  describe('Keyboard Shortcuts', () => {
+    it('renders shortcut hints UI in confirm view', () => {
+      renderOpen();
+      expect(screen.getByText(/Keyboard shortcuts:/i)).toBeInTheDocument();
+      expect(screen.getByText(/Press U or Arrow Up for UP/i)).toBeInTheDocument();
+    });
+
+    it('changes direction on keydown (U / D / ArrowUp / ArrowDown)', () => {
+      renderOpen({ direction: 'UP', stake: '10', isLegend: false });
+
+      const downBtn = screen.getByRole('button', { name: 'DOWN' });
+      const upBtn = screen.getByRole('button', { name: 'UP' });
+
+      fireEvent.keyDown(document, { key: 'd' });
+      expect(downBtn).toHaveClass('border-red-400');
+
+      fireEvent.keyDown(document, { key: 'u' });
+      expect(upBtn).toHaveClass('border-green-400');
+
+      fireEvent.keyDown(document, { key: 'ArrowDown' });
+      expect(downBtn).toHaveClass('border-red-400');
+
+      fireEvent.keyDown(document, { key: 'ArrowUp' });
+      expect(upBtn).toHaveClass('border-green-400');
+    });
+
+    it('triggers confirm submission on Enter keydown', async () => {
+      const onSuccess = vi.fn();
+      renderOpen(defaultPrediction, onSuccess);
+
+      fireEvent.keyDown(document, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(screen.getByText(/prediction submitted/i)).toBeInTheDocument();
+      });
+      expect(onSuccess).toHaveBeenCalledWith('TXABC');
+    });
+
+    it('ignores shortcuts when focused on an input element', () => {
+      renderOpen({ direction: 'UP', stake: '10', isLegend: false });
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake/i });
+      fireEvent.keyDown(stakeInput, { key: 'd' });
+
+      const upBtn = screen.getByRole('button', { name: 'UP' });
+      expect(upBtn).toHaveClass('border-green-400');
+    });
+  });
 });

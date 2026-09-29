@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import PredictionHelpTooltip from "./PredictionHelpTooltip";
 import "./PredictionCard.css";
 
@@ -180,6 +180,58 @@ export function PredictionControls({
 
   const canSubmit = Boolean(stake) && !stakeError && (!isLegend || (exactPrice && !exactPriceError));
 
+  const handlePredictionRef = useRef(handlePrediction);
+  const selectedDirectionRef = useRef(selectedDirection);
+  const canSubmitRef = useRef(canSubmit);
+  const isDisabledRef = useRef(isDisabled);
+
+  useEffect(() => {
+    handlePredictionRef.current = handlePrediction;
+    selectedDirectionRef.current = selectedDirection;
+    canSubmitRef.current = canSubmit;
+    isDisabledRef.current = isDisabled;
+  });
+
+  useEffect(() => {
+    if (isDisabled) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const key = e.key;
+      if (key === 'u' || key === 'U' || key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedDirection('UP');
+        if (canSubmitRef.current && !isDisabledRef.current) {
+          handlePredictionRef.current('UP');
+        }
+      } else if (key === 'd' || key === 'D' || key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedDirection('DOWN');
+        if (canSubmitRef.current && !isDisabledRef.current) {
+          handlePredictionRef.current('DOWN');
+        }
+      } else if (key === 'Enter') {
+        e.preventDefault();
+        const dir = selectedDirectionRef.current || 'UP';
+        if (canSubmitRef.current && !isDisabledRef.current) {
+          handlePredictionRef.current(dir);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isDisabled]);
+
   return (
     <>
       <div className="flex items-center justify-center gap-2 mb-7">
@@ -225,6 +277,13 @@ export function PredictionControls({
           <span className="prediction-card__button-text">DOWN</span>
         </button>
       </div>
+
+      <p className="prediction-card__shortcut-hint" aria-hidden="true">
+        <kbd>U</kbd> <kbd>↑</kbd> UP · <kbd>D</kbd> <kbd>↓</kbd> DOWN · <kbd>Enter</kbd> Confirm
+      </p>
+      <span className="sr-only">
+        Keyboard shortcuts: Press U or Arrow Up for UP, D or Arrow Down for DOWN, and Enter to confirm. Shortcuts disabled while typing in text fields.
+      </span>
 
       <div className="prediction-card__stake-section">
         <label htmlFor="stake-input" className="prediction-card__label">
