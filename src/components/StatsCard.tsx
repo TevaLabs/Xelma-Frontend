@@ -1,4 +1,3 @@
-import type { MockUserStats } from '../types';
 import type { UserStats } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
@@ -9,8 +8,13 @@ import GlassCard from './ui/GlassCard';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 
+/**
+ * Issue #597 — production callers pass live API stats only; there is no mock
+ * fallback. `null` stats render an honest unavailable state, never fabricated
+ * numbers.
+ */
 interface StatsCardProps {
-  stats: UserStats | MockUserStats | null;
+  stats: UserStats | null;
   isLoading?: boolean;
   error?: string;
   onRetry?: () => void;
@@ -75,11 +79,11 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
     );
   }
 
-  // Error state
+  // Error state — announce the failure honestly; never substitute mock stats.
   if (error) {
     return (
-      <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
-        <p className="text-red-500 mb-2">{error}</p>
+      <GlassCard as="section" className="rounded-2xl p-5" aria-label="Your Record">
+        <p className="text-red-500 mb-2" role="alert">{error}</p>
         {onRetry && (
           <button
             type="button"
@@ -93,12 +97,12 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
     );
   }
 
-  // Empty / unavailable stats state
+  // Empty / unavailable stats state (issue #597) — no mock statistics.
   if (!stats) {
     return (
-      <section className="glass-card rounded-2xl p-5" aria-labelledby="your-stats-title">
+      <section className="glass-card rounded-2xl p-5" aria-label="Your Record">
         <PanelHeader title="Your Record" />
-        <div className="mt-6 flex flex-col items-center gap-3 py-6 text-center">
+        <div className="mt-6 flex flex-col items-center gap-3 py-6 text-center" role="status">
           <p className="text-sm font-medium text-gray-400">User stats unavailable</p>
           {onRetry && (
             <button
@@ -115,7 +119,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   }
 
   return (
-    <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
+    <GlassCard as="section" className="rounded-2xl p-5" aria-label="Your Record">
       <PanelHeader title="Your Record" />
 
       <dl className="mt-5 space-y-4">

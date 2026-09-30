@@ -814,6 +814,10 @@ describe('Dashboard', () => {
       expect(screen.getByText('5 rounds')).toBeInTheDocument();
       expect(screen.getByText('8')).toBeInTheDocument();
       expect(screen.getByText('2')).toBeInTheDocument();
+      // Issue #597 — mockUserStats fixture values (1.00K vXLM / 3 rounds / 3 / 1)
+      // must never be substituted for live data.
+      expect(screen.queryByText('1.00K vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
     });
 
     it('renders empty state without mock numbers when connected and API returns null', async () => {
@@ -822,17 +826,70 @@ describe('Dashboard', () => {
       render(<Dashboard />);
 
       expect(await screen.findByText('User stats unavailable')).toBeInTheDocument();
-      expect(screen.queryByText('1000 vXLM')).not.toBeInTheDocument();
+      // No fabricated numbers: neither the mock fixture (formatVXLM renders
+      // 1000 as "1.00K vXLM") nor any live-looking stat rows may appear.
+      expect(screen.queryByText('1.00K vXLM')).not.toBeInTheDocument();
       expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
     });
 
-    it('renders error state when connected and API call fails', async () => {
+    it('renders error state when connected and API call fails, without mock numbers', async () => {
       vi.mocked(statsApi.getUserStats).mockRejectedValue(new Error('Network failure'));
 
       render(<Dashboard />);
 
       expect(await screen.findByText('Network failure')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+      // Issue #597 — the failure path must never show fabricated statistics.
+      expect(screen.queryByText('1.00K vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+    });
+
+    it('retries via the existing fetchStats mechanism when the retry button is clicked', async () => {
+      vi.mocked(statsApi.getUserStats)
+        .mockRejectedValueOnce(new Error('Network failure'))
+        .mockResolvedValueOnce({
+          balance: 500,
+          pendingWinnings: 0,
+          totalWins: 1,
+          totalLosses: 0,
+          currentStreak: 1,
+          xp: 100,
+          rank: 'Rookie',
+        });
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('Network failure')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+      });
+
+      // The retry re-runs the existing stats query — no duplicate fetching
+      // mechanism — and the recovered live data replaces the error UI.
+      expect(vi.mocked(statsApi.getUserStats).mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(await screen.findByText('500.00 vXLM')).toBeInTheDocument();
+      expect(screen.queryByText('Network failure')).not.toBeInTheDocument();
+    });
+
+    it('renders the stats loading state without any stat rows or mock numbers', async () => {
+      let resolveStats!: (value: null) => void;
+      vi.mocked(statsApi.getUserStats).mockImplementation(
+        () => new Promise<null>((resolve) => { resolveStats = resolve; }),
+      );
+
+      render(<Dashboard />);
+
+      // While loading, the skeleton shows and no numbers — real or mock — render.
+      expect(await screen.findByText(/loading user statistics/i)).toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+      expect(screen.queryByText('1.00K vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+
+      resolveStats(null);
+      expect(await screen.findByText('User stats unavailable')).toBeInTheDocument();
     });
 
     it('does not render stats panel when wallet is disconnected', () => {
