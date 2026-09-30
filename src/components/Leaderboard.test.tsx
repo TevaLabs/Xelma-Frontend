@@ -1,4 +1,4 @@
-﻿import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Leaderboard from './Leaderboard';
@@ -128,5 +128,17 @@ describe('Leaderboard filter tabs — keyboard roving', () => {
     expect(tabs[2]).toHaveAttribute('aria-selected', 'true');
     expect(tabs[2]).toHaveAttribute('tabindex', '0');
     expect(tabs[0]).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('calls getLeaderboard with active filter on initial load and when filter changes', async () => {
+    const tabs = await renderAndWait();
+
+    expect(leaderboardApi.getLeaderboard).toHaveBeenCalledWith('UP_DOWN', 'all');
+
+    fireEvent.click(tabs[1]); // select 'daily' filter
+
+    await waitFor(() => {
+      expect(leaderboardApi.getLeaderboard).toHaveBeenCalledWith('UP_DOWN', 'daily');
+    });
   });
 });
