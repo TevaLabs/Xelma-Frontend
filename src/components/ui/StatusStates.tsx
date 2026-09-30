@@ -17,7 +17,7 @@ interface LoadingProps {
 export const LoadingState = ({ message = "Loading content...", className, variant = "spinner", skeletonLines = 3 }: LoadingProps) => {
     if (variant === "skeleton") {
         return (
-            <div role="status" aria-busy="true" className={cn("space-y-4 p-4", className)}>
+            <div role="status" aria-busy="true" data-testid="loading-state" className={cn("space-y-4 p-4", className)}>
                 <div className={cn("h-4 rounded-full animate-pulse bg-white/5 border border-white/5")} style={{ width: "50%" }} />
                 {Array.from({ length: skeletonLines }).map((_, i) => (
                     <div
@@ -34,7 +34,7 @@ export const LoadingState = ({ message = "Loading content...", className, varian
     }
 
     return (
-        <div role="status" aria-busy="true" className={cn("flex flex-col items-center justify-center p-12 text-center min-h-[200px]", className)}>
+        <div role="status" aria-busy="true" data-testid="loading-state" className={cn("flex flex-col items-center justify-center p-12 text-center min-h-[200px]", className)}>
             <Loader2 className={cn("h-10 w-10 animate-spin mb-4 text-xelma-blue")} />
             <p className="font-medium text-gray-400">{message}</p>
         </div>
@@ -61,6 +61,7 @@ export const ErrorState = ({ message, onRetry, className, title = "Oops! Somethi
             {onRetry && (
                 <button
                     onClick={onRetry}
+                    data-testid="error-retry"
                     className="inline-flex items-center gap-2 rounded-xl bg-white text-gray-950 px-6 py-2.5 text-sm font-bold transition-all hover:scale-[1.02] hover:bg-gray-100 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
                 >
                     <RefreshCw className="h-4 w-4" />
@@ -96,7 +97,7 @@ export const EmptyState = ({ title, message, icon, className, variant }: EmptyPr
     );
 
     return (
-        <div className={cn("flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-white/10 bg-[#111827]/40 backdrop-blur-sm min-h-[200px]", className)}>
+        <div data-testid="empty-state" className={cn("flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-white/10 bg-[#111827]/40 backdrop-blur-sm min-h-[200px]", className)}>
             {iconElement}
             <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
             <p className="text-gray-400 max-w-sm text-sm">{message}</p>

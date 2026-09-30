@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock useProfileStore
@@ -87,21 +86,20 @@ describe('Profile Page', () => {
   });
 
   describe('loading state', () => {
-    it('shows loading spinner when isLoading is true and profile is null', () => {
+    it('shows shared LoadingState when isLoading is true and profile is null', () => {
       mockStoreState({ isLoading: true, profile: null });
       renderWithRouter(<Profile />);
 
       expect(screen.getByText(/Loading profile/i)).toBeInTheDocument();
+      // Shared LoadingState renders a status role
+      expect(screen.getBylRole('status')).toBeInTheDocument();
     });
 
     it('shows Edit button in header while profile is loading and null', () => {
       mockStoreState({ isLoading: true, profile: null });
       renderWithRouter(<Profile />);
 
-      // The Edit profile button is in the page header, rendered before the
-      // conditional loading block, so it still appears.
       expect(screen.getByRole('button', { name: /Edit profile/i })).toBeInTheDocument();
-      // But the main profile content (name/avatar) should show the loading spinner
       expect(screen.getByText(/Loading profile/i)).toBeInTheDocument();
       expect(screen.queryByText('Anonymous Player')).toBeNull();
     });
@@ -161,6 +159,8 @@ describe('Profile Page', () => {
 
       expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
+      // Shared ErrorState renders an alert role
+      expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
     it('calls loadProfile on retry button click', () => {
