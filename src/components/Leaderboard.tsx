@@ -111,7 +111,7 @@ const Leaderboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await leaderboardApi.getLeaderboard('UP_DOWN');
+      const data = await leaderboardApi.getLeaderboard('UP_DOWN', activeFilter);
       const mapped = (Array.isArray(data) ? data : []).map(mapEntryToUser);
       setUsers(mapped);
     } catch (err) {
@@ -120,7 +120,7 @@ const Leaderboard = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeFilter]);
 
   useEffect(() => {
     void fetchLeaderboard();
