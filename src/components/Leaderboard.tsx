@@ -155,6 +155,15 @@ const Leaderboard = () => {
     { rank: 3, user: rank3, order: 'order-3 md:order-3', medal: 'Bronze', avatarSize: 'w-24 h-24', border: 'border-4 border-[#CD7F32]', barHeight: 'h-20' },
   ] as const;
 
+  // ── #575: gap between the connected user and the #1 ranked player ─────────
+  // Only meaningful once the user appears on the board; `null` covers the
+  // unranked case and the user already sitting at #1.
+  const isCurrentUserRankOne = Boolean(currentUser && rank1 && currentUser.id === rank1.id);
+  const gapToFirst =
+    currentUser && rank1 && !isCurrentUserRankOne
+      ? Math.max(0, rank1.xlm - currentUser.xlm)
+      : null;
+
   // ── #202: Virtualizer setup ────────────────────────────────────────────────
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -269,10 +278,44 @@ const Leaderboard = () => {
                 </p>
               </div>
             </div>
-            <div className="mt-4 text-xs text-gray-400 border-t border-white/5 pt-3">
-              {currentUser
-                ? 'Keep making accurate predictions to move up the leaderboard.'
-                : 'Your connected wallet has not yet appeared on the leaderboard. Continue playing to earn a rank.'}
+            <div className="mt-4 flex flex-col gap-3 border-t border-white/5 pt-3 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                {currentUser
+                  ? 'Keep making accurate predictions to move up the leaderboard.'
+                  : 'Your connected wallet has not yet appeared on the leaderboard. Continue playing to earn a rank.'}
+              </p>
+
+              {/* #575 — the gap is surfaced as text (plus an sr-only label), so
+                  it never relies on colour alone. */}
+              {isCurrentUserRankOne && (
+                <p
+                  data-testid="leaderboard-rank-one-chip"
+                  className="inline-flex items-center gap-2 self-start whitespace-nowrap rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 font-semibold text-cyan-200 sm:self-auto"
+                >
+                  <span className="sr-only">Leaderboard rank:</span>
+                  You&apos;re #1 — every other predictor is chasing you.
+                </p>
+              )}
+
+              {gapToFirst !== null && gapToFirst > 0 && (
+                <p
+                  data-testid="leaderboard-gap-chip"
+                  className="inline-flex items-center gap-2 self-start whitespace-nowrap rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-1.5 font-semibold text-amber-200 sm:self-auto"
+                >
+                  <span className="sr-only">Gap to first place:</span>
+                  {formatVXLM(gapToFirst)} to reach #1
+                </p>
+              )}
+
+              {gapToFirst === 0 && (
+                <p
+                  data-testid="leaderboard-tied-chip"
+                  className="inline-flex items-center gap-2 self-start whitespace-nowrap rounded-lg border border-cyan-400/25 bg-cyan-500/10 px-3 py-1.5 font-semibold text-cyan-200 sm:self-auto"
+                >
+                  <span className="sr-only">Tied for first place:</span>
+                  Level with #1 on vXLM.
+                </p>
+              )}
             </div>
           </div>
         )}
