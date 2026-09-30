@@ -36,6 +36,11 @@ import {
 } from "../utils/audioController";
 import { TipCard } from "../components/education/TipCard";
 import type { Tip } from "../types/education";
+import {
+  useDashboardUiStore,
+  selectIsChatOpen,
+  selectIsEventLogOpen,
+} from "../store/useDashboardUiStore";
 import EmptyState from '../components/EmptyState';
 import { NoRoundsIllustration } from '../components/icons/StellarIllustrations';
 import DashboardSkeleton from '../components/DashboardSkeleton';
@@ -230,8 +235,12 @@ const Dashboard = () => {
   // up the now-confirmed prediction once the optimistic row is cleared.
   const [historyRefreshSignal, setHistoryRefreshSignal] = useState(0);
   // Community chat is opt-in so the default terminal stays uncluttered.
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isEventLogOpen, setIsEventLogOpen] = useState(false);
+  // Lives in a shared store (not local state) so the global CommandPalette's
+  // "Toggle chat" / "Open event log" quick actions can drive it too.
+  const isChatOpen = useDashboardUiStore(selectIsChatOpen);
+  const toggleChat = useDashboardUiStore((s) => s.toggleChat);
+  const isEventLogOpen = useDashboardUiStore(selectIsEventLogOpen);
+  const setIsEventLogOpen = useDashboardUiStore((s) => s.setEventLogOpen);
   const timeoutRef = useRef<number | null>(null);
 
   const [dashboardMode, setDashboardMode] = useState<DashboardMode>(() => {
@@ -540,7 +549,7 @@ const Dashboard = () => {
             />
             <button
               type="button"
-              onClick={() => setIsChatOpen((open) => !open)}
+              onClick={toggleChat}
               aria-pressed={isChatOpen}
               className="btn-ghost inline-flex min-h-[40px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
             >
