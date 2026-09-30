@@ -15,8 +15,8 @@ import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';
 
 import MaskedBalance from './MaskedBalance';
+import NetworkBadge from './NetworkBadge';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
-
 
 interface NavLinkItem {
   labelKey: string;
@@ -36,26 +36,6 @@ const navLinks: NavLinkItem[] = [
 
 function truncateAddress(key: string): string {
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
-}
-
-const NETWORK = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase();
-
-function NetworkBadge() {
-  const { t } = useTranslation();
-  const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${
-        isMainnet
-          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-          : 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-      }`}
-      aria-label={t('navbar.stellarNetwork', { network: NETWORK })}
-    >
-      {t(isMainnet ? 'navbar.networkMainnet' : 'navbar.networkTestnet')}
-    </span>
-  );
 }
 
 function WatchOnlyBadge() {
