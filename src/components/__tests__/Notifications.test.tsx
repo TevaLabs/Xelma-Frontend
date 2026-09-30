@@ -5,8 +5,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotificationsBell from '../NotificationsBell';
 import { useNotificationsStore } from '../../store/useNotificationsStore';
 import * as api from '../../lib/api-client';
+import { socketService } from '../../lib/socket';
 
 let notificationHandler: ((payload: unknown) => void) | undefined;
+// Mutable fixture state so individual tests can drive connect/disconnect
+// transitions and wallet identity (issue #662).
+let socketConnected = true;
+let walletPublicKey: string | null = 'GTEST123';
 
 vi.mock('../../lib/socket', () => ({
   socketService: {
@@ -23,19 +28,19 @@ vi.mock('../../lib/socket', () => ({
 
 vi.mock('../../hooks/useConnectionStatus', () => ({
   useConnectionStatus: () => ({
-    status: 'connected',
-    isConnected: true,
-    isDisconnected: false,
+    status: socketConnected ? 'connected' : 'disconnected',
+    isConnected: socketConnected,
+    isDisconnected: !socketConnected,
   }),
 }));
 
 vi.mock('../../store/useWalletStore', () => ({
   useWalletStore: Object.assign(
     vi.fn((selector?: (state: { publicKey: string | null }) => unknown) => {
-      const state = { publicKey: 'GTEST123' };
+      const state = { publicKey: walletPublicKey };
       return selector ? selector(state) : state;
     }),
-    { getState: () => ({ publicKey: 'GTEST123' }) },
+    { getState: () => ({ publicKey: walletPublicKey }) },
   ),
 }));
 
@@ -45,6 +50,8 @@ describe('Notifications', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     notificationHandler = undefined;
+    socketConnected = true;
+    walletPublicKey = 'GTEST123';
     // clear store between tests to avoid state leakage
     useNotificationsStore.getState().clear();
   });
@@ -135,5 +142,99 @@ describe('Notifications', () => {
 
     // badge should disappear
     await waitFor(() => expect(screen.queryByText('1')).toBeNull());
+  });
+});
+
+/**
+ * Issue #662 — the notifications room must be joined with the real
+ * authenticated wallet id, only while the socket is connected, and re-joined
+ * after a disconnect/reconnect cycle. The old code joined with the literal
+ * placeholder "user" and fired the join before the handshake completed.
+ */
+describe('NotificationsBell socket join (#662)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationHandler = undefined;
+    socketConnected = true;
+    walletPublicKey = 'GTEST123';
+    useNotificationsStore.getState().clear();
+  });
+
+  it('joins the notifications channel with the real wallet public key', async () => {
+    vi.mocked(api.notificationsApi.getUnreadCount).mockResolvedValue({ unread: 0 });
+    render(<NotificationsBell />);
+
+    await waitFor(() =>
+      expect(socketService.joinNotifications).toHaveBeenCalledWith('GTEST123'),
+    );
+  });
+
+  it('never joins with the legacy placeholder "user"', async () => {
+    vi.mocked(api.notificationsApi.getUnreadCount).mockResolvedValue({ unread: 0 });
+    render(<NotificationsBell />);
+
+    await waitFor(() => expect(socketService.joinNotifications).toHaveBeenCalled());
+    for (const call of vi.mocked(socketService.joinNotifications).mock.calls) {
+      expect(call[0]).not.toBe('user');
+    }
+  });
+
+  it('skips the join while the socket is disconnected', async () => {
+    socketConnected = false;
+    vi.mocked(api.notificationsApi.getUnreadCount).mockResolvedValue({ unread: 0 });
+    render(<NotificationsBell />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /open notifications/i })).toBeDisabled(),
+    );
+    expect(socketService.joinNotifications).not.toHaveBeenCalled();
+  });
+
+  it('re-joins after the socket transitions disconnected → connected', async () => {
+    vi.mocked(api.notificationsApi.getUnreadCount).mockResolvedValue({ unread: 0 });
+
+    socketConnected = false;
+    const view = render(<NotificationsBell />);
+    expect(socketService.joinNotifications).not.toHaveBeenCalled();
+
+    // The connection comes up — e.g. socket.io reconnects.
+    socketConnected = true;
+    await act(async () => {
+      view.rerender(<NotificationsBell />);
+    });
+
+    await waitFor(() =>
+      expect(socketService.joinNotifications).toHaveBeenCalledWith('GTEST123'),
+    );
+  });
+
+  it('re-joins when the wallet identity changes (account switch)', async () => {
+    vi.mocked(api.notificationsApi.getUnreadCount).mockResolvedValue({ unread: 0 });
+
+    const view = render(<NotificationsBell />);
+    await waitFor(() =>
+      expect(socketService.joinNotifications).toHaveBeenCalledWith('GTEST123'),
+    );
+
+    walletPublicKey = 'GSWITCHED456';
+    await act(async () => {
+      view.rerender(<NotificationsBell />);
+    });
+
+    await waitFor(() =>
+      expect(socketService.joinNotifications).toHaveBeenLastCalledWith('GSWITCHED456'),
+    );
+  });
+
+  it('does not join at all when no wallet is connected', async () => {
+    walletPublicKey = null;
+    vi.mocked(api.notificationsApi.getUnreadCount).mockResolvedValue({ unread: 0 });
+    render(<NotificationsBell />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /open notifications/i })).toBeTruthy(),
+    );
+    expect(socketService.joinNotifications).not.toHaveBeenCalled();
+    expect(socketService.connect).not.toHaveBeenCalled();
   });
 });

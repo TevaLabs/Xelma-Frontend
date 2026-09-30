@@ -267,4 +267,123 @@ describe('BetModal — transaction pending state (#163)', () => {
       expect(screen.queryByRole('button', { name: /Set stake to 25% of balance/i })).not.toBeInTheDocument();
     });
   });
+
+  /**
+   * Issue #663 — BetModal is an overlay, so keyboard focus must be trapped
+   * inside it and Escape must close it (except while a transaction is
+   * in-flight, where an accidental Esc could abandon a signing flow).
+   */
+  describe('Focus trap & dialog semantics (#663)', () => {
+    function openWithTrigger() {
+      const onClose = vi.fn();
+      const { rerender, unmount } = render(
+        <>
+          <button type="button" data-testid="open-trigger">Open Bet Modal</button>
+          <BetModal
+            isOpen
+            onClose={onClose}
+            predictionData={defaultPrediction}
+          />
+        </>,
+      );
+      return { onClose, rerender, unmount };
+    }
+
+    function outsideButton() {
+      return screen.getByTestId('open-trigger');
+    }
+
+    it('renders an accessible dialog announced by its title', () => {
+      renderOpen();
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-labelledby', 'prediction-modal-title');
+      // The labelling element exists and names the dialog.
+      expect(document.getElementById('prediction-modal-title')).toBeInTheDocument();
+    });
+
+    it('moves initial focus into the dialog', async () => {
+      renderOpen();
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+      });
+    });
+
+    it('wraps Tab from the last focusable element back into the dialog', async () => {
+      openWithTrigger();
+      const dialog = screen.getByRole('dialog');
+
+      // Send the dialog to the “top of the tab order” by focusing the last
+      // focusable element, then Tab — focus must stay inside the dialog.
+      const confirm = screen.getByRole('button', { name: /confirm/i });
+      confirm.focus();
+      fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: false });
+
+      const focusableInDialog = dialog.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      expect(focusableInDialog.length).toBeGreaterThan(0);
+      expect(dialog.contains(document.activeElement)).toBe(true);
+      expect(document.activeElement).not.toBe(outsideButton());
+    });
+
+    it('wraps Shift+Tab from the first focusable element back into the dialog', async () => {
+      openWithTrigger();
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
+
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    });
+
+    it('Escape closes the dialog when no transaction is in flight', async () => {
+      const { onClose } = openWithTrigger();
+
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('Escape is ignored while a transaction is in flight', async () => {
+      let resolveBet!: (value: { txHash: string }) => void;
+      placeBetImpl = () =>
+        new Promise<{ txHash: string }>((resolve) => {
+          resolveBet = resolve;
+        });
+      const { onClose } = openWithTrigger();
+
+      fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+      await waitFor(() => expect(screen.getByText(/preparing transaction/i)).toBeInTheDocument());
+
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+      expect(onClose).not.toHaveBeenCalled();
+
+      // Unblock the promise so vitest doesn't hang.
+      resolveBet({ txHash: 'TX1' });
+    });
+
+    it('restores focus to the trigger element when the modal closes', async () => {
+      const trigger = document.createElement('button');
+      trigger.textContent = 'Open Bet Modal';
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const onClose = vi.fn();
+      const { rerender } = render(
+        <BetModal isOpen onClose={onClose} predictionData={defaultPrediction} />,
+      );
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      rerender(
+        <BetModal isOpen={false} onClose={onClose} predictionData={defaultPrediction} />,
+      );
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(trigger);
+      });
+      trigger.remove();
+    });
+  });
 });

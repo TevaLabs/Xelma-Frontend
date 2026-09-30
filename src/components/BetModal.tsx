@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, humanizeContractError, type FeeEstimate } from '../lib/xelma-contract';
 import { predictionsApi, type UserPrediction } from '../lib/api-client';
 import XdrPreviewDrawer from './XdrPreviewDrawer';
@@ -363,6 +364,23 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const handleDirectionRef = useRef<(dir: 'UP' | 'DOWN') => void>(() => {});
   const handleConfirmRef = useRef<() => void>(() => {});
 
+  // Issue #663 — dialog semantics + keyboard containment. Tab cycles inside
+  // the modal, Escape closes (except while a transaction is in flight so a
+  // stray Esc can't cancel a signing flow), and focus returns to the trigger
+  // element when the modal unmounts.
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  const handleEscape = useCallback(() => {
+    if (!tx.isInFlight) {
+      onClose();
+    }
+  }, [tx.isInFlight, onClose]);
+
+  useFocusTrap(dialogRef, {
+    active: isOpen && !!predictionData,
+    onEscape: handleEscape,
+  });
+
   // Update ref values in useEffect to avoid updating during render
   useEffect(() => {
     handleDirectionRef.current = (dir) => { setDirection(dir); setFormError(''); };
@@ -408,10 +426,17 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         </div>
       )}
       <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
-      <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="prediction-modal-title"
+        tabIndex={-1}
+        className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}
+      >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-white"
+          className="absolute right-4 top-4 text-gray-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
           aria-label="Close"
         >
           ✕
@@ -421,7 +446,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           <div className="text-center py-4">
             {isWatchOnly ? (
               <>
-                <h3 className="text-lg font-bold text-purple-400 mb-2">Watch-Only Mode</h3>
+                <h3 id="prediction-modal-title" className="text-lg font-bold text-purple-400 mb-2">Watch-Only Mode</h3>
                 <p className="text-gray-400 text-sm mb-6">
                   You are viewing this address in watch-only mode. Connect a wallet with signing capability to submit predictions.
                 </p>
@@ -435,7 +460,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               </>
             ) : (
               <>
-                <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
+                <h3 id="prediction-modal-title" className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
                 <p className="text-gray-400 text-sm mb-6">
                   You need to connect and authenticate your Stellar wallet to submit predictions.
                 </p>
@@ -454,7 +479,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         {view === 'confirm' && tx.step === 'idle' && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold" id="prediction-modal-title">Confirm Prediction</h3>
+              {/* This visible heading is the dialog's accessible name for the
+                  confirm step (issue #663); the wallet_required step labels
+                  the dialog with its own step heading. */}
+              <h3 className="mb-0 text-lg font-bold" id="prediction-modal-title">Confirm Prediction</h3>
               <PredictionHelpTooltip id="bet-modal-prediction-help-popover" />
             </div>
 

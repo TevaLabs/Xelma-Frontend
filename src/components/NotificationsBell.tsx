@@ -21,23 +21,29 @@ const NotificationsBell: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!publicKey) return;
+    // Issue #662 — join only with the real wallet identifier and only once
+    // the socket is actually connected. Joining right after connect() fired
+    // raced the handshake (socket not yet connected) and the server never
+    // added us to the notification room.
+    if (!publicKey || !isConnected) return;
 
-    // Connect to socket and subscribe to notifications
+    // (Re)connect defensively — no-op when the socket is already up.
     socketService.connect();
 
     const unsubscribe = socketService.onNotification((payload: unknown) => {
       addNotification(payload as NotificationEventPayload);
     });
 
-    // Join notifications channel with real user identifier
+    // Join the notifications channel with the authenticated wallet id.
     socketService.joinNotifications(publicKey);
 
     return () => {
       unsubscribe();
-      // Note: Don't disconnect socket as other components may be using it
+      // Note: Don't disconnect socket as other components may be using it.
+      // Dropping `isConnected` back to false tears this down; the next
+      // transition to connected re-runs the effect and re-joins the room.
     };
-  }, [addNotification, publicKey]);
+  }, [addNotification, publicKey, isConnected]);
 
   useEffect(() => {
     if (!open) return;

@@ -5,6 +5,7 @@ import {
     LeaderboardEntrySchema,
     validateApiResponse,
     ApiValidationError,
+    mapEntryToUser,
 } from './api-schemas';
 
 describe('API Schemas Validation', () => {
@@ -255,6 +256,42 @@ describe('API Schemas Validation', () => {
             const customMessage = 'Custom error message';
             const error = new ApiValidationError('/test', mockZodError, customMessage);
             expect(error.message).toBe(customMessage);
+        });
+    });
+
+    // Issue #660 — leaderboard rows expose identity in several shapes; the
+    // mapper must separate the wallet address from the (opaque) row id.
+    describe('mapEntryToUser', () => {
+        const FALLBACK_AVATAR = 'fallback-avatar.svg';
+
+        it('extracts the wallet address from publicKey / walletAddress / address fields', () => {
+            expect(mapEntryToUser({ id: 'u1', publicKey: 'GPUBLICKEY1' }, 0, FALLBACK_AVATAR).walletAddress).toBe('GPUBLICKEY1');
+            expect(mapEntryToUser({ id: 'u2', walletAddress: 'GWALLET2' }, 1, FALLBACK_AVATAR).walletAddress).toBe('GWALLET2');
+            expect(mapEntryToUser({ id: 'u3', address: 'GADDRESS3' }, 2, FALLBACK_AVATAR).walletAddress).toBe('GADDRESS3');
+        });
+
+        it('returns walletAddress null when no identity field is present', () => {
+            const user = mapEntryToUser({ id: 'opaque-db-id', username: 'Alice' }, 0, FALLBACK_AVATAR);
+            expect(user.walletAddress).toBeNull();
+            expect(user.id).toBe('opaque-db-id');
+        });
+
+        it('keeps the raw id untouched so it is never compared to a wallet', () => {
+            const user = mapEntryToUser({ id: 42, publicKey: 'GWALLET' }, 0, FALLBACK_AVATAR);
+            expect(user.id).toBe('42');
+            expect(user.walletAddress).toBe('GWALLET');
+        });
+
+        it('falls back to userId then index for the id', () => {
+            expect(mapEntryToUser({ userId: 'user-9' }, 0, FALLBACK_AVATAR).id).toBe('user-9');
+            expect(mapEntryToUser({ username: 'NoId' }, 7, FALLBACK_AVATAR).id).toBe('7');
+        });
+
+        it('prefers explicit avatar and derives xlm from xlm or score', () => {
+            expect(mapEntryToUser({ id: 1, avatar: 'me.png', xlm: 12.5 }, 0, FALLBACK_AVATAR).avatar).toBe('me.png');
+            expect(mapEntryToUser({ id: 1, xlm: 12.5 }, 0, FALLBACK_AVATAR).xlm).toBe(12.5);
+            expect(mapEntryToUser({ id: 1, score: 99 }, 0, FALLBACK_AVATAR).xlm).toBe(99);
+            expect(mapEntryToUser({ id: 1 }, 0, FALLBACK_AVATAR).avatar).toBe(FALLBACK_AVATAR);
         });
     });
 });

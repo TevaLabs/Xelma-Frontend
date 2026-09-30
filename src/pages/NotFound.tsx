@@ -2,7 +2,10 @@ import { Link } from 'react-router-dom';
 
 export default function NotFound() {
   return (
-    <main className="xelma-grid-bg flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
+    <main
+      id="main-content"
+      className="xelma-grid-bg flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-8"
+    >
       {/* Ambient glows matching Landing page */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
         <div className="absolute -left-32 top-1/4 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
