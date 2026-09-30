@@ -537,6 +537,17 @@ describe('Dashboard', () => {
       expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     });
 
+    it('places the profile summary immediately before stats and opens profile settings from Edit', async () => {
+      render(<Dashboard />);
+
+      const profileCard = screen.getByLabelText('Your profile');
+      const statsCard = screen.getByRole('heading', { name: 'Your Record' }).closest('section');
+      expect(profileCard.nextElementSibling).toBe(statsCard);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit profile settings' }));
+      expect(await screen.findByRole('dialog', { name: /profile settings/i })).toBeInTheDocument();
+    });
+
     it('omits the profile summary panel when the wallet is disconnected', () => {
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
         const store = { ...mockWalletStore, status: 'idle', publicKey: null };

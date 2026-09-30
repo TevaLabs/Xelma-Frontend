@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- shared status-machine module (component + hook) */
 import { Fragment, useCallback, useRef, useState } from 'react';
+import { Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
 /**
@@ -219,6 +221,20 @@ export default function TxStatusTimeline({
   if (step === 'success') {
     const displayHash = txHash ? formatTxHash(txHash) : '';
     const href = explorerUrl ?? `https://stellarexpert.org/tx/${txHash ?? ''}`;
+    const handleCopyHash = async () => {
+      try {
+        if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+          throw new Error('Clipboard API unavailable');
+        }
+
+        await navigator.clipboard.writeText(txHash ?? '');
+        toast.success('Transaction hash copied');
+      } catch {
+        toast.error('Copy failed', {
+          description: 'Your browser may be blocking clipboard access.',
+        });
+      }
+    };
 
     return (
       <div role="status" className="text-center py-6">
@@ -230,12 +246,23 @@ export default function TxStatusTimeline({
           {successMessage ?? 'Your transaction has been successfully written on-chain.'}
         </p>
         {displayHash && (
-          <code
-            className="mx-auto mb-5 block w-fit rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 font-mono text-xs text-cyan-300"
-            title={txHash}
-          >
-            Tx: {displayHash}
-          </code>
+          <div className="mx-auto mb-5 flex w-fit items-center gap-1">
+            <code
+              className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 font-mono text-xs text-cyan-300"
+              title={txHash}
+            >
+              Tx: {displayHash}
+            </code>
+            <button
+              type="button"
+              onClick={() => void handleCopyHash()}
+              className="inline-flex items-center justify-center rounded p-1.5 text-gray-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              aria-label="Copy transaction hash"
+              title="Copy transaction hash"
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
         )}
         <div className="space-y-3">
           {txHash && (

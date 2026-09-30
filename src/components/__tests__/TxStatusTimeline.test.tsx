@@ -1,7 +1,15 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { toast } from 'sonner';
 import TxStatusTimeline, { formatTxHash, useTxStatusMachine } from '../TxStatusTimeline';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 describe('formatTxHash', () => {
   it('returns the hash unchanged when shorter than the truncation window', () => {
@@ -95,6 +103,12 @@ describe('useTxStatusMachine', () => {
 });
 
 describe('TxStatusTimeline', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.mocked(toast.success).mockReset();
+    vi.mocked(toast.error).mockReset();
+  });
+
   it('renders nothing when idle', () => {
     const { container } = render(<TxStatusTimeline step="idle" />);
     expect(container.firstChild).toBeNull();
@@ -142,6 +156,53 @@ describe('TxStatusTimeline', () => {
 
     const link = screen.getByRole('link', { name: /view on stellarexpert/i });
     expect(link).toHaveAttribute('href', 'https://stellarexpert.org/tx/0123456789abcdef');
+  });
+
+  it('copies the full transaction hash and confirms success without replacing the explorer link', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    render(<TxStatusTimeline step="success" txHash="0123456789abcdef" />);
+
+    const copyButton = screen.getByRole('button', { name: 'Copy transaction hash' });
+    expect(copyButton.closest('a')).toBeNull();
+    fireEvent.click(copyButton);
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('0123456789abcdef');
+      expect(toast.success).toHaveBeenCalledWith('Transaction hash copied');
+    });
+    expect(screen.getByRole('link', { name: /view on stellarexpert/i })).toHaveAttribute(
+      'href',
+      'https://stellarexpert.org/tx/0123456789abcdef',
+    );
+  });
+
+  it('shows an error toast when clipboard access is unavailable', async () => {
+    vi.stubGlobal('navigator', {});
+    render(<TxStatusTimeline step="success" txHash="0123456789abcdef" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy transaction hash' }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Copy failed', {
+        description: 'Your browser may be blocking clipboard access.',
+      });
+    });
+  });
+
+  it('shows an error toast when copying is rejected', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+    });
+    render(<TxStatusTimeline step="success" txHash="0123456789abcdef" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy transaction hash' }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Copy failed', {
+        description: 'Your browser may be blocking clipboard access.',
+      });
+    });
   });
 
   it('renders the Done button when onDone is provided', () => {
