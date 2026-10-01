@@ -1,22 +1,47 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, LayoutDashboard, Trophy, BookOpen, Wallet, User, Droplets } from 'lucide-react';
+import {
+  Search,
+  LayoutDashboard,
+  Trophy,
+  BookOpen,
+  Wallet,
+  User,
+  Droplets,
+  Settings as SettingsIcon,
+  Radio,
+  MessageSquare,
+  Link2,
+} from 'lucide-react';
 import clsx from 'clsx';
+import { toast } from 'sonner';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useDashboardUiStore } from '../store/useDashboardUiStore';
 
 interface RouteItem {
+  kind: 'route';
   label: string;
   to: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
+interface ActionItem {
+  kind: 'action';
+  label: string;
+  onSelect: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+type PaletteItem = RouteItem | ActionItem;
+
 const routes: RouteItem[] = [
-  { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Leaderboard', to: '/leaderboard', icon: Trophy },
-  { label: 'Learn', to: '/learn', icon: BookOpen },
-  { label: 'Connect', to: '/connect', icon: Wallet },
-  { label: 'Profile', to: '/profile', icon: User },
-  { label: 'Pools', to: '/pools', icon: Droplets },
+  { kind: 'route', label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
+  { kind: 'route', label: 'Leaderboard', to: '/leaderboard', icon: Trophy },
+  { kind: 'route', label: 'Learn', to: '/learn', icon: BookOpen },
+  { kind: 'route', label: 'Connect', to: '/connect', icon: Wallet },
+  { kind: 'route', label: 'Profile', to: '/profile', icon: User },
+  { kind: 'route', label: 'Pools', to: '/pools', icon: Droplets },
+  { kind: 'route', label: 'Settings', to: '/settings', icon: SettingsIcon },
 ];
 
 const focusRing =
@@ -32,17 +57,66 @@ export default function CommandPalette() {
 
   const navigate = useNavigate();
   const location = useLocation();
-
-  const filtered = routes.filter((r) =>
-    r.label.toLowerCase().includes(query.toLowerCase()),
-  );
-  const safeSelectedIndex = filtered.length === 0 ? 0 : Math.min(selectedIndex, filtered.length - 1);
+  const openEventLog = useDashboardUiStore((s) => s.openEventLog);
+  const toggleChat = useDashboardUiStore((s) => s.toggleChat);
 
   const close = useCallback(() => {
     setIsOpen(false);
     setQuery('');
     setSelectedIndex(0);
   }, []);
+
+  // Quick actions — non-navigation side effects, distinct from `routes`.
+  // Defined inside the component so they can close the palette and reach
+  // the shared dashboard UI store / clipboard / toast APIs.
+  const actions: ActionItem[] = useMemo(
+    () => [
+      {
+        kind: 'action',
+        label: 'Open event log',
+        icon: Radio,
+        onSelect: () => {
+          openEventLog();
+        },
+      },
+      {
+        kind: 'action',
+        label: 'Toggle chat',
+        icon: MessageSquare,
+        onSelect: () => {
+          toggleChat();
+        },
+      },
+      {
+        kind: 'action',
+        label: 'Copy dashboard URL',
+        icon: Link2,
+        onSelect: () => {
+          const url = `${window.location.origin}/dashboard`;
+          void navigator.clipboard
+            .writeText(url)
+            .then(() => {
+              toast.success('Dashboard URL copied to clipboard', {
+                id: 'command-palette-copy-dashboard-url',
+              });
+            })
+            .catch(() => {
+              toast.error('Could not copy dashboard URL', {
+                id: 'command-palette-copy-dashboard-url',
+              });
+            });
+        },
+      },
+    ],
+    [openEventLog, toggleChat],
+  );
+
+  const items: PaletteItem[] = useMemo(() => [...routes, ...actions], [actions]);
+
+  const filtered = items.filter((item) =>
+    item.label.toLowerCase().includes(query.toLowerCase()),
+  );
+  const safeSelectedIndex = filtered.length === 0 ? 0 : Math.min(selectedIndex, filtered.length - 1);
 
   const open = useCallback(() => {
     setIsOpen(true);
@@ -81,8 +155,8 @@ export default function CommandPalette() {
   // Scroll selected item into view
   useEffect(() => {
     if (!isOpen) return;
-    const items = listRef.current?.querySelectorAll('[role="option"]');
-    items?.[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+    const optionEls = listRef.current?.querySelectorAll('[role="option"]');
+    optionEls?.[selectedIndex]?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, isOpen]);
 
   // Focus input when opened
@@ -91,6 +165,18 @@ export default function CommandPalette() {
       window.setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [isOpen]);
+
+  const selectItem = useCallback(
+    (item: PaletteItem) => {
+      if (item.kind === 'route') {
+        navigate(item.to);
+      } else {
+        item.onSelect();
+      }
+      close();
+    },
+    [navigate, close],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -106,15 +192,9 @@ export default function CommandPalette() {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filtered[safeSelectedIndex]) {
-        navigate(filtered[safeSelectedIndex].to);
-        close();
+        selectItem(filtered[safeSelectedIndex]);
       }
     }
-  };
-
-  const handleSelect = (to: string) => {
-    navigate(to);
-    close();
   };
 
   return (
@@ -166,31 +246,31 @@ export default function CommandPalette() {
               </kbd>
             </div>
 
-            {/* Route list */}
+            {/* Route + quick action list */}
             <div
               id="command-palette-listbox"
               ref={listRef}
               role="listbox"
-              aria-label="Routes"
+              aria-label="Routes and quick actions"
               className="max-h-64 overflow-y-auto p-1.5"
             >
               {filtered.length === 0 && (
                 <p className="px-4 py-6 text-center text-sm text-gray-500">
-                  No routes match "{query}"
+                  No results match "{query}"
                 </p>
               )}
-              {filtered.map((route, index) => {
-                const Icon = route.icon;
+              {filtered.map((item, index) => {
+                const Icon = item.icon;
                 const isSelected = index === safeSelectedIndex;
-                const isCurrent = location.pathname === route.to;
+                const isCurrent = item.kind === 'route' && location.pathname === item.to;
                 return (
                   <button
-                    key={route.to}
+                    key={item.kind === 'route' ? item.to : item.label}
                     id={`command-palette-option-${index}`}
                     type="button"
                     role="option"
                     aria-selected={isSelected}
-                    onClick={() => handleSelect(route.to)}
+                    onClick={() => selectItem(item)}
                     onMouseEnter={() => setSelectedIndex(index)}
                     className={clsx(
                       'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors',
@@ -202,10 +282,15 @@ export default function CommandPalette() {
                     )}
                   >
                     <Icon className={clsx('w-4 h-4 shrink-0', isSelected ? 'text-[#BEC7FE]' : 'text-gray-500')} aria-hidden />
-                    <span className="flex-1 font-medium">{route.label}</span>
+                    <span className="flex-1 font-medium">{item.label}</span>
                     {isCurrent && (
                       <span className="rounded-full bg-[#2C4BFD]/20 px-2 py-0.5 text-[10px] font-semibold text-[#BEC7FE]">
                         current
+                      </span>
+                    )}
+                    {item.kind === 'action' && (
+                      <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                        action
                       </span>
                     )}
                   </button>

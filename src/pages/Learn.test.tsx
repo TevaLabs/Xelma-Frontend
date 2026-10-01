@@ -27,6 +27,7 @@ vi.mock('lucide-react', () => ({
     BookMarked: () => <div data-testid="bookmarked-icon" />,
     GraduationCap: () => <div data-testid="grad-icon" />,
     Telescope: () => <div data-testid="telescope-icon" />,
+    X: () => <div data-testid="x-icon" />,
 }));
 
 const mockGuides = [
