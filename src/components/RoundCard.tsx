@@ -2,6 +2,7 @@
 // ISSUE: Real-time round updates via Soroban event polling
 
 import { forwardRef, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
 import AssetIcon from './icons/AssetIcon';
@@ -20,6 +21,8 @@ interface RoundCardProps {
   round: MockRound;
   onSubmitPrediction: (round: MockRound) => void;
   isHighlighted?: boolean;
+  /** When false (spectating), the submit action becomes a Connect CTA. */
+  isWalletConnected?: boolean;
 }
 
 function getStatusMeta(round: MockRound, secondsLeft: number) {
@@ -40,7 +43,7 @@ function poolSize(round: MockRound): number {
 }
 
 const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
-  { round, onSubmitPrediction, isHighlighted = false },
+  { round, onSubmitPrediction, isHighlighted = false, isWalletConnected = true },
   ref,
 ) {
   const { reduced } = useReducedMotion();
@@ -171,15 +174,25 @@ const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
         )}
       </div>
 
-      <button
-        type="button"
-        disabled={round.closesInSeconds <= 0}
-        onClick={() => onSubmitPrediction(round)}
-        className="btn-primary flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-        data-testid="round-card-submit"
-      >
-        Submit Prediction
-      </button>
+      {isWalletConnected ? (
+        <button
+          type="button"
+          disabled={round.closesInSeconds <= 0}
+          onClick={() => onSubmitPrediction(round)}
+          className="btn-primary flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          data-testid="round-card-submit"
+        >
+          Submit Prediction
+        </button>
+      ) : (
+        <Link
+          to="/connect"
+          className="btn-primary flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold no-underline"
+          data-testid="round-card-connect"
+        >
+          Connect wallet to predict
+        </Link>
+      )}
     </GlassCard>
   );
 });

@@ -5,6 +5,7 @@ import {
   Code,
   Eye,
   Gauge,
+  Rows3,
   RefreshCw,
   Settings as SettingsIcon,
   Sliders,
@@ -128,11 +129,13 @@ export default function Settings() {
   const soundEnabled = useSettingsStore((s) => s.soundEnabled);
   const streamerMode = useSettingsStore((s) => s.streamerMode);
   const motionPreference = useSettingsStore((s) => s.motionPreference);
+  const compactMode = useSettingsStore((s) => s.compactMode);
 
   const setShowNetworkBadge = useSettingsStore((s) => s.setShowNetworkBadge);
   const setSoundEnabled = useSettingsStore((s) => s.setSoundEnabled);
   const setStreamerMode = useSettingsStore((s) => s.setStreamerMode);
   const setMotionPreference = useSettingsStore((s) => s.setMotionPreference);
+  const setCompactMode = useSettingsStore((s) => s.setCompactMode);
   const resetToDefaults = useSettingsStore((s) => s.resetToDefaults);
 
   const [isDevDrawerOpen, setIsDevDrawerOpen] = useState(false);
@@ -150,8 +153,9 @@ export default function Settings() {
       showNetworkBadge !== DEFAULT_SETTINGS.showNetworkBadge ||
       soundEnabled !== DEFAULT_SETTINGS.soundEnabled ||
       streamerMode !== DEFAULT_SETTINGS.streamerMode ||
+      compactMode !== DEFAULT_SETTINGS.compactMode ||
       motionPreference !== DEFAULT_SETTINGS.motionPreference,
-    [showNetworkBadge, soundEnabled, streamerMode, motionPreference],
+    [showNetworkBadge, soundEnabled, streamerMode, motionPreference, compactMode],
   );
 
   const handleReset = () => {
@@ -294,6 +298,39 @@ export default function Settings() {
                 : 'The badge is hidden — only your wallet controls show in the navbar.'}
             </span>
           </div>
+        </section>
+
+        {/* Dashboard density */}
+        <section
+          aria-labelledby="settings-density-heading"
+          className="glass-card mb-6 rounded-xl p-6 sm:p-8"
+          data-testid="settings-section-density"
+        >
+          <header className="mb-6 flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#22D3EE]/15 text-[#22D3EE]"
+              aria-hidden
+            >
+              <Rows3 className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 id="settings-density-heading" className="text-lg font-bold text-white">
+                Dashboard density
+              </h2>
+              <p className="text-xs text-gray-500">
+                Choose between a comfortable or compact dashboard layout.
+              </p>
+            </div>
+          </header>
+
+          <ToggleRow
+            title="Compact dashboard"
+            description="Reduce padding and spacing on the dashboard, most noticeable on narrow phone screens."
+            icon={<Rows3 className="h-5 w-5" />}
+            checked={compactMode}
+            onToggle={() => setCompactMode(!compactMode)}
+            testId="settings-toggle-compact"
+          />
         </section>
 
         {/* Sound */}

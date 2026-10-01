@@ -37,6 +37,31 @@ body {
   background-size: 48px 48px;
 }
 
+/* Compact dashboard density (Settings → Dashboard density). Only densifies on
+   narrow screens, where padding and gaps cost the most usable space. */
+@media (max-width: 640px) {
+  [data-density="compact"] {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  [data-density="compact"] .gap-6,
+  [data-density="compact"] .gap-4 {
+    gap: 0.5rem;
+  }
+
+  [data-density="compact"] .mb-6,
+  [data-density="compact"] .mb-4 {
+    margin-bottom: 0.5rem;
+  }
+
+  [data-density="compact"] .glass-card {
+    padding: 0.75rem;
+  }
+}
+
 /* Glassmorphism cards */
 .glass-card {
   background: rgba(17, 24, 39, 0.72);

@@ -348,6 +348,96 @@ describe('Dashboard', () => {
     });
   });
 
+  describe('spectate mode (wallet disconnected)', () => {
+    const disconnect = () =>
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+    it('renders the spectate card with a Connect CTA routed to /connect', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('spectate-card')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /spectate mode/i })).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-connect-now')).toHaveAttribute('href', '/connect');
+    });
+
+    it('keeps the chart, timeline and rounds visible', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getAllByTestId('round-card').length).toBeGreaterThan(0);
+    });
+
+    it('replaces round submit buttons with Connect CTAs', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      expect(screen.queryByTestId('round-card-submit')).not.toBeInTheDocument();
+      const ctas = screen.getAllByTestId('round-card-connect');
+      expect(ctas.length).toBeGreaterThan(0);
+      expect(ctas[0]).toHaveAttribute('href', '/connect');
+      expect(screen.getByTestId('mobile-connect-cta')).toHaveAttribute('href', '/connect');
+    });
+
+    it('does not open the bet modal when a spectator triggers a prediction', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      expect(screen.getByTestId('bet-modal')).toHaveAttribute('data-open', 'false');
+    });
+
+    it('shows the spectate card and chart separately from the empty-rounds state', () => {
+      disconnect();
+      vi.mocked(useRoundStore).mockImplementation((selector: any) => {
+        const store = { ...mockRoundStore, isRoundActive: false };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('spectate-card')).toBeInTheDocument();
+      expect(screen.getByTestId('spectate-chart')).toBeInTheDocument();
+      expect(screen.getByText(/no active rounds/i)).toBeInTheDocument();
+    });
+
+    it('does not show the spectate card when the wallet is connected', () => {
+      render(<Dashboard />);
+
+      expect(screen.queryByTestId('spectate-card')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mobile-connect-cta')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('density toggle', () => {
+    it('defaults to comfortable density', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByRole('main')).toHaveAttribute('data-density', 'comfortable');
+      expect(screen.getByTestId('density-toggle')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('switches to compact and updates the shared settings store', () => {
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('density-toggle'));
+
+      expect(screen.getByRole('main')).toHaveAttribute('data-density', 'compact');
+      expect(useSettingsStore.getState().compactMode).toBe(true);
+    });
+
+    it('reflects a compact preference set from Settings', () => {
+      useSettingsStore.setState({ compactMode: true });
+      render(<Dashboard />);
+
+      expect(screen.getByRole('main')).toHaveAttribute('data-density', 'compact');
+      expect(screen.getByTestId('density-toggle')).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
   describe('mode toggle & persistence', () => {
     it('renders mode toggle on the dashboard header', () => {
       render(<Dashboard />);

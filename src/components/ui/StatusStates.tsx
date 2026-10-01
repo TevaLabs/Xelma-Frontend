@@ -17,7 +17,7 @@ interface LoadingProps {
 export const LoadingState = ({ message = "Loading content...", className, variant = "spinner", skeletonLines = 3 }: LoadingProps) => {
     if (variant === "skeleton") {
         return (
-            <div className={cn("space-y-4 p-4", className)}>
+            <div role="status" aria-busy="true" className={cn("space-y-4 p-4", className)}>
                 <div className={cn("h-4 rounded-full animate-pulse bg-white/5 border border-white/5")} style={{ width: "50%" }} />
                 {Array.from({ length: skeletonLines }).map((_, i) => (
                     <div
@@ -34,7 +34,7 @@ export const LoadingState = ({ message = "Loading content...", className, varian
     }
 
     return (
-        <div className={cn("flex flex-col items-center justify-center p-12 text-center min-h-[200px]", className)}>
+        <div role="status" aria-busy="true" className={cn("flex flex-col items-center justify-center p-12 text-center min-h-[200px]", className)}>
             <Loader2 className={cn("h-10 w-10 animate-spin mb-4 text-xelma-blue")} />
             <p className="font-medium text-gray-400">{message}</p>
         </div>
