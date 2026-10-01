@@ -148,9 +148,9 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           <RankProgressBar xp={stats.xp} />
         </div>
         
-        {pendingWinnings > 0 && (
+        {pendingWinnings > 0 ? (
           <div className="flex items-center justify-between border-t border-white/10 pt-4">
-            <dt className="text-sm text-gray-400 text-amber-200">Pending Winnings</dt>
+            <dt className="text-sm text-amber-200">Pending Winnings</dt>
             <dd>
               <MaskedBalance
                 value={`${pendingWinnings.toLocaleString()} vXLM`}
@@ -158,6 +158,13 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
                 className="font-mono text-sm font-bold text-amber-300"
               />
             </dd>
+          </div>
+        ) : (
+          <div className="border-t border-white/10 pt-4 text-center">
+            <p className="text-sm font-semibold text-gray-200">Nothing to claim right now</p>
+            <p className="mt-1 text-xs text-gray-400">
+              Settled winnings will appear here when they’re available.
+            </p>
           </div>
         )}
       </dl>
@@ -168,6 +175,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
             type="button"
             disabled={!canClaim}
             onClick={handleClaim}
+            aria-describedby={!canClaim ? 'claim-reason' : undefined}
             title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
             className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
               ${canClaim 
@@ -176,7 +184,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           >
             Claim Rewards
           </button>
-          <p className="mt-2 text-center text-xs text-gray-400">
+          <p id="claim-reason" role="status" aria-live="polite" className="mt-2 text-center text-xs text-gray-400">
             {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
           </p>
         </>

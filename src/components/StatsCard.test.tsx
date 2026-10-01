@@ -112,12 +112,15 @@ describe('StatsCard', () => {
     });
 
     it('shows the pending winnings row only when there are winnings', () => {
-      renderCard();
+      const { rerender } = renderCard();
       expect(screen.queryByText('Pending Winnings')).not.toBeInTheDocument();
+      expect(screen.getByText('Nothing to claim right now')).toBeInTheDocument();
+      expect(screen.getByText('Settled winnings will appear here when they’re available.')).toBeInTheDocument();
 
-      renderCard({ pendingWinnings: 2500 });
+      rerender(<StatsCard stats={{ ...baseStats, pendingWinnings: 2500 }} />);
       const row = screen.getByText('Pending Winnings').closest('div')!;
       expect(within(row).getByText('2,500 vXLM')).toBeInTheDocument();
+      expect(screen.queryByText('Nothing to claim right now')).not.toBeInTheDocument();
     });
   });
 
@@ -138,6 +141,8 @@ describe('StatsCard', () => {
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
       expect(button).toHaveAttribute('title', 'No pending rewards');
+      expect(button).toHaveAccessibleDescription('No pending rewards');
+      expect(screen.getByRole('status')).toHaveTextContent('No pending rewards');
     });
 
     it('is enabled when connected and there are pending winnings', () => {
