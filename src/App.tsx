@@ -9,6 +9,7 @@ import RouteTransition from './components/RouteTransition';
 import Landing from './pages/Landing';
 import NotFound from './pages/NotFound';
 import RouteFallback from './components/RouteFallback';
+import ComingSoonPage from './pages/ComingSoonPage';
 import LazyBoundary from './components/LazyBoundary';
 import ErrorBoundary from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
@@ -58,6 +59,7 @@ function App() {
                 <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
+                <Route path="/coming-soon" element={<ComingSoonPage />} />
                 <Route path="*" element={<NotFound />} />                </Routes>
             </RouteTransition>
           </Suspense>
