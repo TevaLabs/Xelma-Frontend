@@ -16,7 +16,7 @@ import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
 import EventLogDrawer from "../components/EventLogDrawer";
-import { Radio } from "lucide-react";
+import { Eye, Radio, Rows3 } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
@@ -24,7 +24,11 @@ import { useRoundStore } from "../store/useRoundStore";
 import type { Round, UserPrediction, UserStats } from "../lib/api-client";
 import { educationApi, statsApi, predictionsApi } from "../lib/api-client";
 import { useWalletStore, selectIsWalletConnected } from "../store/useWalletStore";
-import { useSettingsStore, selectSoundEnabled } from "../store/useSettingsStore";
+import {
+  useSettingsStore,
+  selectSoundEnabled,
+  selectCompactMode,
+} from "../store/useSettingsStore";
 import {
   bindSoundPreference,
   clearSoundPreferenceBinding,
@@ -270,6 +274,8 @@ const Dashboard = () => {
   const [inspector, setInspector] = useState<SorobanInspectorSnapshot | null>(null);
   const [isInspectorLoading, setIsInspectorLoading] = useState(false);
   const soundEnabled = useSettingsStore(selectSoundEnabled);
+  const compactMode = useSettingsStore(selectCompactMode);
+  const setCompactMode = useSettingsStore((s) => s.setCompactMode);
 
   // Asset tab state from URL query param
   const [searchParams] = useSearchParams();
@@ -460,6 +466,8 @@ const Dashboard = () => {
   }, []);
 
   const handlePrediction = (data: PredictionData) => {
+    // Spectators can't predict; the Connect CTAs route them to /connect.
+    if (!isWalletConnected) return;
     // Attach the round's UP/DOWN pool split so the BetModal can surface the
     // soft pool-imbalance warning for UP/DOWN rounds.
     setPendingPrediction({ ...data, ...(assetPoolSplit ?? {}) });
@@ -523,7 +531,11 @@ const Dashboard = () => {
   }, [resolvedRound, endRoundResult.isWin, soundEnabled]);
 
   return (
-    <main id="main-content" className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+    <main
+      id="main-content"
+      data-density={compactMode ? "compact" : "comfortable"}
+      className="xelma-grid-bg min-h-screen px-4 py-8 sm:px-6 lg:px-8"
+    >
       {/* Opt-in community chat (ported from the legacy /play view). Self-positions
           as a fixed slide-over, so mounting it does not shift the terminal layout. */}
       {isChatOpen && <ChatSidebar />}
@@ -571,7 +583,17 @@ const Dashboard = () => {
         {/* Round lifecycle timeline, ported from /play. */}
         {!isLoading && (
           <div className="mb-6">
-            <div className="mb-3 flex justify-end gap-2">
+            <div className="mb-3 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCompactMode(!compactMode)}
+                aria-pressed={compactMode}
+                data-testid="density-toggle"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-[#2C4BFD]/40 hover:text-white aria-pressed:border-[#2C4BFD]/40 aria-pressed:text-white"
+              >
+                <Rows3 className="h-4 w-4" aria-hidden />
+                {compactMode ? "Compact view" : "Comfortable view"}
+              </button>
               <button
                 type="button"
                 onClick={() => setIsOpenPositionsOpen(true)}
@@ -638,8 +660,10 @@ const Dashboard = () => {
                       }
                     }}
                     round={round}
+                    isWalletConnected={isWalletConnected}
                     isHighlighted={deepLinkedRoundId === round.id}
                     onSubmitPrediction={(round) => {
+                      if (!isWalletConnected) return;
                       setPendingPrediction({
                         direction: "UP",
                         stake: "0",
@@ -675,10 +699,26 @@ const Dashboard = () => {
         )}
 
         {!isLoading && !isWalletConnected && (
-          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-4 text-sm text-[#BEC7FE] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4">
-            <p className="leading-relaxed" data-testid="dashboard-wallet-prompt">
-              {t('dashboard.walletPrompt.message')}
-            </p>
+          <section
+            aria-labelledby="spectate-heading"
+            data-testid="spectate-card"
+            className="glass-card mb-6 flex flex-col gap-3 rounded-xl border border-[#2C4BFD]/30 bg-[#2C4BFD]/10 p-4 text-sm text-[#BEC7FE] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4"
+          >
+            <div>
+              <h2
+                id="spectate-heading"
+                className="flex items-center gap-2 text-sm font-bold text-white"
+              >
+                <Eye className="h-4 w-4 text-[#22D3EE]" aria-hidden />
+                {t('dashboard.spectate.title')}
+              </h2>
+              <p className="mt-1 text-xs text-gray-400" data-testid="spectate-description">
+                {t('dashboard.spectate.description')}
+              </p>
+              <p className="mt-2 leading-relaxed" data-testid="dashboard-wallet-prompt">
+                {t('dashboard.walletPrompt.message')}
+              </p>
+            </div>
             <Link
               to="/connect"
               data-testid="dashboard-connect-now"
@@ -686,7 +726,7 @@ const Dashboard = () => {
             >
               {t('dashboard.walletPrompt.connectNow')}
             </Link>
-          </div>
+          </section>
         )}
 
         {!isLoading && isWalletConnected && <NetworkMismatchCard className="mb-6" />}
@@ -710,6 +750,16 @@ const Dashboard = () => {
               </button>
             }
           />
+        )}
+
+        {/* Spectators still get the live chart when no round is open. */}
+        {!isLoading && !isRoundActive && !isWalletConnected && (
+          <div
+            className="mt-6 min-h-[350px] rounded-xl border border-gray-700/30 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
+            data-testid="spectate-chart"
+          >
+            <PriceChart height={280} asset={normalizedAsset} entryPrice={null} onPriceUpdate={handlePriceUpdate} />
+          </div>
         )}
 
         {!isLoading && isRoundActive && (
@@ -789,21 +839,31 @@ const Dashboard = () => {
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
           data-testid="mobile-predict-bar"
         >
-          <button
-            type="button"
-            onClick={() => {
-              setPendingPrediction({
-                direction: 'UP',
-                stake: '',
-                isLegend: false,
-                ...(assetPoolSplit ?? {}),
-              });
-              setIsBetModalOpen(true);
-            }}
-            className="w-full py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm transition active:scale-[0.98] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22d3ee] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
-          >
-            Make Prediction
-          </button>
+          {isWalletConnected ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPendingPrediction({
+                  direction: 'UP',
+                  stake: '',
+                  isLegend: false,
+                  ...(assetPoolSplit ?? {}),
+                });
+                setIsBetModalOpen(true);
+              }}
+              className="w-full py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm transition active:scale-[0.98] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22d3ee] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
+            >
+              Make Prediction
+            </button>
+          ) : (
+            <Link
+              to="/connect"
+              data-testid="mobile-connect-cta"
+              className="flex w-full items-center justify-center py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm text-white no-underline min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22d3ee] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
+            >
+              {t('dashboard.spectate.connectToPredict')}
+            </Link>
+          )}
         </div>
       )}
 
