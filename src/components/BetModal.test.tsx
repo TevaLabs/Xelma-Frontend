@@ -224,6 +224,53 @@ describe('BetModal — transaction pending state (#163)', () => {
     });
   });
 
+  describe('Tab aria-controls / aria-labelledby relationships (#692)', () => {
+    it('Direction tab has id and aria-controls pointing at the direction panel', () => {
+      renderOpen();
+      const directionTab = screen.getByRole('tab', { name: /direction/i });
+      expect(directionTab).toHaveAttribute('id', 'bet-modal-tab-direction');
+      expect(directionTab).toHaveAttribute('aria-controls', 'bet-modal-panel-direction');
+    });
+
+    it('Precision tab has id and aria-controls pointing at the precision panel', () => {
+      renderOpen();
+      const precisionTab = screen.getByRole('tab', { name: /precision/i });
+      expect(precisionTab).toHaveAttribute('id', 'bet-modal-tab-precision');
+      expect(precisionTab).toHaveAttribute('aria-controls', 'bet-modal-panel-precision');
+    });
+
+    it('direction panel exists with role=tabpanel and aria-labelledby pointing at the direction tab', () => {
+      const { container } = renderOpen();
+      const panel = container.querySelector('#bet-modal-panel-direction');
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('role', 'tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'bet-modal-tab-direction');
+    });
+
+    it('precision panel exists with role=tabpanel and aria-labelledby pointing at the precision tab', () => {
+      const { container } = renderOpen();
+      const precisionTab = screen.getByRole('tab', { name: /precision/i });
+      fireEvent.click(precisionTab);
+      const panel = container.querySelector('#bet-modal-panel-precision');
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('role', 'tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'bet-modal-tab-precision');
+    });
+
+    it('active panel id matches the active tab aria-controls', () => {
+      const { container } = renderOpen(); // default mode is 'direction'
+      expect(container.querySelector('#bet-modal-panel-direction')).toBeInTheDocument();
+      expect(container.querySelector('#bet-modal-panel-precision')).not.toBeInTheDocument();
+    });
+
+    it('panel id switches to precision after clicking the Precision tab', () => {
+      const { container } = renderOpen();
+      fireEvent.click(screen.getByRole('tab', { name: /precision/i }));
+      expect(container.querySelector('#bet-modal-panel-precision')).toBeInTheDocument();
+      expect(container.querySelector('#bet-modal-panel-direction')).not.toBeInTheDocument();
+    });
+  });
+
   describe('Prediction Help Tooltip', () => {
     it('renders the help button in BetModal and opens on click displaying explanations', () => {
       renderOpen();

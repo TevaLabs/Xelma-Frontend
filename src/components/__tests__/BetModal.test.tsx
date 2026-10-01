@@ -341,6 +341,64 @@ describe('BetModal Component', () => {
   });
 
 
+  describe('Tab aria-controls / aria-labelledby relationships (#692)', () => {
+    it('Direction tab has id and aria-controls pointing at the direction panel', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+      const directionTab = screen.getByRole('tab', { name: /direction/i });
+      expect(directionTab).toHaveAttribute('id', 'bet-modal-tab-direction');
+      expect(directionTab).toHaveAttribute('aria-controls', 'bet-modal-panel-direction');
+    });
+
+    it('Precision tab has id and aria-controls pointing at the precision panel', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+      const precisionTab = screen.getByRole('tab', { name: /precision/i });
+      expect(precisionTab).toHaveAttribute('id', 'bet-modal-tab-precision');
+      expect(precisionTab).toHaveAttribute('aria-controls', 'bet-modal-panel-precision');
+    });
+
+    it('direction panel exists with role=tabpanel and aria-labelledby pointing at the direction tab', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+      const panel = container.querySelector('#bet-modal-panel-direction');
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('role', 'tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'bet-modal-tab-direction');
+    });
+
+    it('precision panel exists with role=tabpanel and aria-labelledby pointing at the precision tab', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+      fireEvent.click(screen.getByRole('tab', { name: /precision/i }));
+      const panel = container.querySelector('#bet-modal-panel-precision');
+      expect(panel).toBeInTheDocument();
+      expect(panel).toHaveAttribute('role', 'tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'bet-modal-tab-precision');
+    });
+
+    it('active panel id matches the active tab aria-controls', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} /> // default mode is 'direction'
+      );
+      expect(container.querySelector('#bet-modal-panel-direction')).toBeInTheDocument();
+      expect(container.querySelector('#bet-modal-panel-precision')).not.toBeInTheDocument();
+    });
+
+    it('panel id switches to precision after clicking the Precision tab', () => {
+      const { container } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+      fireEvent.click(screen.getByRole('tab', { name: /precision/i }));
+      expect(container.querySelector('#bet-modal-panel-precision')).toBeInTheDocument();
+      expect(container.querySelector('#bet-modal-panel-direction')).not.toBeInTheDocument();
+    });
+  });
+
   describe('precision mode inputs', () => {
     it('lets users enter an exact price in precision mode before submitting', async () => {
       vi.mocked(place_precision_prediction).mockResolvedValue({ txHash: 'tx_hash_precision', ledger: 123 });
