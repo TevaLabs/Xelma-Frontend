@@ -55,6 +55,16 @@ describe('RecentActivity', () => {
       expect(updownLabels).toHaveLength(2);
       expect(screen.getByText('precision')).toBeInTheDocument();
     });
+
+    it('renders formatted relative timestamps when provided', () => {
+      const itemsWithTime: RecentActivityItem[] = [
+        { id: '1', asset: 'BTC', result: 'Won', amount: 10, mode: 'updown', timestamp: new Date(Date.now() - 5 * 60 * 1000) },
+        { id: '2', asset: 'ETH', result: 'Lost', amount: 5, mode: 'precision', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+      ];
+      render(<RecentActivity items={itemsWithTime} />);
+      expect(screen.getByText(/5m ago/)).toBeInTheDocument();
+      expect(screen.getByText(/2h ago/)).toBeInTheDocument();
+    });
   });
 
   describe('empty state', () => {

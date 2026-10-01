@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Activity } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, formatRelativeTime } from '../lib/utils';
 import type { RecentActivityItem } from '../types';
 
 type FilterOption = 'all' | 'correct' | 'incorrect';
@@ -158,7 +158,14 @@ export default function RecentActivity({ items, isLoading, error, onRetry }: Rec
             >
               <div>
                 <p className="text-sm font-semibold text-white">{item.asset}</p>
-                <p className="text-xs uppercase text-gray-500">{item.mode}</p>
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="uppercase">{item.mode}</span>
+                  {(item.timestamp || item.createdAt) && (
+                    <span className="text-gray-400 font-normal">
+                      • {formatRelativeTime(item.timestamp || item.createdAt)}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-right">
                 <p

@@ -68,13 +68,7 @@ function renderPredictionRow(prediction: UserPrediction, key: string) {
           )}
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          {(() => {
-            const raw = prediction.createdAt;
-            if (typeof raw !== "string") return "Unknown time";
-            const date = new Date(raw);
-            if (Number.isNaN(date.getTime())) return "Unknown time";
-            return formatRelativeTime(date);
-          })()}
+          {formatRelativeTime(prediction.createdAt)}
         </p>
       </div>
 
