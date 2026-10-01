@@ -18,6 +18,7 @@
 
 import { clsx } from 'clsx';
 import { formatVXLM } from '../lib/utils';
+import DirectionIcon from './DirectionIcon';
 
 // ─── Inline SVG pattern data URIs ──────────────────────────────────────────
 //
@@ -26,14 +27,17 @@ import { formatVXLM } from '../lib/utils';
 // keeps the component self-contained (no external assets, no CSS class
 // collisions with Tailwind JIT, no extra svg elements polluting the DOM).
 //
-// UP  → blue (#2C4BFD) fill + lighter-blue (#BEC7FE) diagonal stripes
-// DOWN → rose (#F43F5E) fill + lighter-rose (#FDA4AF) diagonal stripes
+// UP  → blue (#2C4BFD) fill + lighter-blue (#BEC7FE) single diagonal stripes
+// DOWN → rose (#F43F5E) fill + lighter-rose (#FDA4AF) crosshatch (both diagonals)
+//
+// Single stripes vs crosshatch (issue #565) keep the two sides distinguishable
+// in grayscale, not just by hue — even when one side is a thin sliver.
 
 const STRIPE_UP =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%232C4BFD'/%3E%3Cpath d='M0 8L8 0M-2 2L2 -2M6 10L10 6' stroke='%23BEC7FE' stroke-width='2' opacity='0.5'/%3E%3C/svg%3E\")";
 
 const STRIPE_DOWN =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23F43F5E'/%3E%3Cpath d='M0 8L8 0M-2 2L2 -2M6 10L10 6' stroke='%23FDA4AF' stroke-width='2' opacity='0.5'/%3E%3C/svg%3E\")";
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23F43F5E'/%3E%3Cpath d='M0 8L8 0M-2 2L2 -2M6 10L10 6M8 8L0 0M10 2L6 -2M2 10L-2 6' stroke='%23FDA4AF' stroke-width='1.6' opacity='0.75'/%3E%3C/svg%3E\")";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -124,18 +128,22 @@ export function PoolSplitWidget({
               aria-hidden="true"
               data-testid="pool-split-up-bar"
               data-pattern="stripe-up"
+              data-stripe-style="diagonal"
             />
-            {/* DOWN segment — rose + diagonal-stripe pattern */}
+            {/* DOWN segment — rose + crosshatch pattern */}
             <div
               className="h-full transition-all duration-500"
               style={{
                 width: `${downPct}%`,
                 backgroundImage: STRIPE_DOWN,
                 backgroundSize: '8px 8px',
+                // White divider so the sides stay separated even when one is thin.
+                ...(upPct > 0 && downPct > 0 ? { borderLeft: '2px solid rgba(255,255,255,0.85)' } : {}),
               }}
               aria-hidden="true"
               data-testid="pool-split-down-bar"
               data-pattern="stripe-down"
+              data-stripe-style="crosshatch"
             />
           </>
         )}
@@ -154,11 +162,13 @@ export function PoolSplitWidget({
             style={isEmpty ? { backgroundColor: '#2C4BFD' } : { backgroundImage: STRIPE_UP, backgroundSize: '8px 8px' }}
             aria-hidden="true"
           />
+          <DirectionIcon direction="UP" className="h-3 w-3 shrink-0" />
           <span data-testid="pool-split-up-label">UP {isEmpty ? '—' : upPctStr}</span>
         </span>
 
         <span className="flex items-center gap-1.5 text-rose-400">
           <span data-testid="pool-split-down-label">DOWN {isEmpty ? '—' : downPctStr}</span>
+          <DirectionIcon direction="DOWN" className="h-3 w-3 shrink-0" />
           {/* DOWN legend dot */}
           <span
             className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"

@@ -381,3 +381,48 @@ describe('PredictionControls', () => {
     });
   });
 });
+
+describe('PredictionControls — direction is not conveyed by colour alone', () => {
+  it('shows an up-pointing triangle on UP and a down-pointing one on DOWN', () => {
+    render(<PredictionControls />);
+    const up = screen.getByRole('button', { name: /UP/i });
+    const down = screen.getByRole('button', { name: /DOWN/i });
+
+    expect(up.querySelector('svg[data-direction="up"]')).not.toBeNull();
+    expect(up.querySelector('svg[data-direction="down"]')).toBeNull();
+    expect(down.querySelector('svg[data-direction="down"]')).not.toBeNull();
+    expect(down.querySelector('svg[data-direction="up"]')).toBeNull();
+  });
+
+  it('keeps the visible UP / DOWN text next to the shapes', () => {
+    render(<PredictionControls />);
+
+    expect(within(screen.getByRole('button', { name: /UP/i })).getByText('UP')).toBeInTheDocument();
+    expect(within(screen.getByRole('button', { name: /DOWN/i })).getByText('DOWN')).toBeInTheDocument();
+  });
+
+  it('keeps the shapes decorative so the accessible names are unchanged', () => {
+    render(<PredictionControls />);
+
+    expect(screen.getByRole('button', { name: 'Predict price goes UP' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Predict price goes DOWN' })).toBeInTheDocument();
+    document.querySelectorAll('.prediction-card__button svg').forEach((svg) => {
+      expect(svg).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  it('no longer uses text arrows, so each button reads just UP or DOWN', () => {
+    render(<PredictionControls />);
+
+    expect(screen.getByRole('button', { name: /UP/i }).textContent).toBe('UP');
+    expect(screen.getByRole('button', { name: /DOWN/i }).textContent).toBe('DOWN');
+  });
+
+  it('shows the shapes both when the controls are enabled and when disabled', () => {
+    const { rerender } = render(<PredictionControls isWalletConnected isRoundActive walletBalance="100.00 XLM" />);
+    expect(document.querySelectorAll('.prediction-card__button svg')).toHaveLength(2);
+
+    rerender(<PredictionControls isWalletConnected={false} />);
+    expect(document.querySelectorAll('.prediction-card__button svg')).toHaveLength(2);
+  });
+});
