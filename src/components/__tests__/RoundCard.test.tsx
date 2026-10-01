@@ -1,6 +1,7 @@
 import { createRef } from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import RoundCard from '../RoundCard';
 import type { MockRound } from '../../types';
 import { useSettingsStore } from '../../store/useSettingsStore';
@@ -197,6 +198,23 @@ describe('RoundCard Component', () => {
 
       expect(screen.getByText('Round closing in under 30 seconds')).toBeInTheDocument();
       vi.useRealTimers();
+    });
+  });
+
+  describe('spectate mode', () => {
+    it('swaps the submit button for a Connect CTA linking to /connect', () => {
+      const onSubmit = vi.fn();
+      render(
+        <MemoryRouter>
+          <RoundCard round={defaultRound} onSubmitPrediction={onSubmit} isWalletConnected={false} />
+        </MemoryRouter>,
+      );
+
+      expect(screen.queryByTestId('round-card-submit')).not.toBeInTheDocument();
+      const cta = screen.getByTestId('round-card-connect');
+      expect(cta).toHaveAttribute('href', '/connect');
+      fireEvent.click(cta);
+      expect(onSubmit).not.toHaveBeenCalled();
     });
   });
 

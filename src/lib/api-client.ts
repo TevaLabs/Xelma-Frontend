@@ -16,6 +16,29 @@ export const educationApi = {
     getTip: () => apiFetch<Tip | null>('/api/education/tip'),
 };
 
+export type PoolAsset = 'BTC' | 'ETH' | 'XLM';
+
+export interface PoolStats {
+    asset: PoolAsset;
+    totalVolume: number;
+    /** Recent-volume series, oldest first, last point matches totalVolume. */
+    volumeTrend: number[];
+    upDownPool: {
+        total: number;
+        up: number;
+        down: number;
+    };
+    precisionPool: {
+        total: number;
+        predictions: number;
+    };
+    historicalYield: number;
+}
+
+export const poolsApi = {
+    getPools: (signal?: AbortSignal) => apiFetch<PoolStats[]>('/api/pools', { signal }),
+};
+
 export interface Round {
     id: string | number;
     status?: string;
