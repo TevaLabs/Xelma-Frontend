@@ -9,6 +9,8 @@ export type ValidationResult =
       error: "invalid-format" | "wrong-network" | "not-found" | "network-error";
     };
 
+export type { Horizon };
+
 /**
  * Validates a Stellar address format using StrKey.isValidEd25519PublicKey
  * @param address - The Stellar address to validate
@@ -59,6 +61,8 @@ export function checkNetworkPrefix(address: string, network: Network): boolean {
   return false;
 }
 
+export { StrKey };
+
 /**
  * Validates that an account exists on the specified network
  * @param address - The Stellar address to check
@@ -101,6 +105,8 @@ export async function checkAccountExists(
   }
 }
 
+export { Horizon as HorizonServer };
+
 /**
  * Comprehensive validation of a Stellar address with network-specific checks
  * @param address - The Stellar address to validate
@@ -138,3 +144,5 @@ export async function validateStellarAddress(
   // All checks passed
   return { valid: true, network };
 }
+
+export default validateStellarAddress;
