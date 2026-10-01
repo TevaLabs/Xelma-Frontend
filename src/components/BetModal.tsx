@@ -527,7 +527,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               <button
                 type="button"
                 role="tab"
+                id="bet-modal-tab-direction"
+                aria-controls="bet-modal-panel-direction"
                 aria-selected={mode === 'direction'}
+                tabIndex={mode === 'direction' ? 0 : -1}
                 onClick={() => { setMode('direction'); setFormError(''); }}
                 className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'direction' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
               >
@@ -536,7 +539,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               <button
                 type="button"
                 role="tab"
+                id="bet-modal-tab-precision"
+                aria-controls="bet-modal-panel-precision"
                 aria-selected={mode === 'precision'}
+                tabIndex={mode === 'precision' ? 0 : -1}
                 onClick={() => { setMode('precision'); setFormError(''); }}
                 className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'precision' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
               >
@@ -544,7 +550,15 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               </button>
             </div>
 
-            <div className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6">
+            {/* The form card serves as the active tabpanel.
+                Its id and aria-labelledby swap with the selected mode so each
+                tab button's aria-controls always resolves to the visible panel. */}
+            <div
+              id={mode === 'direction' ? 'bet-modal-panel-direction' : 'bet-modal-panel-precision'}
+              role="tabpanel"
+              aria-labelledby={mode === 'direction' ? 'bet-modal-tab-direction' : 'bet-modal-tab-precision'}
+              className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6"
+            >
               <div className="flex justify-between">
                 <span className="text-gray-400">Mode</span>
                 <span className="font-semibold">
