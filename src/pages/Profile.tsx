@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Edit3,
   Link as LinkIcon,
-  RefreshCw,
   Settings as SettingsIcon,
   ShieldCheck,
   UserRound,
@@ -17,7 +16,7 @@ import BalancesPanel from '../components/BalancesPanel';
 import { useProfileStore } from '../store/useProfileStore';
 import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
-import { Spinner } from '../components/ui/Spinner';
+import { LoadingState, ErrorState } from '../components/ui/StatusStates';
 
 const defaultProfile: ProfileSettingsValues = {
   avatarUrl: null,
@@ -146,35 +145,16 @@ export default function Profile() {
           </div>
 
           {isLoading && !profile ? (
-            <section
-              className="glass-card flex min-h-[420px] items-center justify-center rounded-xl p-8"
-            >
-              <div className="flex flex-col items-center gap-4 text-center">
-                <Spinner label="Loading profile" size="lg" />
-                <p className="text-sm font-semibold text-gray-300">Loading profile...</p>
-              </div>
-            </section>
+            <LoadingState label="Loading profile" />
           ) : (
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
               <section className="glass-card rounded-xl p-6 sm:p-8" aria-labelledby="profile-heading">
                 {error && (
-                  <div
-                    className="mb-6 flex flex-col gap-3 rounded-lg border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-100 sm:flex-row sm:items-center sm:justify-between"
-                    role="alert"
-                  >
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-300" aria-hidden />
-                      <p>{error}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void loadProfile()}
-                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300/30 px-3 py-2 text-xs font-bold text-red-50 hover:bg-red-400/10"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                      Retry
-                    </button>
-                  </div>
+                  <ErrorState
+                    message={error}
+                    onRetry={() => void loadProfile()}
+                    className="mb-6"
+                  />
                 )}
 
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
