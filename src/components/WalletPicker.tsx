@@ -49,16 +49,20 @@ function WalletRow({
     badge = 'Not installed';
   }
 
+  // Helper text explaining why a stub wallet can't be used yet. Adapters
+  // normally supply `comingSoonHint`; a stub without one still gets an
+  // explanation instead of a bare badge.
+  const helperText = isStub
+    ? (adapter.comingSoonHint ?? `${adapter.name} support isn't wired up yet — try Freighter for now.`)
+    : undefined;
+
   const badgeId = badge ? `wallet-badge-${adapter.id}` : undefined;
-  const hintId = isStub && adapter.comingSoonHint ? `wallet-hint-${adapter.id}` : undefined;
+  const hintId = helperText ? `wallet-hint-${adapter.id}` : undefined;
   const describedBy = [badgeId, hintId].filter(Boolean).join(' ') || undefined;
 
   const handleClick = () => {
     if (isStub) {
-      toast.info(`${adapter.name} is coming soon`, {
-        description:
-          adapter.comingSoonHint ?? `${adapter.name} support isn't wired up yet — try Freighter for now.`,
-      });
+      toast.info(`${adapter.name} is coming soon`, { description: helperText });
       return;
     }
     onSelect();
@@ -71,7 +75,7 @@ function WalletRow({
         onClick={handleClick}
         disabled={nativeDisabled}
         aria-disabled={isVisuallyDisabled}
-        title={isStub ? adapter.comingSoonHint : undefined}
+        title={helperText}
         aria-describedby={describedBy}
         className="flex w-full items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/70 px-4 py-3 text-left transition-colors enabled:hover:border-[#2C4BFD]/50 enabled:hover:bg-white/[0.03] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]"
       >
@@ -102,13 +106,16 @@ function WalletRow({
         )}
       </button>
       {hintId && (
-        // Kept outside the <button> so it augments the accessible
-        // *description* (via aria-describedby) without also bleeding into
-        // the button's accessible *name* — a name that quotes "Freighter"
-        // would otherwise collide with lookups for the real Freighter row.
-        <span id={hintId} className="sr-only">
-          {adapter.comingSoonHint}
-        </span>
+        // Visible helper text under the row, so keyboard and touch users see
+        // why the wallet is unavailable (a `title` tooltip only appears on
+        // mouse hover). Kept outside the <button> so it augments the
+        // accessible *description* (via aria-describedby) without also
+        // bleeding into the button's accessible *name* — a name that quotes
+        // "Freighter" would otherwise collide with lookups for the real
+        // Freighter row.
+        <p id={hintId} className="mt-1.5 px-1 text-xs leading-snug text-gray-400">
+          {helperText}
+        </p>
       )}
     </li>
   );
