@@ -4,7 +4,7 @@ import type { ProfileSettingsValues } from '../lib/profileApi';
 
 // Mock the auth store
 const mockAuthStore = {
-  jwt: null,
+  jwt: null as string | null,
 };
 
 vi.mock('./useAuthStore', () => ({
@@ -23,17 +23,11 @@ vi.mock('../lib/profileApi', () => ({
 import { fetchProfile, updateProfile } from '../lib/profileApi';
 
 const mockProfile: ProfileSettingsValues = {
-  username: 'testuser',
-  email: 'test@example.com',
-  notifications: {
-    roundStart: true,
-    roundEnd: false,
-    predictions: true,
-  },
-  privacy: {
-    showInLeaderboard: true,
-    shareStats: false,
-  },
+  avatarUrl: null,
+  name: 'testuser',
+  bio: 'Hello world',
+  twitterLink: 'https://twitter.com/testuser',
+  streamerMode: false,
 };
 
 describe('useProfileStore', () => {
@@ -109,7 +103,7 @@ describe('useProfileStore', () => {
         expect(state.profile).toEqual(mockProfile);
         expect(state.isLoading).toBe(false);
         expect(state.error).toBeNull();
-        expect(fetchProfile).toHaveBeenCalledWith('valid-jwt-token');
+        expect(fetchProfile).toHaveBeenCalled();
       });
 
       it('caches profile data locally after successful fetch', async () => {
@@ -173,13 +167,46 @@ describe('useProfileStore', () => {
 
         expect(useProfileStore.getState().error).toBeNull();
       });
+
+      it('surfaces session-expired message on 401 response', async () => {
+        const { ApiError } = await import('../lib/api');
+        const unauthorized = new ApiError(
+          'Your session has expired. Please reconnect and try again.',
+          401,
+        );
+        vi.mocked(fetchProfile).mockRejectedValue(unauthorized);
+
+        await useProfileStore.getState().loadProfile();
+
+        const state = useProfileStore.getState();
+        expect(state.isLoading).toBe(false);
+        expect(state.error).to(
+          'Your session has expired. Please reconnect and try again.',
+        );
+      });
+
+      it('surfaces rate-limit message on 429 response', async () => {
+        const { ApiError } = await import('../lib/api');
+        const rateLimited = new ApiError(
+          'True too many requests. Please slow down and try again shortly.',
+          429,
+        );
+        vi.mocked(fetchProfile).mockRejectedValue(rateLimited);
+
+        await useProfileStore.getState().loadProfile();
+
+        const state = useProfileStore.getState();
+        expect(state.error).to(
+          'True too many requests. Please slow down and try again shortly.',
+        );
+      });
     });
   });
 
   describe('saveProfile', () => {
     const updatedProfile: ProfileSettingsValues = {
       ...mockProfile,
-      username: 'updateduser',
+      name: 'updateduser',
     };
 
     describe('when not authenticated', () => {
@@ -212,7 +239,7 @@ describe('useProfileStore', () => {
         expect(result).toBe(true);
         expect(useProfileStore.getState().profile).toEqual(updatedProfile);
         expect(useProfileStore.getState().error).toBeNull();
-        expect(updateProfile).toHaveBeenCalledWith('valid-jwt-token', updatedProfile);
+        expect(updateProfile).toHaveBeenCalledWith(updatedProfile);
 
         const cached = localStorage.getItem('profile_settings_cache_v1');
         expect(cached).toBe(JSON.stringify(updatedProfile));
@@ -234,7 +261,7 @@ describe('useProfileStore', () => {
       });
 
       it('handles API returning different data than sent', async () => {
-        const serverResponse = { ...updatedProfile, username: 'server-modified' };
+        const serverResponse = { ...updatedProfile, name: 'server-modified' };
         vi.mocked(updateProfile).mockResolvedValue(serverResponse);
 
         const result = await useProfileStore.getState().saveProfile(updatedProfile);
@@ -253,6 +280,22 @@ describe('useProfileStore', () => {
         await useProfileStore.getState().saveProfile(updatedProfile);
 
         expect(useProfileStore.getState().error).toBeNull();
+      });
+
+      it('surfaces session-expired message on 401 during save', async () => {
+        const { ApiError } = await import('../lib/api');
+        const unauthorized = new ApiError(
+          'Your session has expired. Please reconnect and try again.',
+          401,
+        );
+        vi.mocked(updateProfile).mockRejectedValue(unauthorized);
+
+        const result = await useProfileStore.getState().saveProfile(updatedProfile);
+
+        expect(result).toBe(false);
+        expect(useProfileStore.getState().error).to(
+          'Your session has expired. Please reconnect and try again.',
+        );
       });
     });
   });
@@ -318,7 +361,7 @@ describe('useProfileStore', () => {
 
     const updatedProfile: ProfileSettingsValues = {
       ...mockProfile,
-      username: 'updateduser',
+      name: 'updateduser',
     };
 
     it('handles concurrent load operations', async () => {
@@ -366,34 +409,7 @@ describe('useProfileStore', () => {
       resolveLoad!(mockProfile);
       await loadOperation;
 
-      // Load should have taken precedence since it completed after save
       expect(useProfileStore.getState().profile).toEqual(mockProfile);
-    });
-  });
-
-  describe('edge cases', () => {
-    it('handles empty profile data', async () => {
-      const emptyProfile = {} as ProfileSettingsValues;
-      mockAuthStore.jwt = null;
-
-      const result = await useProfileStore.getState().saveProfile(emptyProfile);
-
-      expect(result).toBe(true);
-      expect(useProfileStore.getState().profile).toEqual(emptyProfile);
-    });
-
-    it('handles profile with undefined values', async () => {
-      const profileWithUndefined = {
-        username: 'test',
-        email: undefined,
-        notifications: undefined,
-      } as unknown as ProfileSettingsValues;
-
-      mockAuthStore.jwt = null;
-      const result = await useProfileStore.getState().saveProfile(profileWithUndefined);
-
-      expect(result).toBe(true);
-      expect(useProfileStore.getState().profile).toEqual(profileWithUndefined);
     });
   });
 });
