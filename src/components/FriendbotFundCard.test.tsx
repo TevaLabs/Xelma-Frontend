@@ -36,10 +36,18 @@ function setLowBalanceConnected() {
 describe('FriendbotFundCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     useWalletStore.getState().reset();
   });
 
   it('renders nothing when the wallet is not connected', () => {
+    const { container } = render(<FriendbotFundCard />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders nothing when FRIENDBOT_ENABLED is disabled', () => {
+    vi.stubEnv('VITE_FRIENDBOT_ENABLED', 'false');
+    setLowBalanceConnected();
     const { container } = render(<FriendbotFundCard />);
     expect(container).toBeEmptyDOMElement();
   });
@@ -51,6 +59,7 @@ describe('FriendbotFundCard', () => {
   });
 
   it('shows the fund CTA with the current low balance when connected and underfunded', () => {
+    vi.stubEnv('VITE_FRIENDBOT_ENABLED', 'true');
     setLowBalanceConnected();
     render(<FriendbotFundCard />);
 
@@ -60,6 +69,7 @@ describe('FriendbotFundCard', () => {
   });
 
   it('disables the button and shows a busy state while funding is in flight (issue #619: double-submit prevention)', async () => {
+    vi.stubEnv('VITE_FRIENDBOT_ENABLED', 'true');
     setLowBalanceConnected();
     let resolveFund: () => void = () => {};
     fundWithFriendbot.mockReturnValue(
@@ -89,6 +99,7 @@ describe('FriendbotFundCard', () => {
   });
 
   it('shows a success toast and refreshes the balance after funding succeeds', async () => {
+    vi.stubEnv('VITE_FRIENDBOT_ENABLED', 'true');
     setLowBalanceConnected();
     const refreshBalance = vi.fn().mockResolvedValue(undefined);
     useWalletStore.setState({ refreshBalance });
@@ -106,6 +117,7 @@ describe('FriendbotFundCard', () => {
   });
 
   it('shows the friendly rate-limit error message and does not refresh the balance on failure', async () => {
+    vi.stubEnv('VITE_FRIENDBOT_ENABLED', 'true');
     setLowBalanceConnected();
     const refreshBalance = vi.fn().mockResolvedValue(undefined);
     useWalletStore.setState({ refreshBalance });
@@ -122,6 +134,7 @@ describe('FriendbotFundCard', () => {
   });
 
   it('re-enables the button after a failed funding attempt so the user can retry', async () => {
+    vi.stubEnv('VITE_FRIENDBOT_ENABLED', 'true');
     setLowBalanceConnected();
     fundWithFriendbot.mockRejectedValue(new Error('Could not reach Friendbot. Check your connection and try again.'));
     render(<FriendbotFundCard />);
@@ -136,6 +149,7 @@ describe('FriendbotFundCard', () => {
   });
 
   it('links to the Friendbot faucet directly for the connected address', () => {
+    vi.stubEnv('VITE_FRIENDBOT_ENABLED', 'true');
     setLowBalanceConnected();
     render(<FriendbotFundCard />);
 
