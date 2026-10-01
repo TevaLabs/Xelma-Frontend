@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo, type FC } from 'react';
 
 type Props = {
   address?: string | null;
@@ -39,7 +39,7 @@ function initialsFromName(name: string): string {
  * Deterministic SVG Identicon generated from Stellar public G-addresses.
  * Fallback to initials if address is absent.
  */
-export const IdenticonAvatar: React.FC<Props> = ({
+export const IdenticonAvatar: FC<Props> = ({
   address,
   name = '',
   className = 'h-full w-full',

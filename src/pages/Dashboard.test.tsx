@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import '../i18n';
 import i18n from '../i18n';
@@ -220,10 +220,27 @@ vi.mock('../components/EndRoundModal', () => ({
 }));
 
 vi.mock('../components/BetModal', () => ({
-  default: ({ isOpen, onClose, onSuccess }: any) => (
+  default: ({ isOpen, onClose, onSuccess, onPending, onPredictionError }: any) => (
     <div data-testid="bet-modal" data-open={isOpen}>
       <button onClick={onClose} data-testid="close-bet-modal">Close</button>
       <button onClick={() => onSuccess('tx-123')} data-testid="success-bet-modal">Success</button>
+      <button
+        onClick={() =>
+          onPending?.({
+            id: 'optimistic-1',
+            asset: 'BTC',
+            mode: 'updown',
+            stake: 10,
+            status: 'PENDING',
+          })
+        }
+        data-testid="pending-bet-modal"
+      >
+        Pending
+      </button>
+      <button onClick={() => onPredictionError?.()} data-testid="error-bet-modal">
+        Error
+      </button>
     </div>
   ),
 }));
@@ -328,6 +345,96 @@ describe('Dashboard', () => {
 
       expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
       expect(screen.getByTestId('share-rounds-btn')).toHaveTextContent(/Share|dashboard\.share\.button/i);
+    });
+  });
+
+  describe('spectate mode (wallet disconnected)', () => {
+    const disconnect = () =>
+      vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockWalletStore, status: 'idle', publicKey: null };
+        return selectFromStore(selector, store);
+      }) as never);
+
+    it('renders the spectate card with a Connect CTA routed to /connect', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('spectate-card')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /spectate mode/i })).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-connect-now')).toHaveAttribute('href', '/connect');
+    });
+
+    it('keeps the chart, timeline and rounds visible', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getAllByTestId('round-card').length).toBeGreaterThan(0);
+    });
+
+    it('replaces round submit buttons with Connect CTAs', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      expect(screen.queryByTestId('round-card-submit')).not.toBeInTheDocument();
+      const ctas = screen.getAllByTestId('round-card-connect');
+      expect(ctas.length).toBeGreaterThan(0);
+      expect(ctas[0]).toHaveAttribute('href', '/connect');
+      expect(screen.getByTestId('mobile-connect-cta')).toHaveAttribute('href', '/connect');
+    });
+
+    it('does not open the bet modal when a spectator triggers a prediction', () => {
+      disconnect();
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      expect(screen.getByTestId('bet-modal')).toHaveAttribute('data-open', 'false');
+    });
+
+    it('shows the spectate card and chart separately from the empty-rounds state', () => {
+      disconnect();
+      vi.mocked(useRoundStore).mockImplementation((selector: any) => {
+        const store = { ...mockRoundStore, isRoundActive: false };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('spectate-card')).toBeInTheDocument();
+      expect(screen.getByTestId('spectate-chart')).toBeInTheDocument();
+      expect(screen.getByText(/no active rounds/i)).toBeInTheDocument();
+    });
+
+    it('does not show the spectate card when the wallet is connected', () => {
+      render(<Dashboard />);
+
+      expect(screen.queryByTestId('spectate-card')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mobile-connect-cta')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('density toggle', () => {
+    it('defaults to comfortable density', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByRole('main')).toHaveAttribute('data-density', 'comfortable');
+      expect(screen.getByTestId('density-toggle')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('switches to compact and updates the shared settings store', () => {
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('density-toggle'));
+
+      expect(screen.getByRole('main')).toHaveAttribute('data-density', 'compact');
+      expect(useSettingsStore.getState().compactMode).toBe(true);
+    });
+
+    it('reflects a compact preference set from Settings', () => {
+      useSettingsStore.setState({ compactMode: true });
+      render(<Dashboard />);
+
+      expect(screen.getByRole('main')).toHaveAttribute('data-density', 'compact');
+      expect(screen.getByTestId('density-toggle')).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
@@ -595,6 +702,65 @@ describe('Dashboard', () => {
       fireEvent.click(closeButton);
 
       expect(modal).toHaveAttribute('data-open', 'false');
+    });
+  });
+
+  describe('optimistic pending prediction row (issue #615)', () => {
+    it('shows a pending row in Recent Predictions immediately, without waiting for an API refetch', async () => {
+      render(<Dashboard />);
+      // Let the on-mount fetchActivities/fetchStats settle before recording
+      // the baseline call count.
+      await act(async () => {});
+      const callsBeforePending = vi.mocked(predictionsApi.getUserHistory).mock.calls.length;
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      fireEvent.click(screen.getByTestId('pending-bet-modal'));
+
+      expect(screen.getByText('Pending...')).toBeInTheDocument();
+      // The row appeared purely from local state — no additional history
+      // fetch was triggered to produce it.
+      expect(predictionsApi.getUserHistory).toHaveBeenCalledTimes(callsBeforePending);
+    });
+
+    it('does not show a duplicate row once the history refetch after success returns the confirmed prediction', async () => {
+      vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([]);
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      fireEvent.click(screen.getByTestId('pending-bet-modal'));
+      expect(screen.getByText('Pending...')).toBeInTheDocument();
+
+      // The confirmed prediction is now what the API returns on refetch.
+      vi.mocked(predictionsApi.getUserHistory).mockResolvedValue([
+        { id: 'optimistic-1', asset: 'BTC', mode: 'updown', stake: 10, isWin: true },
+      ] as never);
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('success-bet-modal'));
+      });
+
+      // Only one row for this prediction: the optimistic "Pending..." row is
+      // gone, replaced by exactly one confirmed row, not both at once.
+      expect(screen.queryByText('Pending...')).not.toBeInTheDocument();
+      const activityList = screen.getByRole('heading', { name: 'Recent Predictions' })
+        .closest('section')!;
+      expect(within(activityList).getAllByRole('listitem')).toHaveLength(1);
+      expect(within(activityList).getByText('Correct')).toBeInTheDocument();
+    });
+
+    it('marks the row failed on the error path, and removes it once the modal is dismissed', () => {
+      render(<Dashboard />);
+
+      fireEvent.click(screen.getByTestId('submit-prediction'));
+      fireEvent.click(screen.getByTestId('pending-bet-modal'));
+      expect(screen.getByText('Pending...')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('error-bet-modal'));
+      expect(screen.getByText('Failed')).toBeInTheDocument();
+      expect(screen.queryByText('Pending...')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('close-bet-modal'));
+      expect(screen.queryByText('Failed')).not.toBeInTheDocument();
     });
   });
 

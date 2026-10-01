@@ -29,10 +29,16 @@ export interface SettingsState {
   streamerMode: boolean;
   /** Override for `prefers-reduced-motion`. See {@link MotionPreference}. */
   motionPreference: MotionPreference;
+  /**
+   * Dashboard density. `true` tightens padding and gaps on narrow screens.
+   * Shared by the Dashboard and Settings toggles so they stay in sync.
+   */
+  compactMode: boolean;
   setShowNetworkBadge: (value: boolean) => void;
   setSoundEnabled: (value: boolean) => void;
   setStreamerMode: (value: boolean) => void;
   setMotionPreference: (value: MotionPreference) => void;
+  setCompactMode: (value: boolean) => void;
   resetToDefaults: () => void;
 }
 
@@ -44,12 +50,14 @@ export const DEFAULT_SETTINGS: Omit<
   | 'setSoundEnabled'
   | 'setStreamerMode'
   | 'setMotionPreference'
+  | 'setCompactMode'
   | 'resetToDefaults'
 > = {
   showNetworkBadge: true,
   soundEnabled: false,
   streamerMode: false,
   motionPreference: 'system',
+  compactMode: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -60,6 +68,7 @@ export const useSettingsStore = create<SettingsState>()(
       setSoundEnabled: (value) => set({ soundEnabled: value }),
       setStreamerMode: (value) => set({ streamerMode: value }),
       setMotionPreference: (value) => set({ motionPreference: value }),
+      setCompactMode: (value) => set({ compactMode: value }),
       resetToDefaults: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {
@@ -72,6 +81,7 @@ export const useSettingsStore = create<SettingsState>()(
         soundEnabled: state.soundEnabled,
         streamerMode: state.streamerMode,
         motionPreference: state.motionPreference,
+        compactMode: state.compactMode,
       }),
     },
   ),
@@ -84,3 +94,4 @@ export const selectShowNetworkBadge = (s: SettingsState) => s.showNetworkBadge;
 export const selectSoundEnabled = (s: SettingsState) => s.soundEnabled;
 export const selectStreamerMode = (s: SettingsState) => s.streamerMode;
 export const selectMotionPreference = (s: SettingsState) => s.motionPreference;
+export const selectCompactMode = (s: SettingsState) => s.compactMode;

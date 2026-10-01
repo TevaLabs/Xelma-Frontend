@@ -65,6 +65,18 @@ describe('useSettingsStore', () => {
       expect(useSettingsStore.getState().streamerMode).toBe(true);
     });
 
+    it('flips the compact-mode preference and defaults to comfortable', () => {
+      expect(useSettingsStore.getState().compactMode).toBe(false);
+      useSettingsStore.getState().setCompactMode(true);
+      expect(useSettingsStore.getState().compactMode).toBe(true);
+    });
+
+    it('persists compact mode to localStorage so it survives a reload', () => {
+      useSettingsStore.getState().setCompactMode(true);
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      expect(JSON.parse(raw as string).state.compactMode).toBe(true);
+    });
+
     it('only accepts the three documented motion-preference values', () => {
       const set = useSettingsStore.getState().setMotionPreference;
       for (const value of ['system', 'reduce', 'no-preference'] as const) {

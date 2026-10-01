@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 import PriceChart from './PriceChart';
 import type { Asset } from '../types/asset';
 
@@ -10,6 +10,7 @@ vi.mock('lightweight-charts', () => ({
     Solid: 'solid',
   },
   LineSeries: 'Line',
+  CandlestickSeries: 'Candlestick',
 }));
 
 // Mock api-client
@@ -32,10 +33,16 @@ vi.mock('../hooks/useConnectionStatus', () => ({
   useConnectionStatus: vi.fn(),
 }));
 
+// Keep the chart toggle tests deterministic without depending on the settings store.
+vi.mock('../hooks/useReducedMotion', () => ({
+  useReducedMotion: vi.fn(),
+}));
+
 import { createChart } from 'lightweight-charts';
 import { priceApi } from '../lib/api-client';
 import { socketService } from '../lib/socket';
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 describe('PriceChart', () => {
   const mockChartApi = {
@@ -84,6 +91,12 @@ describe('PriceChart', () => {
       isConnected: true,
       status: 'connected',
     });
+    (useReducedMotion as any).mockReturnValue({
+      reduced: false,
+      systemPreference: false,
+      override: 'system',
+    });
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -171,6 +184,47 @@ describe('PriceChart', () => {
           lineWidth: 3,
         })
       );
+    });
+  });
+
+  describe('Chart mode toggle', () => {
+    it('switches to a candlestick series without recreating the chart and persists the choice', () => {
+      render(<PriceChart height={300} />);
+
+      const toggle = screen.getByRole('button', { name: /switch to candlestick chart/i });
+      fireEvent.click(toggle);
+
+      expect(mockChartApi.removeSeries).toHaveBeenCalledWith(mockSeriesApi);
+      expect(mockChartApi.addSeries).toHaveBeenLastCalledWith(
+        'Candlestick',
+        expect.objectContaining({ upColor: '#22C55E', downColor: '#EC4899' }),
+      );
+      expect(createChart).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem('xelma-price-chart-mode')).toBe('candlestick');
+      expect(screen.getByRole('button', { name: /switch to line chart/i })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('restores the persisted candlestick preference on mount', () => {
+      localStorage.setItem('xelma-price-chart-mode', 'candlestick');
+
+      render(<PriceChart height={300} />);
+
+      expect(mockChartApi.addSeries).toHaveBeenCalledWith(
+        'Candlestick',
+        expect.any(Object),
+      );
+    });
+
+    it('removes toggle animations when reduced motion is preferred', () => {
+      (useReducedMotion as any).mockReturnValue({
+        reduced: true,
+        systemPreference: true,
+        override: 'system',
+      });
+
+      render(<PriceChart height={300} />);
+
+      expect(screen.getByRole('button', { name: /switch to candlestick chart/i })).toHaveClass('transition-none');
     });
   });
 
