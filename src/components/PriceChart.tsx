@@ -19,6 +19,7 @@ import { LoadingState, ErrorState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { useReducedMotion } from "../hooks/useReducedMotion";
 
 interface PriceChartProps {
   height?: number;
@@ -136,6 +137,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [chartMode, setChartMode] = useState<ChartMode>(getStoredChartMode);
+  const { reduced: prefersReducedMotion } = useReducedMotion();
 
   // y-coordinate of the last data point for the badge
   const [badgeY, setBadgeY] = useState<number | null>(null);
@@ -630,12 +632,17 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
             <button
               type="button"
               onClick={toggleChartMode}
-              className="relative flex items-center rounded-full bg-[#1e3a5f]/60 p-0.5 text-xs font-medium transition-colors hover:bg-[#1e3a5f]/80"
+              aria-pressed={chartMode === "candlestick"}
+              className={`relative flex items-center rounded-full bg-[#1e3a5f]/60 p-0.5 text-xs font-medium hover:bg-[#1e3a5f]/80 ${
+                prefersReducedMotion ? "transition-none" : "transition-colors"
+              }`}
               title={chartMode === "line" ? "Switch to candlestick chart" : "Switch to line chart"}
               aria-label={chartMode === "line" ? "Switch to candlestick chart" : "Switch to line chart"}
             >
               <span
-                className={`px-2.5 py-1 rounded-full transition-all duration-200 ${chartMode === "line" ? "bg-white text-[#0a1929] shadow-sm" : "text-white/70 hover:text-white"}`}
+                className={`px-2.5 py-1 rounded-full ${
+                  prefersReducedMotion ? "transition-none" : "transition-all duration-200"
+                } ${chartMode === "line" ? "bg-white text-[#0a1929] shadow-sm" : "text-white/70 hover:text-white"}`}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline-block mr-1">
                   <path d="M1 13L4 8L7 10L10 3L13 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -643,7 +650,9 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
                 Line
               </span>
               <span
-                className={`px-2.5 py-1 rounded-full transition-all duration-200 ${chartMode === "candlestick" ? "bg-white text-[#0a1929] shadow-sm" : "text-white/70 hover:text-white"}`}
+                className={`px-2.5 py-1 rounded-full ${
+                  prefersReducedMotion ? "transition-none" : "transition-all duration-200"
+                } ${chartMode === "candlestick" ? "bg-white text-[#0a1929] shadow-sm" : "text-white/70 hover:text-white"}`}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="inline-block mr-1">
                   <rect x="2" y="5" width="3" height="7" rx="0.5" fill="currentColor"/>

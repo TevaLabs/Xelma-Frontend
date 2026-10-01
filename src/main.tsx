@@ -22,10 +22,18 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
-)
+async function enableMocking() {
+  if (!import.meta.env.DEV || import.meta.env.VITE_ENABLE_MSW !== 'true') return;
+  const { startMockWorker } = await import('./test/msw/browser');
+  await startMockWorker();
+}
+
+enableMocking().then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </StrictMode>,
+  );
+});

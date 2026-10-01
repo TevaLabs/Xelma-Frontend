@@ -75,6 +75,11 @@ const es = {
       message: 'Conecta tu cartera para enviar predicciones.',
       connectNow: 'Conectar ahora',
     },
+    spectate: {
+      title: 'Modo espectador',
+      description: 'Observa precios en vivo, líneas de tiempo y rondas abiertas. Conecta una cartera para enviar predicciones.',
+      connectToPredict: 'Conecta tu cartera para predecir',
+    },
     emptyState: {
       noActiveRounds: {
         title: 'No hay rondas activas',
