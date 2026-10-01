@@ -99,6 +99,10 @@ describe('EndRoundModal sharing functionality', () => {
       createRadialGradient: vi.fn().mockReturnValue({
         addColorStop: vi.fn(),
       }),
+      createLinearGradient: vi.fn().mockReturnValue({
+        addColorStop: vi.fn(),
+      }),
+      measureText: vi.fn().mockReturnValue({ width: 0 }),
       fillRect: vi.fn(),
       beginPath: vi.fn(),
       arc: vi.fn(),
@@ -107,6 +111,9 @@ describe('EndRoundModal sharing functionality', () => {
       fillText: vi.fn(),
       roundRect: vi.fn(),
       stroke: vi.fn(),
+      scale: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
     }) as any;
 
     HTMLCanvasElement.prototype.toBlob = vi.fn(function (this: HTMLCanvasElement, callback) {
@@ -116,6 +123,7 @@ describe('EndRoundModal sharing functionality', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('renders a continue button', () => {
@@ -127,5 +135,30 @@ describe('EndRoundModal sharing functionality', () => {
     render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
     expect(screen.getByText('+$42.00')).toBeInTheDocument();
     expect(screen.getByText(result.tip)).toBeInTheDocument();
+  });
+
+  it('shares a PNG image of the round result card', async () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /share result/i }));
+
+    await waitFor(() => expect(navigator.share).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(navigator.share).mock.calls[0][0];
+    expect(payload.files).toHaveLength(1);
+    expect(payload.files?.[0].type).toBe('image/png');
+    expect(payload.files?.[0].size).toBeGreaterThan(0);
+  });
+
+  it('downloads the round result card as a PNG', async () => {
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /download result image/i }));
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+    clickSpy.mockRestore();
   });
 });
