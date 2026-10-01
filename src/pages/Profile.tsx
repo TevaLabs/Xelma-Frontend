@@ -59,12 +59,19 @@ function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
   const displayName = profile.name.trim() || 'Player';
   const walletAddress = useWalletStore((s) => s.publicKey);
 
+  // Uploaded avatars are meaningful images — they identify the player — so they
+  // get a descriptive alt even though the name also appears next to them (the
+  // avatar can be the only identity signal on small screens or truncated
+  // layouts). Only use alt="" when an avatar is purely decorative (i.e. its
+  // information is fully duplicated by adjacent text that assistive tech
+  // already announces); if you ever make one decorative, document that
+  // decision inline right here.
   return (
     <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-[#BEC7FE]/20 bg-[#111827] shadow-lg shadow-[#2C4BFD]/10 sm:h-32 sm:w-32">
       {profile.avatarUrl ? (
         <img
           src={profile.avatarUrl}
-          alt=""
+          alt={`Profile photo of ${displayName}`}
           className="h-full w-full object-cover"
           draggable={false}
         />
