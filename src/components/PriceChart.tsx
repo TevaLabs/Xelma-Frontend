@@ -160,6 +160,33 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const resizeTimeoutRef = useRef<number | null>(null);
   const socketUpdateTimeoutRef = useRef<number | null>(null);
   const pendingDataRef = useRef<PricePoint[]>([]);
+  const lastRenderedPriceRef = useRef<number | null>(null);
+  const prefersReducedMotionRef = useRef(prefersReducedMotion);
+  const priceFlashRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    prefersReducedMotionRef.current = prefersReducedMotion;
+  }, [prefersReducedMotion]);
+
+  const flashLastPrice = useCallback((price: number) => {
+    const previousPrice = lastRenderedPriceRef.current;
+    lastRenderedPriceRef.current = price;
+
+    if (
+      prefersReducedMotionRef.current ||
+      previousPrice === null ||
+      previousPrice === price ||
+      !priceFlashRef.current
+    ) {
+      return;
+    }
+
+    const directionClass = price > previousPrice ? "price-flash-up" : "price-flash-down";
+    const flashElement = priceFlashRef.current;
+    flashElement.classList.remove("price-flash-up", "price-flash-down");
+    void flashElement.offsetWidth;
+    flashElement.classList.add(directionClass);
+  }, []);
 
   // Entry-price marker refs
   const entryPriceLineRef = useRef<IPriceLine | null>(null);
@@ -423,6 +450,10 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
         onPriceUpdateRef.current(latest as number);
       }
 
+      if (Number.isFinite(latest)) {
+        flashLastPrice(latest as number);
+      }
+
       if (updatePositionsRef.current) {
         updatePositionsRef.current();
       }
@@ -525,6 +556,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
     // Reset and refresh chart state when the selected asset changes.
+    lastRenderedPriceRef.current = null;
     setData([]);
     setIsLoading(true);
     setLoadError(null);
@@ -746,6 +778,8 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
               />
               {/* The badge box */}
               <div
+                ref={priceFlashRef}
+                data-testid="price-last-tick"
                 className="font-bold text-xs px-2 py-1 rounded shadow-sm tabular-nums whitespace-nowrap relative"
                 style={{
                   background: "rgba(255,255,255,0.98)",
