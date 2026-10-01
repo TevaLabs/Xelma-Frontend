@@ -14,7 +14,7 @@ type UseFocusTrapOptions = {
   onEscape?: () => void;
   initialFocusRef?: RefObject<HTMLElement | null>;
   restoreFocus?: boolean;
-  restoreFocusRef?: RefObject<HTMLElement | null>;
+  restoreFocusRef?: RefObject | null>;
 };
 
 function getFocusable(container: HTMLElement) {
