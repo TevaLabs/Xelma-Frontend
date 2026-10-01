@@ -1,31 +1,50 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock socket.io-client before importing the socket service
+const ioMocks = vi.hoisted(() => ({
+  options: null as any,
+}));
 vi.mock('socket.io-client', () => {
-  const mockSocket = {
+  const mockSocket: any = {
     connected: false,
     connect: vi.fn(),
-    disconnect: vi.fn(),
+    disconnect: vi.fn(() => {
+      mockSocket.connected = false;
+    }),
     on: vi.fn(),
     off: vi.fn(),
     emit: vi.fn(),
   };
   
   return {
-    io: vi.fn(() => mockSocket),
+    io: vi.fn((url, options) => {
+      ioMocks.options = options;
+      return mockSocket;
+    }),
+    getIoOptions: () => ioMocks.options,
   };
 });
 
 // Mock auth store
+const mocks = vi.hoisted(() => ({
+  subscribeCb: null as any,
+  subscribe: vi.fn((cb) => {
+    mocks.subscribeCb = cb;
+    return () => {};
+  }),
+}));
+
 vi.mock('../../store/useAuthStore', () => ({
   useAuthStore: {
     getState: vi.fn(() => ({ jwt: 'mock-token' })),
+    subscribe: mocks.subscribe,
   },
 }));
 
 // Import after mocking
 import { socketService, normalizeSocketUrl, type ConnectionState } from '../socket';
-import { io } from 'socket.io-client';
+import { io, getIoOptions } from 'socket.io-client';
+import { useAuthStore } from '../../store/useAuthStore';
 
 // Get the mocked socket instance
 const mockSocket = (io as any)();
@@ -308,6 +327,42 @@ describe('Socket Service', () => {
       }
       
       unsubscribe();
+    });
+  });
+  describe('Auth Integration', () => {
+    it('should force reconnect when JWT changes and socket is connected', () => {
+      vi.useFakeTimers();
+      mockSocket.connected = true;
+      const subscribeCallback = mocks.subscribeCb;
+      if (subscribeCallback) {
+        subscribeCallback({ jwt: 'new-token' }, { jwt: 'old-token' });
+        expect(mockSocket.disconnect).toHaveBeenCalled();
+        vi.advanceTimersByTime(100);
+        expect(mockSocket.connect).toHaveBeenCalled();
+      }
+      vi.useRealTimers();
+    });
+
+    it('should not force reconnect when JWT is unchanged', () => {
+      mockSocket.connected = true;
+      mockSocket.disconnect.mockClear();
+      const subscribeCallback = mocks.subscribeCb;
+      if (subscribeCallback) {
+        subscribeCallback({ jwt: 'same-token' }, { jwt: 'same-token' });
+        expect(mockSocket.disconnect).not.toHaveBeenCalled();
+      }
+    });
+
+    it('should read latest JWT on auth callback', () => {
+      (useAuthStore.getState as any).mockReturnValue({ jwt: 'latest-token' });
+      
+      const options = ioMocks.options;
+      if (options && options.auth) {
+        const authCallback = options.auth;
+        const cb = vi.fn();
+        authCallback(cb);
+        expect(cb).toHaveBeenCalledWith({ token: 'latest-token' });
+      }
     });
   });
 });
