@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, WifiOff } from "lucide-react";
+import { MessageCircle, WifiOff, RefreshCw } from "lucide-react";
 import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useFocusTrap } from "../hooks/useFocusTrap";
@@ -115,7 +115,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
-  const { isConnected } = useConnectionStatus();
+  const { isConnected, status, reconnect } = useConnectionStatus();
   // Round-scoped chat channel: derived from the active round so users in
   // round #42 only see round #42 messages. Falls back to CHAT_CHANNEL_FALLBACK
   // when there is no active round (issue #185).
@@ -235,6 +235,10 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     setIsMobileOpen((prev) => !prev);
   };
 
+  const isReconnecting = status === "reconnecting";
+  const isDisconnected = !isConnected;
+  const canSend = isConnected && inputValue.trim().length > 0 && inputValue.length <= MAX_MESSAGE_LENGTH;
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -313,6 +317,20 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
           </div>
         </header>
 
+        {/* Connection status live region */}
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {isDisconnected
+            ? isReconnecting
+              ? "Chat is reconnecting"
+              : "Chat is disconnected"
+            : "Chat is connected"}
+        </div>
+
         {/* Messages */}
         <div 
           ref={messagesContainerRef}
@@ -364,13 +382,29 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
         {/* Input Area */}
         <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] glass-card border-t border-x-0 border-b-0 rounded-none shrink-0">
-          {!isConnected && (
+          {isDisconnected && (
             <div
-              className="mb-2 flex items-center justify-center gap-1.5 text-xs text-red-400"
-              role="status"
+              className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-red-400/20 bg-red-400/5 px-2.5 py-1.5 text-xs text-red-400"
             >
-              <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
-              Chat is offline - messages cannot be sent
+              <span className="flex items-center gap-1.5">
+                <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+                {isReconnecting
+                  ? "Reconnecting to chat..."
+                  : "Chat is offline - messages cannot be sent"}
+              </span>
+              <button
+                type="button"
+                onClick={reconnect}
+                disabled={isReconnecting}
+                className="flex items-center gap-1 rounded-md border border-red-400/30 px-2 py-0.5 font-medium text-red-300 transition-colors hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Reconnect to chat"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 ${isReconnecting ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                Reconnect
+              </button>
             </div>
           )}
           <div className="flex items-end gap-2 p-2 bg-white/5 border border-white/10 rounded-xl">
@@ -381,7 +415,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-white placeholder-gray-500 resize-none overflow-y-auto py-2 min-h-[36px] max-h-[120px] ${
                 !isConnected ? 'opacity-50' : ''
               }`}
-              placeholder={isConnected ? "Type a message..." : "Chat offline..."}
+              placeholder={isConnected ? "Type a message..." : isReconnecting ? "Reconnecting..." : "Chat offline..."}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
@@ -390,9 +424,9 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
             />
             <button
               className={`btn-primary flex items-center justify-center min-w-[36px] w-9 h-9 p-0 rounded-lg shrink-0 ${
-                !isConnected || inputValue.length > MAX_MESSAGE_LENGTH ? 'opacity-50 cursor-not-allowed' : ''
+                !canSend ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              disabled={!isConnected || inputValue.length > MAX_MESSAGE_LENGTH}
+              disabled={!canSend}
               onClick={handleSendMessage}
               aria-label="Send message"
             >
