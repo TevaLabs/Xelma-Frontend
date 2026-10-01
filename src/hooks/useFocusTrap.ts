@@ -23,6 +23,17 @@ function getFocusable(container: HTMLElement) {
   );
 }
 
+/**
+ * A `focus()` call is a silent no-op on elements that are disabled, hidden from
+ * assistive tech, or no longer mounted. Those targets must not be used for
+ * initial focus, otherwise focus stays on the trigger outside the trap.
+ */
+function canReceiveFocus(el: HTMLElement | null | undefined): el is HTMLElement {
+  if (!el || !el.isConnected) return false;
+  if (el.hasAttribute("disabled")) return false;
+  return el.getAttribute("aria-hidden") !== "true";
+}
+
 export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
   {
@@ -46,7 +57,14 @@ export function useFocusTrap(
     if (!container) return;
 
     const focusable = getFocusable(container);
-    const initialTarget = initialFocusRef?.current ?? focusable[0] ?? container;
+    // Prefer the caller's target (e.g. a composer textarea), but fall back to
+    // the first focusable element and finally the container itself so focus
+    // always lands inside the trap - even when the preferred target is
+    // disabled, like the chat composer while the socket is offline.
+    const preferredTarget = initialFocusRef?.current ?? null;
+    const initialTarget = canReceiveFocus(preferredTarget)
+      ? preferredTarget
+      : focusable[0] ?? container;
     window.setTimeout(() => initialTarget.focus(), 0);
 
     const restoreTarget = restoreFocusRef?.current;

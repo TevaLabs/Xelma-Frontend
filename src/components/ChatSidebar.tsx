@@ -161,6 +161,10 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   useFocusTrap(sidebarRef, {
     active: isMobileOpen,
     onEscape: () => setIsMobileOpen(false),
+    // Opening the mobile sheet should drop the user straight into the
+    // composer, and closing it (Escape or overlay) returns focus to the
+    // floating toggle that opened it. Tab cycling stays in useFocusTrap.
+    initialFocusRef: textareaRef,
     restoreFocusRef: mobileToggleRef,
   });
 
@@ -239,6 +243,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     <>
       {/* Mobile Overlay */}
       <div
+        data-testid="chat-sheet-overlay"
         className={`md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 ${MODAL_OVERLAY} ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
         onClick={() => setIsMobileOpen(false)}
         aria-hidden="true"
@@ -280,12 +285,16 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         </svg>
       </button>
 
-      {/* Sidebar / Bottom Sheet */}
+      {/* Sidebar / Bottom Sheet.
+          The sheet is programmatically focusable via tabIndex={-1} so the
+          focus trap can still park focus on it when it holds no focusable
+          control (for example while the composer is disabled offline). */}
       <aside
         ref={sidebarRef}
         role={isMobileOpen ? "dialog" : "complementary"}
         aria-modal={isMobileOpen || undefined}
         aria-label="Live chat"
+        tabIndex={-1}
         className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
         bg-[#0A0F1A] border-[#BEC7FE]/10
         

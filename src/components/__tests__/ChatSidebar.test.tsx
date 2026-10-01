@@ -172,6 +172,16 @@ describe('ChatSidebar — offline guard and character limit', () => {
 });
 
 describe('ChatSidebar — mobile sheet focus order', () => {
+  afterEach(() => {
+    vi.mocked(useConnectionStatus).mockReturnValue({
+      status: 'connected',
+      isConnected: true,
+      isConnecting: false,
+      isReconnecting: false,
+      isDisconnected: false,
+    });
+  });
+
   it('moves focus into the sheet when opened on mobile', async () => {
     render(<ChatSidebar />);
 
@@ -209,6 +219,66 @@ describe('ChatSidebar — mobile sheet focus order', () => {
     fireEvent.click(toggle);
 
     expect(screen.getByLabelText('Live chat')).toHaveAttribute('aria-modal', 'true');
+  });
+
+  it('restores focus to the toggle button when closed via the overlay', async () => {
+    render(<ChatSidebar />);
+
+    const toggle = screen.getByLabelText('Toggle chat sidebar');
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Message input')).toHaveFocus();
+    });
+
+    fireEvent.click(screen.getByTestId('chat-sheet-overlay'));
+
+    await waitFor(() => {
+      expect(toggle).toHaveFocus();
+    });
+  });
+
+  it('keeps Tab focus cycling inside the sheet', async () => {
+    render(<ChatSidebar />);
+
+    fireEvent.click(screen.getByLabelText('Toggle chat sidebar'));
+
+    const composer = screen.getByLabelText('Message input');
+    const sendButton = screen.getByLabelText('Send message');
+    await waitFor(() => expect(composer).toHaveFocus());
+
+    // Tab from the last focusable control wraps back to the composer.
+    sendButton.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(composer).toHaveFocus();
+
+    // Shift+Tab from the composer wraps to the last focusable control.
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(sendButton).toHaveFocus();
+  });
+
+  it('parks focus on the sheet instead of the trigger when the composer is disabled offline', async () => {
+    vi.mocked(useConnectionStatus).mockReturnValue({
+      status: 'disconnected',
+      isConnected: false,
+      isConnecting: false,
+      isReconnecting: false,
+      isDisconnected: true,
+    });
+
+    render(<ChatSidebar />);
+
+    const toggle = screen.getByLabelText('Toggle chat sidebar');
+    fireEvent.click(toggle);
+
+    const sheet = screen.getByLabelText('Live chat');
+    await waitFor(() => expect(sheet).toHaveFocus());
+    expect(toggle).not.toHaveFocus();
+
+    // The sheet holds no focusable control while offline, so Tab is swallowed
+    // rather than escaping to the page behind the modal.
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(sheet).toHaveFocus();
   });
 });
 
