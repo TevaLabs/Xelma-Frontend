@@ -141,7 +141,7 @@ describe('TxStatusTimeline', () => {
     expect(screen.getByText('Tx: 012345…abcdef')).toHaveAttribute('title', '0123456789abcdef');
 
     const link = screen.getByRole('link', { name: /view on stellarexpert/i });
-    expect(link).toHaveAttribute('href', 'https://stellarexpert.org/tx/0123456789abcdef');
+    expect(link).toHaveAttribute('href', 'https://stellar.expert/explorer/testnet/tx/0123456789abcdef');
   });
 
   it('renders the Done button when onDone is provided', () => {

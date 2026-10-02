@@ -1,6 +1,8 @@
 /* eslint-disable react-refresh/only-export-components -- shared status-machine module (component + hook) */
 import { Fragment, useCallback, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
+import { txUrl } from '../lib/explorer';
+
 
 /**
  * Steps of a Stellar / Freighter transaction lifecycle.
@@ -218,7 +220,7 @@ export default function TxStatusTimeline({
 
   if (step === 'success') {
     const displayHash = txHash ? formatTxHash(txHash) : '';
-    const href = explorerUrl ?? `https://stellarexpert.org/tx/${txHash ?? ''}`;
+    const href = explorerUrl ?? (txHash ? txUrl(txHash) : '#');
 
     return (
       <div role="status" className="text-center py-6">

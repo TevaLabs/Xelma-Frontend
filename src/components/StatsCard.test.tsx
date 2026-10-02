@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StatsCard from './StatsCard';
 import { useWalletStore } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
+import { toast } from 'sonner';
+import { txUrl } from '../lib/explorer';
 import type { MockUserStats } from '../types';
 
 // Keep the real selectors (selectIsWalletConnected derives from state) and only
@@ -201,7 +203,14 @@ describe('StatsCard', () => {
       expect(screen.getByText('Tx: 012345…abcdef')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /view on stellarexpert/i })).toHaveAttribute(
         'href',
-        expect.stringContaining('0123456789abcdef'),
+        txUrl('0123456789abcdef'),
+      );
+      expect(toast.success).toHaveBeenCalledWith(
+        'Rewards claimed!',
+        expect.objectContaining({
+          description: expect.stringContaining('012345'),
+          action: expect.objectContaining({ label: 'View on StellarExpert' }),
+        }),
       );
     });
 
