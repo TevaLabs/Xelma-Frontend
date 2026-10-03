@@ -4,6 +4,7 @@ import {
   fetchAccountBalances,
   formatBalance,
   HORIZON_URL,
+  IS_MAINNET,
   type AccountBalances,
 } from '../lib/horizon';
 import { accountUrl } from '../lib/explorer';

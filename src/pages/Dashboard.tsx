@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import LiveGameStatsPanel from "../components/LiveGameStatsPanel";
 import { useSearchParams, Link } from "react-router-dom";
 import PriceChart from "../components/PriceChart";
 import PredictionCard from "../components/PredictionCard";
@@ -84,6 +85,18 @@ function mapPredictionToOpenPosition(pred: UserPrediction): OpenPosition {
     createdAt: pred.createdAt,
   };
 }
+
+        {/* Live game telemetry — mounted on the primary /dashboard route so
+            the live socket subscription is active for the routed dashboard. */}
+        {!isLoading && (
+          <div className="mb-6">
+            <LiveGameStatsPanel />
+          </div>
+        )}
+
+        {/* Round lifecycle timeline, ported from /play. */}
+        {!isLoading && (
+          <div className="mb-6">
 
 /**
  * Issue #413 — derive the UP/DOWN pool split (0-100) for a round so the
