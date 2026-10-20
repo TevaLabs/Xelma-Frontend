@@ -138,7 +138,6 @@ These are the main contributor targets called out for Stellar Wave rebuilds:
 | --- | --- | --- |
 | `HowItWorks` | `src/components/HowItWorks.tsx` | Landing section landmark kept; rebuild 3-step glass-card grid. |
 | `HudStatusRow` | `src/components/hud/HudStatusRow.tsx` | Round/wallet/stream/player data attributes kept; rebuild status chip row. |
-| `TipCard` | `src/components/education/TipCard.tsx` | Daily tip card shell; rebuild education card UI. |
 
 #### Previously stubbed — now rebuilt
 
@@ -153,6 +152,7 @@ The following were earlier Stellar Wave stubs but no longer import
 | `NewsRibbon` | `src/components/NewsRibbon.tsx` |
 | `LiveGameStatsPanel` | `src/components/LiveGameStatsPanel.tsx` |
 | `GuideCard` | `src/components/education/GuideCard.tsx` |
+| `TipCard` | `src/components/education/TipCard.tsx` |
 
 ### Freighter + Soroban environment variables
 

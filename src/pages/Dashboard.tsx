@@ -16,7 +16,7 @@ import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
 import EventLogDrawer from "../components/EventLogDrawer";
-import { Eye, Radio, Rows3 } from "lucide-react";
+import { AlertCircle, Eye, Lightbulb, Radio, RefreshCw, Rows3 } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
@@ -123,57 +123,58 @@ function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
 
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 
+const tipCacheDate = () => new Date().toISOString().slice(0, 10);
+
+/** Today's cached tip, or null when the cache is missing, stale or corrupt. */
+const readCachedTip = (): Tip | null => {
+  try {
+    const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached) as { date?: string; tip?: Tip };
+    if (parsed.date === tipCacheDate() && parsed.tip) return parsed.tip;
+  } catch {
+    // corrupted cache — fall through to a fresh fetch
+  }
+  return null;
+};
+
+type DailyTipStatus = "loading" | "ready" | "empty" | "error";
+
 const DailyTip = () => {
-  const [tip, setTip] = useState<Tip | null>(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as { date: string; tip: Tip };
-        if (parsed.date === today && parsed.tip) {
-          return parsed.tip;
-        }
-      } catch {
-        // corrupted cache
-      }
-    }
-    return null;
+  const [state, setState] = useState<{ status: DailyTipStatus; tip: Tip | null }>(() => {
+    const cached = readCachedTip();
+    return { status: cached ? "ready" : "loading", tip: cached };
   });
-  const [loading, setLoading] = useState(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as { date: string; tip: Tip };
-        if (parsed.date === today && parsed.tip) {
-          return parsed.tip;
-        }
-      } catch {
-        // corrupted cache
-      }
-    }
-    return true;
-  });
+  const startedRef = useRef(false);
 
-  useEffect(() => {
-    if (tip !== null) return;
-
-    const today = new Date().toISOString().slice(0, 10);
-    void educationApi.getTip().then((fetched) => {
+  const loadTip = useCallback(async () => {
+    setState((prev) => ({ status: "loading", tip: prev.tip }));
+    try {
+      const fetched = await educationApi.getTip();
       if (fetched) {
         localStorage.setItem(
           DAILY_TIP_CACHE_KEY,
-          JSON.stringify({ date: today, tip: fetched })
+          JSON.stringify({ date: tipCacheDate(), tip: fetched })
         );
-        setTip(fetched);
+        setState({ status: "ready", tip: fetched });
+      } else {
+        setState({ status: "empty", tip: null });
       }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
-  }, [tip]);
+    } catch {
+      setState({ status: "error", tip: null });
+    }
+  }, []);
 
-  if (loading) {
+  // Fetch once on mount when there is no usable cache entry; retries after an
+  // error are driven by the error card's Retry button instead of the effect.
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    if (state.status === "ready") return;
+    void loadTip();
+  }, [state.status, loadTip]);
+
+  if (state.status === "loading") {
     return (
       <div
         className="rounded-2xl glass-card accent-border-teal p-6 animate-pulse"
@@ -188,13 +189,53 @@ const DailyTip = () => {
     );
   }
 
-  if (!tip) {
-    return null;
+  if (state.status === "error") {
+    return (
+      <div
+        className="glass-card rounded-2xl border-red-500/25 bg-red-950/10 p-5"
+        role="alert"
+        data-testid="daily-tip-error"
+      >
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-semibold text-white">Couldn't load today's tip</p>
+            <p className="mt-1 text-xs text-gray-400">
+              The daily alpha feed is unreachable right now.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void loadTip()}
+          className="btn-ghost mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (state.status === "empty" || !state.tip) {
+    return (
+      <div
+        className="glass-card rounded-2xl p-5 text-center"
+        role="status"
+        data-testid="daily-tip-empty"
+      >
+        <Lightbulb className="mx-auto h-6 w-6 text-xelma-teal/50" aria-hidden="true" />
+        <p className="mt-2 text-sm font-semibold text-white">No tip today</p>
+        <p className="mt-1 text-xs text-gray-400">
+          Fresh alpha lands daily — check back tomorrow.
+        </p>
+      </div>
+    );
   }
 
   return (
     <div>
-      <TipCard tip={tip} />
+      <TipCard tip={state.tip} />
       <div className="mt-3 text-right">
         <Link
           to="/learn"

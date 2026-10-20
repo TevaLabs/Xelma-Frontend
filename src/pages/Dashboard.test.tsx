@@ -838,12 +838,85 @@ describe('Dashboard', () => {
     it('does not render stats panel when wallet is disconnected', () => {
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
         const store = { ...mockWalletStore, status: 'idle', publicKey: null };
-        return selectFromStore(selector, store);
+        return typeof selector === 'function' ? selector(store) : store;
       }) as never);
 
       render(<Dashboard />);
 
       expect(screen.queryByText('Your Record')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('daily alpha tip', () => {
+    const apiTip = {
+      id: 'tip-1',
+      title: 'Pro tip',
+      content: 'Watch the pool split before you predict.',
+      category: 'Strategy',
+      createdAt: new Date().toISOString(),
+    };
+
+    it('renders the glass TipCard and caches the fetched tip for today', async () => {
+      vi.mocked(educationApi.getTip).mockResolvedValue(apiTip);
+
+      render(<Dashboard />);
+
+      expect(await screen.findByTestId('tip-card')).toBeInTheDocument();
+      expect(screen.getByText(apiTip.content)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /view all guides/i })).toBeInTheDocument();
+
+      const cached = localStorage.getItem('xelma_daily_tip');
+      expect(cached).not.toBeNull();
+      expect(JSON.parse(cached as string)).toEqual(
+        expect.objectContaining({ date: expect.any(String), tip: apiTip })
+      );
+    });
+
+    it('renders the cached tip immediately without calling the API again', () => {
+      localStorage.setItem(
+        'xelma_daily_tip',
+        JSON.stringify({ date: new Date().toISOString().slice(0, 10), tip: apiTip })
+      );
+
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('tip-card')).toBeInTheDocument();
+      expect(screen.getByText(apiTip.content)).toBeInTheDocument();
+      expect(educationApi.getTip).not.toHaveBeenCalled();
+    });
+
+    it('renders the empty state when the API returns no tip', async () => {
+      render(<Dashboard />);
+
+      expect(await screen.findByTestId('daily-tip-empty')).toBeInTheDocument();
+      expect(screen.getByText(/No tip today/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('tip-card')).not.toBeInTheDocument();
+      expect(localStorage.getItem('xelma_daily_tip')).toBeNull();
+    });
+
+    it('renders the loading skeleton while the tip request is in flight', () => {
+      vi.mocked(educationApi.getTip).mockReturnValue(new Promise(() => {}));
+
+      render(<Dashboard />);
+
+      expect(screen.getByRole('status', { name: 'Loading daily tip' })).toBeInTheDocument();
+      expect(screen.queryByTestId('daily-tip-empty')).not.toBeInTheDocument();
+    });
+
+    it('surfaces an error card whose Retry refetches the tip', async () => {
+      vi.mocked(educationApi.getTip)
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce(apiTip);
+
+      render(<Dashboard />);
+
+      const errorCard = await screen.findByTestId('daily-tip-error');
+      expect(within(errorCard).getByText(/Couldn't load today's tip/i)).toBeInTheDocument();
+
+      fireEvent.click(within(errorCard).getByRole('button', { name: /retry/i }));
+
+      expect(await screen.findByTestId('tip-card')).toBeInTheDocument();
+      expect(screen.queryByTestId('daily-tip-error')).not.toBeInTheDocument();
     });
   });
 });
