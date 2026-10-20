@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Coins, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
 import {
   fetchAccountBalances,
@@ -53,6 +53,7 @@ function TrustlineRow({
 export default function BalancesPanel({ className }: { className?: string }) {
   const publicKey = useWalletStore((s) => s.publicKey);
   const status = useWalletStore((s) => s.status);
+  const walletBalance = useWalletStore((s) => s.balance);
   const isConnected = status === 'connected' && Boolean(publicKey);
 
   /** Address the loaded balances belong to, so a wallet switch never shows stale numbers. */
@@ -62,7 +63,24 @@ export default function BalancesPanel({ className }: { className?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
+  const lastSyncedBalanceRef = useRef<string | null>(null);
+
+  // Sync external wallet store balance changes to BalancesPanel (e.g. friendbot funding)
+  useEffect(() => {
+    if (walletBalance && lastSyncedBalanceRef.current !== null && walletBalance !== lastSyncedBalanceRef.current) {
+      lastSyncedBalanceRef.current = walletBalance;
+      setReloadKey((k) => k + 1);
+    }
+  }, [walletBalance]);
+
+  useEffect(() => {
+    lastSyncedBalanceRef.current = walletBalance;
+  }, [publicKey, walletBalance]);
+
+  const refresh = useCallback(() => {
+    setReloadKey((k) => k + 1);
+    void useWalletStore.getState().refreshBalance();
+  }, []);
 
   useEffect(() => {
     if (!publicKey || !isConnected) return;
@@ -78,6 +96,20 @@ export default function BalancesPanel({ className }: { className?: string }) {
         setData(result);
         setLoadedFor(publicKey);
         setState('loaded');
+
+        // Sync loaded native balance to wallet store
+        if (result.native) {
+          const formatted = `${parseFloat(result.native.balance).toFixed(2)} XLM`;
+          lastSyncedBalanceRef.current = formatted;
+          if (useWalletStore.getState().balance !== formatted) {
+            useWalletStore.setState({ balance: formatted });
+          }
+        } else if (result.isUnfunded) {
+          lastSyncedBalanceRef.current = '0.00 XLM';
+          if (useWalletStore.getState().balance !== '0.00 XLM') {
+            useWalletStore.setState({ balance: '0.00 XLM' });
+          }
+        }
       } catch (err) {
         if (controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : 'Could not load balances.');

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchAccountBalances, formatBalance, HorizonError, HORIZON_URL } from './horizon';
+import {
+  fetchAccountBalances,
+  formatBalance,
+  clearHorizonInFlightCache,
+  HorizonError,
+  HORIZON_URL,
+} from './horizon';
 
 const ADDRESS = 'GCEXAMPLE7ADDRESS7FOR7TESTS7ONLY7AAAAAAAAAAAAAAAAAAAAAAAA';
 
@@ -10,6 +16,7 @@ function mockFetchOnce(value: unknown) {
 describe('horizon', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearHorizonInFlightCache();
   });
 
   describe('HORIZON_URL', () => {
@@ -100,6 +107,49 @@ describe('horizon', () => {
 
       expect(result.native).toBeNull();
       expect(result.trustlines).toEqual([]);
+    });
+
+    it('deduplicates concurrent requests to the same address into a single network call', async () => {
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          balances: [{ asset_type: 'native', balance: '500.0000000' }],
+        }),
+      });
+
+      const [res1, res2] = await Promise.all([
+        fetchAccountBalances(ADDRESS),
+        fetchAccountBalances(ADDRESS),
+      ]);
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(res1).toEqual(res2);
+      expect(res1.native?.balance).toBe('500.0000000');
+    });
+
+    it('allows a subsequent request once an in-flight request settles', async () => {
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          balances: [{ asset_type: 'native', balance: '10.0000000' }],
+        }),
+      });
+
+      await fetchAccountBalances(ADDRESS);
+
+      mockFetchOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          balances: [{ asset_type: 'native', balance: '20.0000000' }],
+        }),
+      });
+
+      const res2 = await fetchAccountBalances(ADDRESS);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(res2.native?.balance).toBe('20.0000000');
     });
   });
 

@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BalancesPanel from './BalancesPanel';
 import { useWalletStore } from '../store/useWalletStore';
+import { clearHorizonInFlightCache } from '../lib/horizon';
 
 const ADDRESS = 'GCEXAMPLE7ADDRESS7FOR7TESTS7ONLY7AAAAAAAAAAAAAAAAAAAAAAAA';
 
@@ -20,6 +21,7 @@ describe('BalancesPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useWalletStore.getState().reset();
+    clearHorizonInFlightCache();
   });
 
   it('renders nothing when the wallet is not connected', () => {
@@ -90,5 +92,77 @@ describe('BalancesPanel', () => {
     });
     expect(screen.getByText(/could not load balances/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it('syncs native balance to wallet store once loaded', async () => {
+    setConnected(ADDRESS);
+    mockHorizon({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        balances: [{ asset_type: 'native', balance: '350.2500000' }],
+      }),
+    });
+
+    render(<BalancesPanel />);
+
+    expect(await screen.findByText('350.25')).toBeInTheDocument();
+    expect(useWalletStore.getState().balance).toBe('350.25 XLM');
+  });
+
+  it('triggers refreshBalance on wallet store when refresh button is clicked', async () => {
+    setConnected(ADDRESS);
+    mockHorizon({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        balances: [{ asset_type: 'native', balance: '100.0000000' }],
+      }),
+    });
+
+    const refreshBalanceSpy = vi.fn().mockResolvedValue(undefined);
+    useWalletStore.setState({ refreshBalance: refreshBalanceSpy });
+
+    render(<BalancesPanel />);
+
+    expect(await screen.findByText('100.00')).toBeInTheDocument();
+
+    const refreshBtn = screen.getByRole('button', { name: /refresh balances/i });
+    await act(async () => {
+      fireEvent.click(refreshBtn);
+    });
+
+    expect(refreshBalanceSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes balances when wallet store balance updates externally', async () => {
+    setConnected(ADDRESS);
+    mockHorizon({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        balances: [{ asset_type: 'native', balance: '100.0000000' }],
+      }),
+    });
+
+    render(<BalancesPanel />);
+
+    expect(await screen.findByText('100.00')).toBeInTheDocument();
+
+    // Now horizon returns funded balance
+    mockHorizon({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        balances: [{ asset_type: 'native', balance: '1100.0000000' }],
+      }),
+    });
+
+    // Simulate external friendbot fund updating store
+    act(() => {
+      useWalletStore.setState({ balance: '1100.00 XLM' });
+    });
+
+    expect(await screen.findByText('1,100.00')).toBeInTheDocument();
   });
 });

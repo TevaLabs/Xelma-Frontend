@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { freighterAdapter } from '../lib/wallets';
 import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
-import { HORIZON_URL } from '../lib/horizon';
+import { fetchAccountBalances } from '../lib/horizon';
 import { FRIENDBOT_ENABLED, LOW_BALANCE_THRESHOLD_XLM } from '../lib/friendbot';
 import {
   EXPECTED_NETWORK_LABEL,
@@ -54,17 +54,11 @@ interface WalletState {
  * display. An account Horizon does not know yet (404) reads as `0.00 XLM`.
  */
 async function fetchFormattedBalance(address: string): Promise<string> {
-  const response = await fetch(`${HORIZON_URL}/accounts/${address}`);
-  if (response.status === 404) {
+  const result = await fetchAccountBalances(address);
+  if (result.isUnfunded || !result.native) {
     return '0.00 XLM';
   }
-  if (!response.ok) {
-    throw new Error(`Horizon returned ${response.status}`);
-  }
-  const data = await response.json();
-  const balances = data.balances as Array<{ asset_type: string; balance: string }>;
-  const nativeBalance = balances.find((b) => b.asset_type === 'native');
-  return nativeBalance ? `${parseFloat(nativeBalance.balance).toFixed(2)} XLM` : '0.00 XLM';
+  return `${parseFloat(result.native.balance).toFixed(2)} XLM`;
 }
 
 /** Parses a stored balance string such as `12.50 XLM` into a number. */

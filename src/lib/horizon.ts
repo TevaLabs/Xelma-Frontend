@@ -70,8 +70,18 @@ function normalizeBalance(entry: HorizonBalance): AssetBalance {
   };
 }
 
+const inFlightRequests = new Map<string, Promise<AccountBalances>>();
+
+/** Clears the in-flight request cache (primarily for tests). */
+export function clearHorizonInFlightCache(): void {
+  inFlightRequests.clear();
+}
+
 /**
  * Fetches balances and trustlines for a G-address from Horizon.
+ *
+ * Concurrent requests for the same address are deduplicated so that multiple
+ * callers (such as useWalletStore and BalancesPanel) share a single in-flight network call.
  *
  * An unfunded account (Horizon 404) resolves to `isUnfunded: true` rather than
  * throwing, so the UI can render an empty state instead of an error.
@@ -82,37 +92,87 @@ export async function fetchAccountBalances(
   address: string,
   signal?: AbortSignal,
 ): Promise<AccountBalances> {
-  let response: Response;
-  try {
-    response = await fetch(`${HORIZON_URL}/accounts/${address}`, { signal });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw new HorizonError('Could not reach Horizon. Check your connection and try again.');
+  if (signal?.aborted) {
+    throw signal.reason ?? new DOMException('The user aborted a request.', 'AbortError');
   }
 
-  if (response.status === 404) {
-    return { native: null, trustlines: [], isUnfunded: true };
+  const existing = inFlightRequests.get(address);
+  if (existing) {
+    if (signal) {
+      return new Promise<AccountBalances>((resolve, reject) => {
+        const onAbort = () => reject(signal.reason ?? new DOMException('The user aborted a request.', 'AbortError'));
+        signal.addEventListener('abort', onAbort, { once: true });
+        existing
+          .then((res) => {
+            signal.removeEventListener('abort', onAbort);
+            resolve(res);
+          })
+          .catch((err) => {
+            signal.removeEventListener('abort', onAbort);
+            reject(err);
+          });
+      });
+    }
+    return existing;
   }
 
-  if (!response.ok) {
-    throw new HorizonError(`Horizon returned ${response.status}. Try again in a moment.`);
+  const promise = (async () => {
+    try {
+      let response: Response;
+      try {
+        response = await fetch(`${HORIZON_URL}/accounts/${address}`, { signal });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') throw err;
+        throw new HorizonError('Could not reach Horizon. Check your connection and try again.');
+      }
+
+      if (response.status === 404) {
+        return { native: null, trustlines: [], isUnfunded: true };
+      }
+
+      if (!response.ok) {
+        throw new HorizonError(`Horizon returned ${response.status}. Try again in a moment.`);
+      }
+
+      let payload: { balances?: HorizonBalance[] };
+      try {
+        payload = await response.json();
+      } catch {
+        throw new HorizonError('Received an unreadable response from Horizon.');
+      }
+
+      const balances = Array.isArray(payload.balances) ? payload.balances : [];
+      const normalized = balances.map(normalizeBalance);
+
+      return {
+        native: normalized.find((b) => b.isNative) ?? null,
+        trustlines: normalized.filter((b) => !b.isNative),
+        isUnfunded: false,
+      };
+    } finally {
+      inFlightRequests.delete(address);
+    }
+  })();
+
+  inFlightRequests.set(address, promise);
+
+  if (signal) {
+    return new Promise<AccountBalances>((resolve, reject) => {
+      const onAbort = () => reject(signal.reason ?? new DOMException('The user aborted a request.', 'AbortError'));
+      signal.addEventListener('abort', onAbort, { once: true });
+      promise
+        .then((res) => {
+          signal.removeEventListener('abort', onAbort);
+          resolve(res);
+        })
+        .catch((err) => {
+          signal.removeEventListener('abort', onAbort);
+          reject(err);
+        });
+    });
   }
 
-  let payload: { balances?: HorizonBalance[] };
-  try {
-    payload = await response.json();
-  } catch {
-    throw new HorizonError('Received an unreadable response from Horizon.');
-  }
-
-  const balances = Array.isArray(payload.balances) ? payload.balances : [];
-  const normalized = balances.map(normalizeBalance);
-
-  return {
-    native: normalized.find((b) => b.isNative) ?? null,
-    trustlines: normalized.filter((b) => !b.isNative),
-    isUnfunded: false,
-  };
+  return promise;
 }
 
 /** Formats a raw Horizon balance string for compact display. */
