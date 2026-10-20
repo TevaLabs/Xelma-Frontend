@@ -163,13 +163,21 @@ export default function TxStatusTimeline({
 
     return (
       <div role="status" aria-live="polite" aria-atomic="true" className="text-center py-6">
+        {/* Screen reader live announcement on step change */}
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {`Step ${currentIndex + 1} of ${TIMELINE_STEPS.length}: ${title}. ${hint}`}
+        </div>
+
         <div className="flex items-start justify-between gap-2">
           {TIMELINE_STEPS.map((s, index) => {
             const isActive = index === currentIndex;
             const isCompleted = index < currentIndex;
             return (
               <Fragment key={s.key}>
-                <div className="flex flex-col items-center flex-1">
+                <div
+                  className="flex flex-col items-center flex-1"
+                  aria-current={isActive ? 'step' : undefined}
+                >
                   <div
                     className={cn(
                       'flex h-9 w-9 items-center justify-center rounded-full border text-xs font-bold transition-colors',
