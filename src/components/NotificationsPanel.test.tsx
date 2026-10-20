@@ -596,4 +596,22 @@ describe('NotificationsPanel', () => {
       expect(screen.getByText('Round Started')).toBeInTheDocument();
     });
   });
+
+  describe('focus restoration', () => {
+    it('restores focus to triggerRef when panel unmounts', () => {
+      const triggerButton = document.createElement('button');
+      document.body.appendChild(triggerButton);
+      const focusSpy = vi.spyOn(triggerButton, 'focus');
+      const triggerRef = { current: triggerButton };
+
+      const { unmount } = render(
+        <NotificationsPanel {...defaultProps} triggerRef={triggerRef} />
+      );
+
+      unmount();
+
+      expect(focusSpy).toHaveBeenCalledTimes(1);
+      triggerButton.remove();
+    });
+  });
 });

@@ -4,9 +4,16 @@ import { Check } from './icons';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
+interface NotificationsPanelProps {
+  id: string;
+  onClose: () => void;
+  triggerRef?: React.RefObject<HTMLElement | null> | React.RefObject<HTMLButtonElement | null>;
+}
+
+const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   id,
   onClose,
+  triggerRef,
 }) => {
   const titleId = `${id}-title`;
   const descriptionId = `${id}-description`;
@@ -32,7 +39,8 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
     active: true,
     initialFocusRef: closeButtonRef,
     onEscape: onClose,
-    restoreFocus: false,
+    restoreFocus: true,
+    restoreFocusRef: triggerRef as React.RefObject<HTMLElement | null>,
   });
 
   return (

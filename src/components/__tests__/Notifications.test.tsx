@@ -136,4 +136,25 @@ describe('Notifications', () => {
     // badge should disappear
     await waitFor(() => expect(screen.queryByText('1')).toBeNull());
   });
+
+  it('restores focus to trigger button when notifications panel is closed', async () => {
+    const mockedApi = vi.mocked(api.notificationsApi);
+    mockedApi.getUnreadCount.mockResolvedValue({ unread: 0 });
+    mockedApi.getNotifications.mockResolvedValue([]);
+
+    render(<NotificationsBell />);
+    const bellButton = await screen.findByRole('button', { name: /open notifications/i });
+    const focusSpy = vi.spyOn(bellButton, 'focus');
+
+    // Open panel
+    fireEvent.click(bellButton);
+    await waitFor(() => expect(screen.getByText('Notifications')).toBeTruthy());
+
+    // Close panel
+    const closeButton = screen.getByRole('button', { name: /close notifications/i });
+    fireEvent.click(closeButton);
+
+    await waitFor(() => expect(screen.queryByText('Notifications')).toBeNull());
+    expect(focusSpy).toHaveBeenCalled();
+  });
 });
