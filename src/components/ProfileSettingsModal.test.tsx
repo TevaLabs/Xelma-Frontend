@@ -114,6 +114,12 @@ describe('ProfileSettingsModal accessibility', () => {
     fireEvent.change(fileInput, { target: { files: [invalidFile] } });
 
     expect(toast.error).toHaveBeenCalledWith('Invalid file type', expect.any(Object));
+
+    const gifFile = new File(['gif data'], 'avatar.gif', { type: 'image/gif' });
+    fireEvent.change(fileInput, { target: { files: [gifFile] } });
+    expect(toast.error).toHaveBeenCalledWith('Invalid file type', {
+      description: 'Please upload a PNG, JPG, or WEBP image.',
+    });
   });
 
   it('validates file size limit on avatar upload', async () => {

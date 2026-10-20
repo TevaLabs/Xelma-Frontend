@@ -18,7 +18,7 @@ type Props = {
 const BIO_MAX = 100;
 const DRAFT_KEY = "profile_settings_draft_v1";
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -149,7 +149,7 @@ function ProfileSettingsForm({
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       toast.error("Invalid file type", {
-        description: "Please upload a PNG, JPG, WEBP, or GIF image.",
+        description: "Please upload a PNG, JPG, or WEBP image.",
       });
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
@@ -298,7 +298,7 @@ function ProfileSettingsForm({
                     id="profile-avatar-upload"
                     ref={fileInputRef}
                     type="file"
-                    accept="image/png, image/jpeg, image/webp, image/gif"
+                    accept="image/png, image/jpeg, image/webp"
                     className="sr-only"
                     onChange={handleUploadChange}
                   />
