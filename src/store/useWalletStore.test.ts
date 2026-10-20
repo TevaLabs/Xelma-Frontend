@@ -1,15 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const clearAuth = vi.fn();
-const setJwt = vi.fn();
+const {
+  clearAuth,
+  setJwt,
+  setIsAuthenticating,
+  clearNotifications,
+  leaveChannel,
+} = vi.hoisted(() => ({
+  clearAuth: vi.fn(),
+  setJwt: vi.fn(),
+  setIsAuthenticating: vi.fn(),
+  clearNotifications: vi.fn(),
+  leaveChannel: vi.fn(),
+}));
 
 vi.mock('./useAuthStore', () => ({
   useAuthStore: {
     getState: () => ({
       clearAuth,
       setJwt,
+      setIsAuthenticating,
       isAuthenticated: false,
+      isAuthenticating: false,
     }),
+  },
+}));
+
+vi.mock('./useNotificationsStore', () => ({
+  useNotificationsStore: {
+    getState: () => ({
+      clear: clearNotifications,
+    }),
+  },
+}));
+
+vi.mock('../lib/socket', () => ({
+  appSocket: {
+    leaveChannel,
   },
 }));
 
@@ -71,10 +98,13 @@ describe('useWalletStore', () => {
     vi.resetAllMocks();
     clearAuth.mockClear();
     setJwt.mockClear();
+    setIsAuthenticating.mockClear();
+    clearNotifications.mockClear();
+    leaveChannel.mockClear();
     resetWalletState();
   });
 
-  it('disconnect clears wallet and calls clearAuth', () => {
+  it('disconnect clears wallet and notification joins and calls clearAuth', () => {
     useWalletStore.setState({
       status: 'connected',
       publicKey: 'GKEY',
@@ -88,6 +118,26 @@ describe('useWalletStore', () => {
     expect(s.status).toBe('idle');
     expect(s.publicKey).toBeNull();
     expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(leaveChannel).toHaveBeenCalledWith('join:notifications', 'GKEY');
+    expect(clearNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('reset clears wallet and notification joins and calls clearAuth', () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GKEY',
+      network: 'TESTNET',
+      balance: '1.00 XLM',
+    });
+
+    useWalletStore.getState().reset();
+
+    const s = useWalletStore.getState();
+    expect(s.status).toBe('idle');
+    expect(s.publicKey).toBeNull();
+    expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(leaveChannel).toHaveBeenCalledWith('join:notifications', 'GKEY');
+    expect(clearNotifications).toHaveBeenCalledTimes(1);
   });
 
   it('clearError removes error fields', () => {
@@ -101,7 +151,11 @@ describe('useWalletStore', () => {
     expect(useWalletStore.getState().errorCode).toBeNull();
   });
 
-  it('checkConnection sets idle when Freighter is not connected', async () => {
+  it('checkConnection sets idle and clears auth when Freighter is not connected', async () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GKEY',
+    });
     vi.mocked(isConnected).mockResolvedValue({ isConnected: false });
 
     await useWalletStore.getState().checkConnection();
@@ -110,6 +164,9 @@ describe('useWalletStore', () => {
     expect(s.status).toBe('idle');
     expect(s.publicKey).toBeNull();
     expect(isConnected).toHaveBeenCalled();
+    expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(leaveChannel).toHaveBeenCalledWith('join:notifications', 'GKEY');
+    expect(clearNotifications).toHaveBeenCalledTimes(1);
   });
 
   it('checkConnection restores connected state with address and TESTNET', async () => {
@@ -283,5 +340,96 @@ describe('useWalletStore', () => {
     expect(clearAuth).toHaveBeenCalled();
     expect(s.errorCode).toBe('AUTH_FAILED');
     expect(s.errorMessage).toMatch(/sign-in/i);
+  });
+
+  it('checkConnection clears auth and notification joins when Freighter returns no address', async () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GKEY',
+    });
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: true });
+    vi.mocked(getAddress).mockResolvedValue({ address: '', error: undefined });
+
+    await useWalletStore.getState().checkConnection();
+
+    const s = useWalletStore.getState();
+    expect(s.status).toBe('idle');
+    expect(s.publicKey).toBeNull();
+    expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(leaveChannel).toHaveBeenCalledWith('join:notifications', 'GKEY');
+    expect(clearNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('checkConnection clears previous auth and notification joins when address changes', async () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GOLD_KEY',
+    });
+    vi.mocked(isConnected).mockResolvedValue({ isConnected: true });
+    vi.mocked(getAddress).mockResolvedValue({ address: 'GNEW_KEY', error: undefined });
+    vi.mocked(getNetwork).mockResolvedValue({
+      network: 'TESTNET',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      error: undefined,
+    } as Awaited<ReturnType<typeof getNetwork>>);
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        balances: [{ asset_type: 'native', balance: '5.0' }],
+      }),
+    }) as unknown as typeof fetch;
+
+    await useWalletStore.getState().checkConnection();
+
+    const s = useWalletStore.getState();
+    expect(s.status).toBe('connected');
+    expect(s.publicKey).toBe('GNEW_KEY');
+    expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(leaveChannel).toHaveBeenCalledWith('join:notifications', 'GOLD_KEY');
+    expect(clearNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('checkConnection clears auth and notification joins when checkConnection throws', async () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GKEY',
+    });
+    vi.mocked(isConnected).mockRejectedValue(new Error('Freighter extension disconnected'));
+
+    await useWalletStore.getState().checkConnection();
+
+    const s = useWalletStore.getState();
+    expect(s.status).toBe('idle');
+    expect(s.publicKey).toBeNull();
+    expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(leaveChannel).toHaveBeenCalledWith('join:notifications', 'GKEY');
+    expect(clearNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('setWatchOnly clears previous auth and notification joins', async () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GAUTH_KEY',
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        balances: [{ asset_type: 'native', balance: '0' }],
+      }),
+    }) as unknown as typeof fetch;
+
+    const watchOnlyAddress = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
+    await useWalletStore.getState().setWatchOnly(watchOnlyAddress);
+
+    const s = useWalletStore.getState();
+    expect(s.isWatchOnly).toBe(true);
+    expect(s.publicKey).toBe(watchOnlyAddress);
+    expect(clearAuth).toHaveBeenCalledTimes(1);
+    expect(leaveChannel).toHaveBeenCalledWith('join:notifications', 'GAUTH_KEY');
+    expect(clearNotifications).toHaveBeenCalledTimes(1);
   });
 });

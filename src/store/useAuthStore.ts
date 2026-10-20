@@ -8,6 +8,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isAuthenticating: boolean;
   setJwt: (token: string) => void;
+  setIsAuthenticating: (isAuthenticating: boolean) => void;
   clearAuth: () => void;
 }
 
@@ -20,12 +21,16 @@ export const useAuthStore = create<AuthState>()(
 
       setJwt: (token: string) => {
         localStorage.setItem(JWT_KEY, token);
-        set({ jwt: token, isAuthenticated: true });
+        set({ jwt: token, isAuthenticated: true, isAuthenticating: false });
+      },
+
+      setIsAuthenticating: (isAuthenticating: boolean) => {
+        set({ isAuthenticating });
       },
 
       clearAuth: () => {
         localStorage.removeItem(JWT_KEY);
-        set({ jwt: null, isAuthenticated: false });
+        set({ jwt: null, isAuthenticated: false, isAuthenticating: false });
       },
     }),
     {

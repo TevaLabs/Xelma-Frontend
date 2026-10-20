@@ -91,6 +91,18 @@ describe('useAuthStore', () => {
       expect(parsedCleared.state.jwt).toBeNull();
     });
 
+    it('clears isAuthenticating status when clearAuth is invoked', () => {
+      useAuthStore.getState().setIsAuthenticating(true);
+      expect(useAuthStore.getState().isAuthenticating).toBe(true);
+
+      useAuthStore.getState().clearAuth();
+
+      const state = useAuthStore.getState();
+      expect(state.jwt).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.isAuthenticating).toBe(false);
+    });
+
     it('is idempotent - can be called multiple times safely', () => {
       useAuthStore.getState().setJwt('test-token');
       useAuthStore.getState().clearAuth();
@@ -100,6 +112,17 @@ describe('useAuthStore', () => {
       const state = useAuthStore.getState();
       expect(state.jwt).toBeNull();
       expect(state.isAuthenticated).toBe(false);
+      expect(state.isAuthenticating).toBe(false);
+    });
+  });
+
+  describe('setIsAuthenticating', () => {
+    it('updates isAuthenticating flag', () => {
+      expect(useAuthStore.getState().isAuthenticating).toBe(false);
+      useAuthStore.getState().setIsAuthenticating(true);
+      expect(useAuthStore.getState().isAuthenticating).toBe(true);
+      useAuthStore.getState().setIsAuthenticating(false);
+      expect(useAuthStore.getState().isAuthenticating).toBe(false);
     });
   });
 

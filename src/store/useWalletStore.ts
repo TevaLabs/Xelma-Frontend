@@ -11,6 +11,8 @@ import {
   isExpectedNetwork,
   networkPassphraseFor,
 } from '../lib/stellarNetwork';
+import { appSocket } from '../lib/socket';
+import { useNotificationsStore } from './useNotificationsStore';
 
 const API_BASE = getApiBaseUrl();
 
@@ -77,6 +79,18 @@ export function parseXlmBalance(balance: string | null): number | null {
 /** Dedupe concurrent checkConnection calls (remount / multiple headers). */
 let checkConnectionInFlight: Promise<void> | null = null;
 
+function clearAuthAndNotificationJoins(prevPublicKey?: string | null) {
+  useAuthStore.getState().clearAuth();
+  if (prevPublicKey) {
+    try {
+      appSocket.leaveChannel('join:notifications', prevPublicKey);
+    } catch {
+      // Safe no-op if socket is not available or disconnected
+    }
+  }
+  useNotificationsStore.getState().clear();
+}
+
 function mapConnectError(err: unknown): { message: string; code: WalletErrorCode } {
   const msg = err instanceof Error ? err.message : String(err);
   const lower = msg.toLowerCase();
@@ -116,6 +130,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   clearError: () => set({ errorMessage: null, errorCode: null }),
 
   reset: () => {
+    const prevKey = get().publicKey;
     set({
       status: 'idle',
       publicKey: null,
@@ -126,9 +141,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       networkMismatch: false,
       isWatchOnly: false,
     });
+    clearAuthAndNotificationJoins(prevKey);
   },
 
   disconnect: () => {
+    const prevKey = get().publicKey;
     set({
       status: 'idle',
       publicKey: null,
@@ -139,7 +156,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       networkMismatch: false,
       isWatchOnly: false,
     });
-    useAuthStore.getState().clearAuth();
+    clearAuthAndNotificationJoins(prevKey);
     toast.success('Wallet disconnected');
   },
 
@@ -157,6 +174,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       try {
         const { isConnected: freighterConnected } = await isConnected();
         if (!freighterConnected) {
+          const prevKey = get().publicKey;
           set({
             status: 'idle',
             publicKey: null,
@@ -164,11 +182,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
             balance: null,
             networkMismatch: false,
           });
+          clearAuthAndNotificationJoins(prevKey);
           return;
         }
 
         const { address } = await getAddress();
         if (!address) {
+          const prevKey = get().publicKey;
           set({
             status: 'idle',
             publicKey: null,
@@ -176,7 +196,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
             balance: null,
             networkMismatch: false,
           });
+          clearAuthAndNotificationJoins(prevKey);
           return;
+        }
+
+        if (prev.publicKey && prev.publicKey !== address) {
+          clearAuthAndNotificationJoins(prev.publicKey);
         }
 
         const { network } = await getNetwork();
@@ -205,6 +230,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           toast.error(`Please switch to Stellar ${EXPECTED_NETWORK_LABEL} in Freighter for full compatibility.`);
         }
       } catch {
+        const prevKey = get().publicKey;
         set({
           status: 'idle',
           publicKey: null,
@@ -212,6 +238,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           balance: null,
           networkMismatch: false,
         });
+        clearAuthAndNotificationJoins(prevKey);
       } finally {
         checkConnectionInFlight = null;
       }
@@ -232,6 +259,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   setWatchOnly: async (address: string) => {
+    const prevKey = get().publicKey;
+    clearAuthAndNotificationJoins(prevKey);
     set({
       status: 'connecting',
       errorMessage: null,
@@ -341,6 +370,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
 
       try {
+        useAuthStore.getState().setIsAuthenticating?.(true);
         const challengeRes = await fetch(`${API_BASE}/api/auth/challenge`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
