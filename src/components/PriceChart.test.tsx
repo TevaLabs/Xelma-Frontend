@@ -407,4 +407,73 @@ describe('PriceChart', () => {
       );
     });
   });
+
+  describe('Screen Reader Summary', () => {
+    it('renders a visually hidden live region containing price, change%, and asset', () => {
+      render(<PriceChart height={300} asset="XLM" />);
+
+      const srRegion = screen.getByTestId('price-chart-sr-summary');
+      expect(srRegion).toBeInTheDocument();
+      expect(srRegion).toHaveClass('sr-only');
+      expect(srRegion).toHaveAttribute('aria-live', 'polite');
+      expect(srRegion).toHaveAttribute('aria-atomic', 'true');
+      expect(srRegion).toHaveAttribute('role', 'status');
+
+      // Contains asset, price ($), and change% (%)
+      expect(srRegion).toHaveTextContent(/XLM/i);
+      expect(srRegion).toHaveTextContent(/\$\d+(\.\d+)?/);
+      expect(srRegion).toHaveTextContent(/[-+]?\d+(\.\d+)?%/);
+    });
+
+    it('links the chart graphic to the screen reader summary via aria-describedby', () => {
+      render(<PriceChart height={300} asset="XLM" />);
+
+      const chartImg = screen.getByRole('img', { name: /XLM Price Chart/i });
+      expect(chartImg).toHaveAttribute('aria-describedby', 'price-chart-sr-summary');
+    });
+
+    it('updates screen reader summary when asset changes', () => {
+      const { rerender } = render(<PriceChart height={300} asset="XLM" />);
+
+      expect(screen.getByTestId('price-chart-sr-summary')).toHaveTextContent(/XLM/i);
+
+      rerender(<PriceChart height={300} asset="BTC" />);
+
+      const srRegion = screen.getByTestId('price-chart-sr-summary');
+      expect(srRegion).toHaveTextContent(/BTC/i);
+      expect(srRegion).toHaveTextContent(/\$\d+(\.\d+)?/);
+      expect(srRegion).toHaveTextContent(/[-+]?\d+(\.\d+)?%/);
+    });
+
+    it('updates screen reader summary when socket price update arrives', async () => {
+      let socketCallback: ((payload: unknown) => void) | undefined;
+      (socketService.onPriceUpdate as any).mockImplementation((cb: (payload: unknown) => void) => {
+        socketCallback = cb;
+        return vi.fn();
+      });
+
+      render(<PriceChart height={300} asset="XLM" />);
+
+      expect(socketCallback).toBeDefined();
+
+      // Send socket price update with a newer timestamp than existing data
+      const futureTime = Math.floor(Date.now() / 1000) + 1000;
+      act(() => {
+        socketCallback?.({
+          time: futureTime,
+          value: 0.25,
+        });
+      });
+
+      // Advance throttled socket timer
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 60));
+      });
+
+      const srRegion = screen.getByTestId('price-chart-sr-summary');
+      expect(srRegion).toHaveTextContent(/XLM/i);
+      expect(srRegion).toHaveTextContent(/0\.25/);
+      expect(srRegion).toHaveTextContent(/%/);
+    });
+  });
 });

@@ -184,6 +184,27 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const isPositive = priceChange >= 0;
   const hasData = data.length > 0;
 
+  // Screen reader summary: price, change%, asset
+  const srSummary = useMemo(() => {
+    if (isLoading) {
+      return `Loading ${asset} price data...`;
+    }
+    if (loadError) {
+      return `Failed to load ${asset} price data.`;
+    }
+    if (!hasData || !latestPrice) {
+      return `${asset} price chart: waiting for live data.`;
+    }
+    const changeText = `${isPositive ? "+" : ""}${priceChangePercent.toFixed(2)}%`;
+    return `${asset} price: $${latestPrice.toFixed(4)}, change: ${changeText}`;
+  }, [asset, hasData, isLoading, latestPrice, loadError, isPositive, priceChangePercent]);
+
+  // Reset announcement state and throttle ref when asset changes
+  useEffect(() => {
+    lastAnnouncedRef.current = null;
+    setAnnouncement("");
+  }, [asset]);
+
   useEffect(() => {
     if (!latestPrice || !hasData) return;
     const now = Date.now();
@@ -204,16 +225,19 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       if (timePassed || pctChange >= MATERIAL_PCT) {
         if (latestPrice !== last.price) {
           shouldAnnounce = true;
-          directionText = latestPrice > last.price ? "increased to" : "decreased to";
+          directionText = latestPrice > last.price ? "increased to " : "decreased to ";
         }
       }
     }
 
     if (shouldAnnounce) {
-      setAnnouncement(`${asset} price ${directionText ? directionText : 'is'} $${latestPrice.toFixed(4)}`);
+      const changeText = `${isPositive ? "+" : ""}${priceChangePercent.toFixed(2)}%`;
+      setAnnouncement(
+        `${asset} price ${directionText ? directionText : "is "}$${latestPrice.toFixed(4)}, change: ${changeText}`
+      );
       lastAnnouncedRef.current = { price: latestPrice, time: now };
     }
-  }, [latestPrice, asset, hasData]);
+  }, [latestPrice, asset, hasData, isPositive, priceChangePercent]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -701,6 +725,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
             className="absolute inset-y-0 left-0 right-[105px]" 
             role="img" 
             aria-label={`${asset} Price Chart`} 
+            aria-describedby="price-chart-sr-summary"
           />
 
           {/* Custom price labels on the right */}
@@ -804,9 +829,16 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
         <span>Live market feed</span>
       </div>
 
-      {/* Visually hidden aria-live region for price announcements */}
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {announcement}
+      {/* Visually hidden live region for screen reader summary: price, change%, asset */}
+      <div
+        id="price-chart-sr-summary"
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+        role="status"
+        data-testid="price-chart-sr-summary"
+      >
+        {announcement || srSummary}
       </div>
     </div>
   );
