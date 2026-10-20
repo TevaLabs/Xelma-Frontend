@@ -7,6 +7,8 @@
  */
 
 import { rpc, scValToNative, type xdr } from '@stellar/stellar-sdk';
+import type { UserPrediction } from './api-client';
+import type { RecentActivityItem } from '../types';
 
 const RPC_URL = import.meta.env.VITE_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
 const XELMA_CONTRACT_ID =
@@ -143,3 +145,32 @@ export function filterByRound(events: PredictionEvent[], roundId: string): Predi
   if (!trimmed) return events;
   return events.filter((event) => event.roundId === trimmed);
 }
+
+/**
+ * Maps a UserPrediction record to a RecentActivityItem pure model for activity display.
+ * Resolves outcome boolean/string indicators, asset defaults, updown/precision mode,
+ * normalized stake amount, and prediction creation timestamp.
+ */
+export function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
+  const isWin =
+    typeof pred.isWin === "boolean"
+      ? pred.isWin
+      : String(pred.outcome ?? pred.result ?? pred.status ?? "").toLowerCase().includes("win") ||
+        String(pred.outcome ?? pred.result ?? pred.status ?? "").toUpperCase() === "WON";
+
+  const asset = typeof pred.asset === "string" ? pred.asset : "BTC";
+  const mode =
+    typeof pred.mode === "string" && (pred.mode === "updown" || pred.mode === "precision")
+      ? pred.mode
+      : "updown";
+
+  return {
+    id: String(pred.id),
+    asset,
+    result: isWin ? "Won" : "Lost",
+    amount: typeof pred.stake === "number" ? pred.stake : parseFloat(String(pred.stake || 0)) || 0,
+    mode,
+    timestamp: pred.createdAt,
+  };
+}
+

@@ -50,6 +50,7 @@ import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma
 import { mockRounds } from "../data/mockData";
 
 import type { RecentActivityItem } from "../types";
+import { mapPredictionToActivityItem } from "../lib/prediction-events";
 import { toast } from "sonner";
 import { Share2 } from "lucide-react";
 import OpenPositionsDrawer, { type OpenPosition } from "../components/OpenPositionsDrawer";
@@ -100,26 +101,7 @@ function upDownPoolPercentages(
   return { poolUpPct: upPct, poolDownPct: 100 - upPct };
 }
 
-function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
-  const isWin = typeof pred.isWin === "boolean"
-    ? pred.isWin
-    : String(pred.outcome ?? pred.result ?? pred.status ?? "").toLowerCase().includes("win") ||
-      String(pred.outcome ?? pred.result ?? pred.status ?? "").toUpperCase() === "WON";
 
-  const asset = typeof pred.asset === "string" ? pred.asset : "BTC";
-  const mode = (typeof pred.mode === "string" && (pred.mode === "updown" || pred.mode === "precision"))
-    ? pred.mode
-    : "updown";
-
-  return {
-    id: String(pred.id),
-    asset,
-    result: isWin ? "Won" : "Lost",
-    amount: typeof pred.stake === "number" ? pred.stake : parseFloat(String(pred.stake || 0)) || 0,
-    mode,
-    timestamp: pred.createdAt,
-  };
-}
 
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 

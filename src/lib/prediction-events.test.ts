@@ -20,7 +20,7 @@ vi.mock('@stellar/stellar-sdk', async () => {
   };
 });
 
-const { fetchPredictionEvents, filterByRound, PredictionEventsError } = await import(
+const { fetchPredictionEvents, filterByRound, mapPredictionToActivityItem, PredictionEventsError } = await import(
   './prediction-events'
 );
 type PredictionEvent = Awaited<ReturnType<typeof fetchPredictionEvents>>[number];
@@ -143,6 +143,67 @@ describe('prediction-events', () => {
 
     it('returns nothing when no event matches', () => {
       expect(filterByRound(events, '99')).toEqual([]);
+    });
+  });
+
+  describe('mapPredictionToActivityItem', () => {
+    it('maps a winning prediction with boolean isWin correctly', () => {
+      const pred = {
+        id: 123,
+        asset: 'ETH',
+        stake: 50,
+        isWin: true,
+        mode: 'precision',
+        createdAt: '2026-08-01T12:00:00Z',
+      };
+
+      const result = mapPredictionToActivityItem(pred as any);
+
+      expect(result).toEqual({
+        id: '123',
+        asset: 'ETH',
+        result: 'Won',
+        amount: 50,
+        mode: 'precision',
+        timestamp: '2026-08-01T12:00:00Z',
+      });
+    });
+
+    it('maps outcome/status strings containing win to Won', () => {
+      const predWon = {
+        id: '456',
+        stake: '10.5',
+        status: 'WON',
+        createdAt: '2026-08-01T13:00:00Z',
+      };
+
+      const result = mapPredictionToActivityItem(predWon as any);
+
+      expect(result.result).toBe('Won');
+      expect(result.amount).toBe(10.5);
+      expect(result.asset).toBe('BTC');
+      expect(result.mode).toBe('updown');
+    });
+
+    it('maps lost predictions correctly and handles invalid stake / missing asset', () => {
+      const predLost = {
+        id: 789,
+        stake: 'invalid',
+        result: 'LOST',
+        mode: 'invalid_mode',
+        createdAt: '2026-08-01T14:00:00Z',
+      };
+
+      const result = mapPredictionToActivityItem(predLost as any);
+
+      expect(result).toEqual({
+        id: '789',
+        asset: 'BTC',
+        result: 'Lost',
+        amount: 0,
+        mode: 'updown',
+        timestamp: '2026-08-01T14:00:00Z',
+      });
     });
   });
 });
