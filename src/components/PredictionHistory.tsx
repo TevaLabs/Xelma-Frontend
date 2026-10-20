@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { predictionsApi, type UserPrediction } from "../lib/api-client";
 import { LoadingState, ErrorState, EmptyState } from "./ui/StatusStates";
 import { PanelHeader } from "./ui/PanelHeader";
 import { formatVXLM, formatRelativeTime } from "../lib/utils";
 
-const PAGE_SIZE = 10;
+export const PAGE_SIZE = 10;
 
 interface PredictionHistoryProps {
   userId: string | null;
@@ -109,11 +109,19 @@ export default function PredictionHistory({ userId, optimisticPrediction, refres
     }
   }, [userId]);
 
-  const hasMore = visibleCount < history.length;
+  const filteredHistory = useMemo(
+    () => history.filter((h) => !optimisticPrediction || h.id !== optimisticPrediction.id),
+    [history, optimisticPrediction]
+  );
+  const visibleHistory = useMemo(
+    () => filteredHistory.slice(0, visibleCount),
+    [filteredHistory, visibleCount]
+  );
+  const hasMore = visibleCount < filteredHistory.length;
 
   const loadMore = useCallback(() => {
-    setVisibleCount((prev: number) => Math.min(prev + PAGE_SIZE, history.length));
-  }, [history.length]);
+    setVisibleCount((prev: number) => Math.min(prev + PAGE_SIZE, filteredHistory.length));
+  }, [filteredHistory.length]);
 
   const handleExportCSV = useCallback(() => {
     if (history.length === 0) return;
@@ -215,7 +223,7 @@ export default function PredictionHistory({ userId, optimisticPrediction, refres
         <ErrorState message={error} onRetry={loadHistory} className="min-h-[200px]" />
       )}
 
-      {!isLoading && !error && history.length === 0 && !optimisticPrediction && (
+      {!isLoading && !error && filteredHistory.length === 0 && !optimisticPrediction && (
         <EmptyState
           title="No predictions yet"
           message="Start making predictions to see your history here."
@@ -224,15 +232,15 @@ export default function PredictionHistory({ userId, optimisticPrediction, refres
         />
       )}
 
-      {!isLoading && !error && history.length > 0 && (
+      {!isLoading && !error && filteredHistory.length > 0 && (
         <ul className="space-y-3">
-          {history
-            .filter((h) => !optimisticPrediction || h.id !== optimisticPrediction.id)
-            .map((prediction, index) => renderPredictionRow(prediction, `${String(prediction.id)}-${index}`))}
+          {visibleHistory.map((prediction, index) =>
+            renderPredictionRow(prediction, `${String(prediction.id)}-${index}`)
+          )}
         </ul>
       )}
 
-      {!isLoading && !error && history.length > 0 && (
+      {!isLoading && !error && filteredHistory.length > 0 && (
         <div className="mt-4">
           {hasMore ? (
             <button

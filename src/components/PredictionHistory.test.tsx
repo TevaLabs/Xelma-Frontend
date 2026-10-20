@@ -250,4 +250,81 @@ describe("PredictionHistory", () => {
       });
     });
   });
+
+  describe("load-more pagination", () => {
+    function generateMockHistory(count: number): UserPrediction[] {
+      return Array.from({ length: count }, (_, i) => ({
+        id: `pred-${i + 1}`,
+        direction: i % 2 === 0 ? "UP" : "DOWN",
+        stake: (i + 1) * 5,
+        status: i % 2 === 0 ? "WON" : "LOST",
+        createdAt: new Date(Date.now() - i * 60000).toISOString(),
+      }));
+    }
+
+    it("slices history to PAGE_SIZE (10) items initially and renders the Load more button", async () => {
+      const mockHistory = generateMockHistory(25);
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue(mockHistory);
+
+      render(<PredictionHistory userId={mockUserId} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+      });
+
+      const items = screen.getAllByRole("listitem");
+      expect(items).toHaveLength(10);
+      expect(screen.queryByText("You've reached the end of your prediction history")).not.toBeInTheDocument();
+    });
+
+    it("loads more items when Load more is clicked and shows end-of-history indicator when exhausted", async () => {
+      const mockHistory = generateMockHistory(25);
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue(mockHistory);
+
+      render(<PredictionHistory userId={mockUserId} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+      });
+
+      // Click Load more (should now show 20 items)
+      fireEvent.click(screen.getByRole("button", { name: /Load more/i }));
+
+      let items = screen.getAllByRole("listitem");
+      expect(items).toHaveLength(20);
+      expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+
+      // Click Load more again (should now show all 25 items)
+      fireEvent.click(screen.getByRole("button", { name: /Load more/i }));
+
+      items = screen.getAllByRole("listitem");
+      expect(items).toHaveLength(25);
+      expect(screen.queryByRole("button", { name: /Load more/i })).not.toBeInTheDocument();
+      expect(screen.getByText("You've reached the end of your prediction history")).toBeInTheDocument();
+    });
+
+    it("resets visibleCount back to PAGE_SIZE on Refresh", async () => {
+      const mockHistory = generateMockHistory(25);
+      (predictionsApi.getUserHistory as Mock).mockResolvedValue(mockHistory);
+
+      render(<PredictionHistory userId={mockUserId} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+      });
+
+      // Click Load more to show 20 items
+      fireEvent.click(screen.getByRole("button", { name: /Load more/i }));
+      expect(screen.getAllByRole("listitem")).toHaveLength(20);
+
+      // Click Refresh button
+      const refreshBtn = screen.getByRole("button", { name: /Refresh/i });
+      fireEvent.click(refreshBtn);
+
+      await waitFor(() => {
+        expect(screen.getAllByRole("listitem")).toHaveLength(10);
+      });
+      expect(screen.getByRole("button", { name: /Load more/i })).toBeInTheDocument();
+    });
+  });
 });
