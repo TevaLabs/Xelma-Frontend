@@ -148,7 +148,7 @@ const WalletConnect = () => {
                 )}
               >
                 <RefreshCw className="w-4 h-4" aria-hidden />
-                Retry sign-in
+                Re-authenticate
               </button>
               <button
                 type="button"
