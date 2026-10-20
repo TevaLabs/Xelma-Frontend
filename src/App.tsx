@@ -28,6 +28,8 @@ function App() {
   // Landing renders its own Footer at the bottom of its bespoke layout.
   // All other routes share the global session footer for consistent branding.
   const showGlobalFooter = pathname !== '/';
+  // The dashboard is a dense, full-height terminal view — use the slim footer there.
+  const footerVariant = pathname === '/dashboard' ? 'compact' : 'default';
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0A0F1A] font-sans text-[#F3F4F6]">
@@ -63,7 +65,7 @@ function App() {
           </Suspense>
         </LazyBoundary>
       </ErrorBoundary>
-      {showGlobalFooter && <Footer />}
+      {showGlobalFooter && <Footer variant={footerVariant} />}
       <Toaster richColors position="top-center" theme="dark" />
       <OnboardingChecklist />
     </div>
