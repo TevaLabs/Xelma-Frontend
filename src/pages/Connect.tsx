@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStellarAddressValidation } from '../hooks/useStellarAddressValidation';
 import { type Network } from '../utils/validateStellarAddress';
 import { CheckCircle2, XCircle, Wallet, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
@@ -8,7 +8,8 @@ import WalletConnect from '../components/WalletConnect';
 import BalancesPanel from '../components/BalancesPanel';
 import FriendbotFundCard from '../components/FriendbotFundCard';
 import { useWalletStore } from '../store/useWalletStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { DEFAULT_RETURN_TO, sanitizeReturnTo } from '../lib/returnTo';
 import { Spinner } from '../components/ui/Spinner';
 
 const Connect = () => {
@@ -17,9 +18,21 @@ const Connect = () => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Allowlisted internal path from `?returnTo=`, or null when absent/unsafe.
+  const returnTo = sanitizeReturnTo(searchParams.get('returnTo'));
+  const continueTo = returnTo ?? DEFAULT_RETURN_TO;
 
   const { publicKey, status, setWatchOnly, isWatchOnly, disconnect } = useWalletStore();
   const isConnected = status === 'connected' && Boolean(publicKey);
+
+  // Deep-link: once connected (Freighter or watch-only), send the user back to
+  // where they came from. Only runs when a valid returnTo was supplied.
+  useEffect(() => {
+    if (returnTo && (isConnected || isWatchOnly)) {
+      navigate(returnTo, { replace: true });
+    }
+  }, [returnTo, isConnected, isWatchOnly, navigate]);
 
   const {
     state,
@@ -144,7 +157,7 @@ const Connect = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate(continueTo)}
                     className="btn-primary flex-1 rounded-xl px-4 py-3 text-sm font-bold"
                   >
                     Continue to Dashboard
@@ -160,7 +173,7 @@ const Connect = () => {
                     <BalancesPanel className="mt-4" />
                     <button
                       type="button"
-                      onClick={() => navigate('/dashboard')}
+                      onClick={() => navigate(continueTo)}
                       className="btn-primary mt-4 w-full rounded-xl px-4 py-3 text-sm font-bold"
                     >
                       Continue to Dashboard

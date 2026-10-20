@@ -13,8 +13,10 @@ vi.mock('../hooks/useStellarAddressValidation', () => ({
 
 // Mock react-router-dom
 const mockNavigate = vi.fn();
+let mockSearch = '';
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams(mockSearch)],
 }));
 
 // Mock WalletConnect component
@@ -53,6 +55,7 @@ function mockWalletState(status: string, publicKey: string | null, isWatchOnly =
 describe('Connect Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearch = '';
     mockWalletState('idle', null);
   });
 
@@ -200,6 +203,60 @@ describe('Connect Page', () => {
       // Verify no unmocked fetch was triggered
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();
+    });
+  });
+  describe('returnTo deep-link', () => {
+    const KEY = 'GABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABC';
+
+    it('does not redirect when connected without a returnTo param', () => {
+      mockWalletState('connected', KEY);
+      render(<Connect />);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('redirects to an allowlisted returnTo once connected', () => {
+      mockSearch = 'returnTo=/pools';
+      mockWalletState('connected', KEY);
+      render(<Connect />);
+      expect(mockNavigate).toHaveBeenCalledWith('/pools', { replace: true });
+    });
+
+    it('preserves query and hash of an allowlisted returnTo', () => {
+      mockSearch = `returnTo=${encodeURIComponent('/learn?tab=guides#intro')}`;
+      mockWalletState('connected', KEY);
+      render(<Connect />);
+      expect(mockNavigate).toHaveBeenCalledWith('/learn?tab=guides#intro', { replace: true });
+    });
+
+    it('redirects after a watch-only connection', () => {
+      mockSearch = 'returnTo=/leaderboard';
+      mockWalletState('connected', KEY, true);
+      render(<Connect />);
+      expect(mockNavigate).toHaveBeenCalledWith('/leaderboard', { replace: true });
+    });
+
+    it('does not redirect while the wallet is not connected', () => {
+      mockSearch = 'returnTo=/pools';
+      mockWalletState('idle', null);
+      render(<Connect />);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['external URL', 'https://evil.example/phish'],
+      ['protocol-relative URL', '//evil.example'],
+      ['javascript URI', 'javascript:alert(1)'],
+      ['backslash trick', `/${String.fromCharCode(92)}evil.example`],
+      ['non-allowlisted path', '/admin'],
+      ['connect loop', '/connect'],
+      ['empty value', ''],
+    ])('ignores an unsafe returnTo (%s)', (_label, value) => {
+      mockSearch = `returnTo=${encodeURIComponent(value)}`;
+      mockWalletState('connected', KEY);
+      render(<Connect />);
+      expect(mockNavigate).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: /Continue to Dashboard/i }));
+      expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
     });
   });
 });
