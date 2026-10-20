@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchAccountBalances, formatBalance, HorizonError, HORIZON_URL } from './horizon';
+import { fetchAccountBalances, formatBalance, HorizonError, HorizonRateLimitError, HORIZON_URL } from './horizon';
 
 const ADDRESS = 'GCEXAMPLE7ADDRESS7FOR7TESTS7ONLY7AAAAAAAAAAAAAAAAAAAAAAAA';
 
@@ -87,8 +87,46 @@ describe('horizon', () => {
       await expect(fetchAccountBalances(ADDRESS)).rejects.toBeInstanceOf(HorizonError);
     });
 
+    it('throws a HorizonRateLimitError on 429 status and parses Retry-After header', async () => {
+      const response = {
+        ok: false,
+        status: 429,
+        headers: {
+          get: vi.fn((name: string) => (name === 'Retry-After' ? '30' : null)),
+        },
+        json: async () => ({}),
+      };
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(response);
+
+      const error = await fetchAccountBalances(ADDRESS).catch((e) => e);
+      expect(error).toBeInstanceOf(HorizonRateLimitError);
+      expect(error.message).toBe('Horizon is rate-limiting requests. Please wait before trying again.');
+      expect(error.retryAfterSeconds).toBe(30);
+    });
+
+    it('handles 429 with null retry-after when header is missing', async () => {
+      const response = {
+        ok: false,
+        status: 429,
+        headers: {
+          get: vi.fn(() => null),
+        },
+        json: async () => ({}),
+      };
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(response);
+
+      const error = await fetchAccountBalances(ADDRESS).catch((e) => e);
+      expect(error).toBeInstanceOf(HorizonRateLimitError);
+      expect(error.retryAfterSeconds).toBeNull();
+    });
+
     it('throws a HorizonError when the network request fails', async () => {
-      (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('offline'));
+      const response = {
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      };
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(response);
 
       await expect(fetchAccountBalances(ADDRESS)).rejects.toBeInstanceOf(HorizonError);
     });
