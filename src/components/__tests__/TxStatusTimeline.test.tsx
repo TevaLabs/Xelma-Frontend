@@ -117,6 +117,20 @@ describe('TxStatusTimeline', () => {
     expect(screen.getByText(/syncing prediction/i)).toBeInTheDocument();
   });
 
+  it('provides aria-live polite announcements and marks active step with aria-current', () => {
+    const { rerender } = render(<TxStatusTimeline step="preparing" />);
+    const liveRegion = screen.getByRole('status');
+    expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getByText(/step 1 of 4: preparing transaction/i)).toBeInTheDocument();
+
+    const activeStep = screen.getByText('Prepare').closest('[aria-current="step"]');
+    expect(activeStep).toBeInTheDocument();
+
+    rerender(<TxStatusTimeline step="signing" />);
+    expect(screen.getByText(/step 2 of 4: waiting for freighter signature/i)).toBeInTheDocument();
+    expect(screen.getByText('Sign').closest('[aria-current="step"]')).toBeInTheDocument();
+  });
+
   it('honours per-step copy overrides', () => {
     render(
       <TxStatusTimeline
