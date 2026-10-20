@@ -9,6 +9,8 @@ import { Link } from 'react-router-dom';
  * - **Precision (Narrow Range)** — teal accent, tighter-window trading
  *
  * Both CTAs route to `/dashboard` where the prediction terminal lives.
+ *
+ * Rebuilt for Stellar Wave: glass-card styling, blue/teal accents, Lucide icons.
  */
 const MODES = [
   {
