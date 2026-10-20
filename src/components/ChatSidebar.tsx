@@ -115,7 +115,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
-  const { isConnected } = useConnectionStatus();
+  const { isConnected, isReconnecting, reconnect } = useConnectionStatus();
   // Round-scoped chat channel: derived from the active round so users in
   // round #42 only see round #42 messages. Falls back to CHAT_CHANNEL_FALLBACK
   // when there is no active round (issue #185).
@@ -219,10 +219,19 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     socketService.sendChat({ content: inputValue.trim() });
 
     setInputValue("");
-    
+
     // Force scroll after sending a message
     setTimeout(() => scrollToBottom(true), 50);
   };
+
+  // #839: Keep the chat input non-interactive while offline/reconnecting so a
+  // message never appears to be sent when the socket is not connected.
+  const isSendDisabled = !isConnected || isReconnecting || inputValue.length > MAX_MESSAGE_LENGTH;
+
+  // #839: Online count can be driven by a stale fixture/mock in tests; guard
+  // the offline banner against NaN/invalid values so the reconnect CTA always
+  // has a sensible label.
+  const effectiveOnlineCount = Number.isFinite(onlineCount) ? onlineCount : 0;
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -366,11 +375,24 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] glass-card border-t border-x-0 border-b-0 rounded-none shrink-0">
           {!isConnected && (
             <div
-              className="mb-2 flex items-center justify-center gap-1.5 text-xs text-red-400"
+              className="mb-2 flex flex-col items-center gap-2 text-xs text-red-400"
               role="status"
             >
-              <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
-              Chat is offline - messages cannot be sent
+              <div className="flex items-center gap-1.5">
+                <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+                Chat is offline - messages cannot be sent
+              </div>
+              <button
+                type="button"
+                className="btn-primary text-xs"
+                onClick={reconnect}
+                disabled={isReconnecting}
+                aria-label="Reconnect chat"
+              >
+                {isReconnecting
+                  ? 'Reconnecting...'
+                  : `Reconnect${effectiveOnlineCount > 0 ? ` (${effectiveOnlineCount} online)` : ''}`}
+              </button>
             </div>
           )}
           <div className="flex items-end gap-2 p-2 bg-white/5 border border-white/10 rounded-xl">
@@ -379,20 +401,20 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               rows={1}
               maxLength={MAX_MESSAGE_LENGTH}
               className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-white placeholder-gray-500 resize-none overflow-y-auto py-2 min-h-[36px] max-h-[120px] ${
-                !isConnected ? 'opacity-50' : ''
+                isSendDisabled ? 'opacity-50' : ''
               }`}
               placeholder={isConnected ? "Type a message..." : "Chat offline..."}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
-              disabled={!isConnected}
+              disabled={isSendDisabled}
               aria-label="Message input"
             />
             <button
               className={`btn-primary flex items-center justify-center min-w-[36px] w-9 h-9 p-0 rounded-lg shrink-0 ${
-                !isConnected || inputValue.length > MAX_MESSAGE_LENGTH ? 'opacity-50 cursor-not-allowed' : ''
+                isSendDisabled ? 'opacity-50 cursor-not-allowed' : ''
               }`}
-              disabled={!isConnected || inputValue.length > MAX_MESSAGE_LENGTH}
+              disabled={isSendDisabled}
               onClick={handleSendMessage}
               aria-label="Send message"
             >
