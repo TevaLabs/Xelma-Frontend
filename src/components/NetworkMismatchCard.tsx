@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import {
   EXPECTED_NETWORK_LABEL,
@@ -23,6 +24,7 @@ const STEPS = [
  * nothing on the happy path.
  */
 export default function NetworkMismatchCard({ className }: { className?: string }) {
+  const [isDismissed, setIsDismissed] = useState(false);
   const status = useWalletStore((s) => s.status);
   const publicKey = useWalletStore((s) => s.publicKey);
   const network = useWalletStore((s) => s.network);
@@ -30,7 +32,7 @@ export default function NetworkMismatchCard({ className }: { className?: string 
   const checkConnection = useWalletStore((s) => s.checkConnection);
 
   const isConnected = status === 'connected' && Boolean(publicKey);
-  if (!isConnected || !networkMismatch) return null;
+  if (!isConnected || !networkMismatch || isDismissed) return null;
 
   return (
     <section
@@ -98,6 +100,13 @@ export default function NetworkMismatchCard({ className }: { className?: string 
             >
               About Stellar networks
             </a>
+            <button
+              type="button"
+              onClick={() => setIsDismissed(true)}
+              className="ml-auto text-xs font-semibold text-red-200 underline underline-offset-2 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       </div>

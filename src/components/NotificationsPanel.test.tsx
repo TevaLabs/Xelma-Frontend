@@ -308,6 +308,13 @@ describe('NotificationsPanel', () => {
       expect(notifications[1]).toHaveClass('opacity-60');
     });
 
+    it('shows unread indicators and the unread count', () => {
+      render(<NotificationsPanel {...defaultProps} />);
+
+      expect(screen.getByText('2 unread')).toBeInTheDocument();
+      expect(screen.getAllByText('Unread notification')).toHaveLength(2);
+    });
+
     it('shows mark as read button only for unread notifications', () => {
       // Use the same mock setup approach as the passing accessibility test
       vi.mocked(useNotificationsStore).mockImplementation((selector: any) => {
@@ -381,6 +388,14 @@ describe('NotificationsPanel', () => {
 
       const scrollContainer = screen.getByRole('dialog').querySelector('.max-h-80');
       expect(scrollContainer).toHaveClass('max-h-80', 'overflow-auto', 'min-h-[200px]');
+    });
+
+    it('keeps a glass-styled header above the scrollable list', () => {
+      render(<NotificationsPanel {...defaultProps} />);
+
+      const header = screen.getByRole('heading', { name: 'Notifications' }).parentElement?.parentElement;
+      expect(header).toHaveClass('sticky', 'top-0', 'backdrop-blur-xl');
+      expect(screen.getByRole('dialog')).toHaveClass('glass-card', 'text-white');
     });
   });
 

@@ -8,7 +8,6 @@ import WalletPicker from './WalletPicker';
 import type { WalletId } from '../lib/wallets';
 import MaskedBalance from './MaskedBalance';
 import NetworkMismatchCard from './NetworkMismatchCard';
-import { EXPECTED_NETWORK_LABEL } from '../lib/stellarNetwork';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
 import FreighterMissingCard from './FreighterMissingCard';
 
@@ -23,7 +22,6 @@ const WalletConnect = () => {
     status,
     errorMessage,
     errorCode,
-    networkMismatch,
     connect,
     disconnect,
     checkConnection,
@@ -59,16 +57,6 @@ const WalletConnect = () => {
   if (publicKey && status === 'connected') {
     return (
       <div className="flex flex-col gap-3 sm:gap-4">
-        {networkMismatch && (
-          <div
-            className="hidden md:flex items-center text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded"
-            role="status"
-          >
-            <AlertCircle className="w-4 h-4 mr-1 shrink-0" aria-hidden />
-            Switch to {EXPECTED_NETWORK_LABEL} in Freighter
-          </div>
-        )}
-
         <div className="flex flex-col sm:flex-row items-stretch gap-3">
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-[#BEC7FE] dark:border-gray-700 rounded-lg shadow-sm">
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">

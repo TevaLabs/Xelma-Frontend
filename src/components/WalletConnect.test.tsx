@@ -249,7 +249,7 @@ describe('WalletConnect', () => {
       expect(screen.getByText('Balance unavailable')).toBeInTheDocument();
     });
 
-    it('shows network mismatch warning', () => {
+    it('shows actionable network mismatch guidance', () => {
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = {
           ...mockWalletStore,
@@ -262,12 +262,10 @@ describe('WalletConnect', () => {
 
       render(<WalletConnect />);
 
-      const warning = screen.getByRole('status');
-      expect(warning).toHaveTextContent('Switch to Testnet in Freighter');
-      expect(warning).toHaveClass('text-red-600', 'dark:text-red-400');
-      // WalletConnect's own banner and the <NetworkMismatchCard /> both render an
-      // <AlertCircle />, so expect at least one.
-      expect(screen.getAllByTestId('alert-icon').length).toBeGreaterThanOrEqual(1);
+      const warning = screen.getByTestId('network-mismatch-card');
+      expect(warning).toHaveTextContent('Freighter is on the wrong network');
+      expect(warning).toHaveClass('border-red-500/30');
+      expect(screen.getByRole('button', { name: 'Re-check network' })).toBeInTheDocument();
     });
   });
 
@@ -333,11 +331,10 @@ describe('WalletConnect', () => {
       });
     });
 
-    it('hides network warning on mobile', () => {
+    it('shows network guidance on mobile', () => {
       render(<WalletConnect />);
 
-      const warning = screen.getByRole('status');
-      expect(warning).toHaveClass('hidden', 'md:flex');
+      expect(screen.getByTestId('network-mismatch-card')).toBeInTheDocument();
     });
 
     it('hides balance on mobile', () => {
@@ -469,7 +466,7 @@ describe('WalletConnect', () => {
       expect(balanceContainer).toHaveClass('dark:border-gray-700');
     });
 
-    it('includes dark mode classes for network warning', () => {
+    it('uses the terminal warning palette for network mismatch', () => {
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = {
           ...mockWalletStore,
@@ -482,9 +479,8 @@ describe('WalletConnect', () => {
 
       render(<WalletConnect />);
 
-      const warning = screen.getByRole('status');
-      expect(warning).toHaveClass('text-red-600', 'dark:text-red-400');
-      expect(warning).toHaveClass('bg-red-50', 'dark:bg-red-900/20');
+      const warning = screen.getByTestId('network-mismatch-card');
+      expect(warning).toHaveClass('border-red-500/30', 'bg-red-500/[0.07]');
     });
   });
 
