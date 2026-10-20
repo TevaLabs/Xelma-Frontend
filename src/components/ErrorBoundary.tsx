@@ -145,7 +145,7 @@ class ErrorBoundary extends Component<Props, State> {
               </div>
             )}
 
-            {/* Max retries alert if threshold hit */}
+            {/* Max retries alert if threshold hits */}
             {isMaxRetriesReached ? (
               <div className="mt-5 flex w-full items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-left text-xs text-amber-200">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />

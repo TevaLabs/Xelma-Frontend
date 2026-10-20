@@ -136,7 +136,7 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByRole('button', { name: /^retry$/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reload page/i })).toBeInTheDocument();
 
-    // Clicking Reload Page invokes window.location.reload
+    // Clicking Reload Page invoke window.location.reload
     fireEvent.click(screen.getByRole('button', { name: /reload page/i }));
     expect(window.location.reload).toHaveBeenCalledTimes(1);
   });
