@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import WalletConnect from './WalletConnect';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
+import '../i18n';
+import i18n from '../i18n';
 
 // Mock the stores
 vi.mock('../store/useWalletStore', () => ({
@@ -81,6 +83,10 @@ describe('WalletConnect', () => {
       }
       return mockAuthStore;
     });
+  });
+
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
   });
 
   describe('initialization', () => {
@@ -571,6 +577,136 @@ describe('WalletConnect', () => {
       });
       rerender(<WalletConnect />);
       expect(screen.getByText('Connection failed')).toBeInTheDocument();
+    });
+  });
+
+  describe('internationalization at component boundary', () => {
+    it('translates error messages to Spanish when locale is es, while store error is English-only', async () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'error',
+          errorCode: 'ACCESS_DENIED' as const,
+          errorMessage: 'Wallet access was denied. Click Connect and approve in Freighter.',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      await i18n.changeLanguage('es');
+
+      render(<WalletConnect />);
+
+      const errorAlert = screen.getByRole('alert');
+      expect(errorAlert).toHaveTextContent(
+        'Acceso a la cartera denegado. Haz clic en Conectar y aprueba en Freighter.'
+      );
+      expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    });
+
+    it('translates various error codes at component boundary', async () => {
+      const errorCodes = [
+        {
+          code: 'ACCESS_DENIED' as const,
+          englishMessage: 'Wallet access was denied. Click Connect and approve in Freighter.',
+          spanishExpected: 'Acceso a la cartera denegado. Haz clic en Conectar y aprueba en Freighter.',
+        },
+        {
+          code: 'TIMEOUT' as const,
+          englishMessage: 'Connection timed out. Check Freighter and try again.',
+          spanishExpected: 'Tiempo de espera de conexión agotado. Revisa Freighter e inténtalo de nuevo.',
+        },
+        {
+          code: 'UNKNOWN' as const,
+          englishMessage: 'Could not connect wallet. Try again or reinstall Freighter.',
+          spanishExpected: 'No se pudo conectar la cartera. Inténtalo de nuevo o reinstala Freighter.',
+        },
+      ];
+
+      await i18n.changeLanguage('es');
+
+      for (const item of errorCodes) {
+        vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+          const store = {
+            ...mockWalletStore,
+            status: 'error',
+            errorCode: item.code,
+            errorMessage: item.englishMessage,
+          };
+          return typeof selector === 'function' ? selector(store) : store;
+        });
+
+        const { unmount } = render(<WalletConnect />);
+        expect(screen.getByRole('alert')).toHaveTextContent(item.spanishExpected);
+        unmount();
+      }
+    });
+
+    it('falls back to the store English message when error is unknown or unkeyed', async () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'error',
+          errorCode: null,
+          errorMessage: 'Custom unmapped backend error message',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      await i18n.changeLanguage('es');
+
+      render(<WalletConnect />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Custom unmapped backend error message');
+      expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    });
+
+    it('translates auth failure alert and buttons in connected state', async () => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'connected',
+          publicKey: 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+          errorCode: 'AUTH_FAILED' as const,
+          errorMessage: 'Wallet is connected, but sign-in to the server failed. Try Disconnect and Connect again.',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+
+      await i18n.changeLanguage('es');
+
+      render(<WalletConnect />);
+
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent('Falló la autenticación con el servidor.');
+      expect(alert).toHaveTextContent(
+        'Tu cartera está conectada, pero no se completó el inicio de sesión en el servidor. Reintenta o desconecta y vuelve a conectar.'
+      );
+      expect(screen.getByRole('button', { name: 'Reintentar inicio de sesión' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Desconectar' })).toBeInTheDocument();
+    });
+
+    it('translates connect button and connecting/checking states in Spanish', async () => {
+      await i18n.changeLanguage('es');
+
+      // Idle state
+      const { rerender } = render(<WalletConnect />);
+      expect(screen.getByRole('button', { name: /conectar cartera/i })).toBeInTheDocument();
+
+      // Connecting state
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'connecting' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      expect(screen.getByText('Conectando…')).toBeInTheDocument();
+
+      // Checking state
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'checking' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      expect(screen.getByText('Comprobando cartera…')).toBeInTheDocument();
     });
   });
 });
