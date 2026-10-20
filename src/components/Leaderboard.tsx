@@ -52,8 +52,15 @@ const Leaderboard = () => {
 
   // ── #203: URL query param for filter ──────────────────────────────────────
   const [searchParams, setSearchParams] = useSearchParams();
-  const rawFilter = searchParams.get(FILTER_PARAM);
-  const activeFilter: FilterOption = isValidFilter(rawFilter) ? rawFilter : 'all';
+
+  // Stable across renders: only the URL filter param drives it.
+  const activeFilter: FilterOption = useMemo(
+    () =>
+      isValidFilter(searchParams.get(FILTER_PARAM))
+        ? (searchParams.get(FILTER_PARAM) as FilterOption)
+        : 'all',
+    [searchParams],
+  );
 
   const setFilter = useCallback(
     (next: FilterOption) => {
@@ -105,26 +112,12 @@ const Leaderboard = () => {
     },
     [setFilter]
   );
-
-  // ── Data fetch ─────────────────────────────────────────────────────────────
-  const fetchLeaderboard = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await leaderboardApi.getLeaderboard('UP_DOWN');
-      const mapped = (Array.isArray(data) ? data : []).map(mapEntryToUser);
-      setUsers(mapped);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchLeaderboard();
-  }, [fetchLeaderboard]);
+  const handleTabClick = useCallback(
+    (option: FilterOption) => {
+      setFilter(option);
+    },
+    [setFilter]
+  );
 
   // ── Wallet ─────────────────────────────────────────────────────────────────
   const walletPublicKey = useWalletStore((s) => s.publicKey);
@@ -154,6 +147,28 @@ const Leaderboard = () => {
     { rank: 1, user: rank1, order: 'order-1 md:order-2 -mt-6 md:-mt-12 z-10', medal: 'Gold', avatarSize: 'w-32 h-32', border: 'border-[5px] border-[#FFD700]', barHeight: 'h-36' },
     { rank: 3, user: rank3, order: 'order-3 md:order-3', medal: 'Bronze', avatarSize: 'w-24 h-24', border: 'border-4 border-[#CD7F32]', barHeight: 'h-20' },
   ] as const;
+
+  // ── #845: Wire filter to API — pass active filter to the backend so the
+  // leaderboard response reflects the selected time range, and refetch whenever
+  // the active filter changes (browser back/forward + programmatic changes).
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await leaderboardApi.getLeaderboard(activeFilter);
+      const mapped = (Array.isArray(data) ? data : []).map(mapEntryToUser);
+      setUsers(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeFilter]);
+
+  useEffect(() => {
+    void fetchLeaderboard();
+  }, [fetchLeaderboard]);
 
   // ── #202: Virtualizer setup ────────────────────────────────────────────────
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -225,7 +240,7 @@ const Leaderboard = () => {
                   role="tab"
                   aria-selected={activeFilter === opt}
                   tabIndex={activeFilter === opt ? 0 : -1}
-                  onClick={() => setFilter(opt)}
+                  onClick={() => handleTabClick(opt)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={clsx(
                     'rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors',

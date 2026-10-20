@@ -224,7 +224,11 @@ function normalizeLeaderboard(response: LeaderboardResponse): LeaderboardEntry[]
 }
 
 export const leaderboardApi = {
-    getLeaderboard: async (mode: string = 'UP_DOWN') => {
+    /**
+     * `mode` is the time-range filter passed from the Leaderboard filter tabs
+     * (#845): `all | daily | weekly | monthly`.
+     */
+    getLeaderboard: async (mode: string = 'all') => {
         try {
             const response = await apiFetch<LeaderboardResponse>(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
             const normalized = normalizeLeaderboard(response);

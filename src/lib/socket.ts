@@ -81,9 +81,10 @@ export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(SOC
   reconnectionDelayMax: 5000,
   reconnectionAttempts: 5,
   timeout: 20000,
+  // #836: Re-read the latest JWT on every connect/reconnect instead of only at
+  // initial creation, so a freshly-refreshed token is always sent to the server.
   auth: (cb: (data: { token: string | null }) => void) => {
-    const { jwt } = useAuthStore.getState();
-    cb({ token: jwt });
+    cb({ token: useAuthStore.getState().jwt });
   },
 });
 
