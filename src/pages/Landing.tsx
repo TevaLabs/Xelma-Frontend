@@ -6,14 +6,23 @@ import ModeCards from '../components/ModeCards';
 import GlassCard from '../components/ui/GlassCard';
 import StatusPill from '../components/ui/StatusPill';
 import { useNetworkStats } from '../hooks/useNetworkStats';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
-function useCountUp(target: number, durationMs = 1800) {
-  const [value, setValue] = useState(0);
+// eslint-disable-next-line react-refresh/only-export-components
+export function useCountUp(target: number, durationMs = 1800) {
+  const { reduced } = useReducedMotion();
+  const [value, setValue] = useState(() => (reduced ? target : 0));
   // Track the last displayed value so re-targeting (mock -> live stats) animates
   // smoothly from where it is rather than snapping back to zero.
-  const latestRef = useRef(0);
+  const latestRef = useRef(reduced ? target : 0);
 
   useEffect(() => {
+    if (reduced) {
+      latestRef.current = target;
+      setValue(target);
+      return;
+    }
+
     let frame = 0;
     const startValue = latestRef.current;
     const start = performance.now();
@@ -29,9 +38,9 @@ function useCountUp(target: number, durationMs = 1800) {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [target, durationMs]);
+  }, [target, durationMs, reduced]);
 
-  return value;
+  return reduced ? target : value;
 }
 
 function formatStat(value: number, type: 'rounds' | 'vxlm' | 'players') {
