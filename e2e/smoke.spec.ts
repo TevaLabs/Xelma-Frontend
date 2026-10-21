@@ -125,4 +125,30 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+
+  test('Unknown route loads and renders NotFound page correctly', async ({ page }) => {
+    await page.goto('/unknown-route-does-not-exist');
+    await page.waitForLoadState('networkidle');
+
+    // Verify page title
+    await expect(page).toHaveTitle(/Xelma/i);
+
+    // Verify 404 visual indicator and badge
+    await expect(page.getByText('404')).toBeVisible();
+    await expect(page.getByText('Unknown route')).toBeVisible();
+
+    // Verify main heading is present
+    const mainHeading = page.locator('h1');
+    await expect(mainHeading).toBeVisible();
+    await expect(mainHeading).toContainText("This path doesn't exist");
+
+    // Verify CTA links are present
+    const homeLink = page.locator('a', { hasText: 'Back to Home' });
+    await expect(homeLink).toBeVisible();
+    await expect(homeLink).toHaveAttribute('href', '/');
+
+    const terminalLink = page.locator('a', { hasText: 'Open Terminal' });
+    await expect(terminalLink).toBeVisible();
+    await expect(terminalLink).toHaveAttribute('href', '/dashboard');
+  });
 });
