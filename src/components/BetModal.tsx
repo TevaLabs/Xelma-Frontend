@@ -753,7 +753,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               disabled={!isConnected || feeEstimateStatus === 'failed' || tx.isInFlight}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
             >
-              Confirm
+              {tx.isInFlight ? 'Submitting...' : 'Confirm'}
             </button>
           </div>
         )}

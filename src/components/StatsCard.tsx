@@ -1,4 +1,3 @@
-import type { MockUserStats } from '../types';
 import type { UserStats } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
@@ -10,7 +9,7 @@ import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 
 interface StatsCardProps {
-  stats: UserStats | MockUserStats | null;
+  stats: UserStats | null;
   isLoading?: boolean;
   error?: string;
   onRetry?: () => void;

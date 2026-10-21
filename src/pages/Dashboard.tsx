@@ -146,7 +146,7 @@ const DailyTip = () => {
       try {
         const parsed = JSON.parse(cached) as { date: string; tip: Tip };
         if (parsed.date === today && parsed.tip) {
-          return parsed.tip;
+          return false;
         }
       } catch {
         // corrupted cache
@@ -181,9 +181,17 @@ const DailyTip = () => {
         aria-busy="true"
         aria-label="Loading daily tip"
       >
-        <div className="h-4 w-24 rounded bg-white/10 mb-3" />
-        <div className="h-3 w-full rounded bg-white/10 mb-2" />
-        <div className="h-3 w-4/5 rounded bg-white/10" />
+        <div className="flex items-start gap-3">
+          <span className="shrink-0 text-2xl opacity-50" aria-hidden>
+            💡
+          </span>
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="h-4 w-24 rounded bg-white/10" />
+            <div className="h-3 w-full rounded bg-white/10" />
+            <div className="h-3 w-5/6 rounded bg-white/10" />
+            <div className="h-3 w-4/5 rounded bg-white/10" />
+          </div>
+        </div>
       </div>
     );
   }

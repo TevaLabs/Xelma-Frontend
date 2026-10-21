@@ -23,12 +23,14 @@ function WalletRow({
   isAvailable,
   isChecking,
   isConnecting,
+  isActive,
   onSelect,
 }: {
   adapter: WalletAdapter;
   isAvailable: boolean | undefined;
   isChecking: boolean;
   isConnecting: boolean;
+  isActive: boolean;
   onSelect: () => void;
 }) {
   const isStub = !adapter.isImplemented;
@@ -73,7 +75,9 @@ function WalletRow({
         aria-disabled={isVisuallyDisabled}
         title={isStub ? adapter.comingSoonHint : undefined}
         aria-describedby={describedBy}
-        className="flex w-full items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/70 px-4 py-3 text-left transition-colors enabled:hover:border-[#2C4BFD]/50 enabled:hover:bg-white/[0.03] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD]"
+        className={`flex w-full items-center gap-3 rounded-xl border border-gray-800 bg-gray-950/70 px-4 py-3 text-left transition-colors enabled:hover:border-[#2C4BFD]/50 enabled:hover:bg-white/[0.03] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] ${
+          isActive ? 'border-[#2C4BFD]/50 bg-white/[0.03]' : ''
+        }`}
       >
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-[#2C4BFD] to-[#22D3EE] text-white"
@@ -121,6 +125,12 @@ function WalletRow({
  * adapters that report `isImplemented: false` render as "Coming soon" — dimmed
  * and never forwarded to `onSelect`, but still selectable so choosing one
  * surfaces an informational toast instead of looking broken.
+ *
+ * Keyboard support:
+ * - ArrowDown / ArrowUp: Navigate between available wallet options
+ * - Home / End: Jump to first / last option
+ * - Enter / Space: Select the active option
+ * - Escape: Close the picker
  */
 export default function WalletPicker({
   isOpen,
@@ -131,14 +141,58 @@ export default function WalletPicker({
 }: WalletPickerProps) {
   const [availability, setAvailability] = useState<AvailabilityMap>({});
   const [isChecking, setIsChecking] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const buttonRefsRef = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   useFocusTrap(dialogRef, {
     active: isOpen,
     onEscape: onClose,
     initialFocusRef: closeButtonRef,
   });
+
+  // Get selectableAdapters (skip stubs and unavailable items for keyboard nav)
+  const selectableAdapters = WALLET_ADAPTERS.filter(
+    (adapter) => adapter.isImplemented && availability[adapter.id] !== false
+  );
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    if (!isOpen || selectableAdapters.length === 0) return;
+
+    const key = e.key;
+
+    if (key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % selectableAdapters.length);
+    } else if (key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev - 1 + selectableAdapters.length) % selectableAdapters.length);
+    } else if (key === 'Home') {
+      e.preventDefault();
+      setActiveIndex(0);
+    } else if (key === 'End') {
+      e.preventDefault();
+      setActiveIndex(selectableAdapters.length - 1);
+    } else if (key === 'Enter' || key === ' ') {
+      e.preventDefault();
+      const activeAdapter = selectableAdapters[activeIndex];
+      if (activeAdapter) {
+        void onSelect(activeAdapter.id);
+      }
+    }
+  };
+
+  // Focus the active button when index changes
+  useEffect(() => {
+    if (!isOpen || selectableAdapters.length === 0) return;
+    const activeAdapter = selectableAdapters[activeIndex];
+    if (!activeAdapter) return;
+    const button = buttonRefsRef.current.get(WALLET_ADAPTERS.indexOf(activeAdapter));
+    if (button) {
+      button.focus();
+    }
+  }, [activeIndex, isOpen, selectableAdapters]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -170,6 +224,13 @@ export default function WalletPicker({
     return () => {
       cancelled = true;
     };
+  }, [isOpen]);
+
+  // Reset activeIndex when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveIndex(0);
+    }
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -206,14 +267,15 @@ export default function WalletPicker({
           Choose how you want to sign transactions on Xelma.
         </p>
 
-        <ul className="space-y-2">
-          {WALLET_ADAPTERS.map((adapter) => (
+        <ul className="space-y-2" onKeyDown={handleKeyDown}>
+          {WALLET_ADAPTERS.map((adapter, idx) => (
             <WalletRow
               key={adapter.id}
               adapter={adapter}
               isAvailable={availability[adapter.id]}
               isChecking={isChecking && adapter.isImplemented}
               isConnecting={isConnecting && connectingId === adapter.id}
+              isActive={selectableAdapters.length > 0 && selectableAdapters[activeIndex]?.id === adapter.id}
               onSelect={() => void onSelect(adapter.id)}
             />
           ))}
