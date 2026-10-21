@@ -16,6 +16,13 @@ vi.mock('../store/useWalletStore', async (importActual) => {
   return { ...actual, useWalletStore: vi.fn() };
 });
 
+vi.mock('./IdenticonAvatar', () => ({
+  __esModule: true,
+  default: vi.fn(({ address, name }: { address?: string; name?: string }) => (
+    <div data-testid="identicon-avatar" data-address={address ?? ''} data-name={name ?? ''} />
+  )),
+}));
+
 // jsdom provides no layout metrics, so the real useVirtualizer can render zero
 // rows. Stub only the two functions the component calls, driven by the count
 // it passes — keeping the suite deterministic without mocking the component.
@@ -29,6 +36,8 @@ const { useVirtualizerMock } = vi.hoisted(() => ({
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: useVirtualizerMock,
 }));
+
+const STELLAR_ADDRESS = 'GAAZI4TCR3TY5OJHCTJC2A4AFLGFFL6VIP4SBGY6RXVO532LBW4DAZ4Q';
 
 function setWalletState(overrides: { publicKey?: string | null; status?: string } = {}) {
   const state = { publicKey: null, status: 'idle' as const, ...overrides };
@@ -44,6 +53,53 @@ function renderLeaderboard() {
     </MemoryRouter>,
   );
 }
+
+describe('Leaderboard identicon avatar', () => {
+  beforeEach(() => {
+    setWalletState(null);
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue([
+      { id: '1', userId: STELLAR_ADDRESS, username: 'Alice', xlm: 300 },
+      { id: '2', username: 'Bob', xlm: 200, avatar: 'https://example.com/bob.png' },
+      { id: '3', username: 'Carol', xlm: 100, avatar: 'https://example.com/carol.png' },
+    ] as never);
+  });
+
+  it('renders IdenticonAvatar for an entry with a valid Stellar G-address', async () => {
+    renderLeaderboard();
+    await waitFor(() =>
+      expect(screen.getByTestId('identicon-avatar')).toBeInTheDocument(),
+    );
+    const identicon = screen.getByTestId('identicon-avatar');
+    expect(identicon).toHaveAttribute('data-address', STELLAR_ADDRESS);
+  });
+
+  it('passes the correct wallet address to IdenticonAvatar', async () => {
+    renderLeaderboard();
+    await waitFor(() =>
+      expect(screen.getByTestId('identicon-avatar')).toBeInTheDocument(),
+    );
+    const identicon = screen.getByTestId('identicon-avatar');
+    expect(identicon).toHaveAttribute('data-address', STELLAR_ADDRESS);
+    expect(identicon).toHaveAttribute('data-name', 'Alice');
+  });
+
+  it('falls back to the img avatar for an entry without a usable public address', async () => {
+    renderLeaderboard();
+    await waitFor(() => expect(screen.getByText('Bob')).toBeInTheDocument());
+    const imgs = document.querySelectorAll('img');
+    expect(imgs.length).toBeGreaterThanOrEqual(2);
+    const identicons = screen.getAllByTestId('identicon-avatar');
+    expect(identicons).toHaveLength(1);
+    expect(identicons[0]).toHaveAttribute('data-address', STELLAR_ADDRESS);
+  });
+
+  it('renders existing leaderboard content (names and balances) intact', async () => {
+    renderLeaderboard();
+    await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument());
+    expect(screen.getByText('Bob')).toBeInTheDocument();
+    expect(screen.getByText('Carol')).toBeInTheDocument();
+  });
+});
 
 const LEADERBOARD_FIXTURE: LeaderboardEntry[] = [
   { id: 'user-1', username: 'Alice', xlm: 12000 },

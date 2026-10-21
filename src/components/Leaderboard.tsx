@@ -31,6 +31,11 @@ interface LeaderboardUser {
   name: string;
   avatar: string;
   xlm: number;
+  publicAddress?: string;
+}
+
+function isStellarPublicAddress(value: unknown): value is string {
+  return typeof value === 'string' && value.startsWith('G') && value.length >= 56;
 }
 
 function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser {
@@ -38,7 +43,8 @@ function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser
   const name = entry.username ?? entry.name ?? 'Anonymous';
   const xlm = Number(entry.xlm ?? entry.score ?? 0);
   const avatar = entry.avatar && typeof entry.avatar === 'string' ? entry.avatar : '';
-  return { id, name, avatar, xlm };
+  const publicAddress = isStellarPublicAddress(entry.userId) ? entry.userId : undefined;
+  return { id, name, avatar, xlm, publicAddress };
 }
 
 // ---------------------------------------------------------------------------
@@ -286,10 +292,20 @@ const Leaderboard = () => {
             <div key={rank} className={`${order} flex flex-col items-center w-full md:w-1/3 group`}>
               <div className={`relative ${rank === 1 ? 'mb-5' : 'mb-4'} ${TRANSFORM_TRANSITION} md:group-hover:-translate-y-2`}>
                 <div className={`${avatarSize} ${border} rounded-full overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.2)] z-10 relative bg-[#111827] ring-2 ring-cyan-400/20 ring-offset-2 ring-offset-[#0A0F1A]`}>
-                  {user.avatar ? (
-                    <img src={user.avatar} alt={`${medal} medal: ${user.name}`} className="w-full h-full object-cover" />
+                  {user.publicAddress ? (
+                    <IdenticonAvatar
+                      address={user.publicAddress}
+                      name={user.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={`${medal} medal: ${user.name}`}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <IdenticonAvatar address={user.id} name={user.name} className="w-full h-full object-cover" />
+                    <IdenticonAvatar name={user.name} className="w-full h-full object-cover" />
                   )}
                 </div>
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-cyan-500 text-white text-sm font-extrabold py-1 px-3.5 rounded-full shadow-[0_0_14px_rgba(6,182,212,0.45)] z-20 whitespace-nowrap min-w-[32px] text-center border-2 border-[#0A0F1A]">
@@ -353,14 +369,21 @@ const Leaderboard = () => {
                           {virtualRow.index + 4}
                         </span>
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-900 border border-white/10 group-hover:border-cyan-500/30 transition-colors shrink-0">
-                          {user.avatar ? (
+                          {user.publicAddress ? (
+                            <IdenticonAvatar
+                              address={user.publicAddress}
+                              name={user.name}
+                              className="w-full h-full object-cover"
+                              size={48}
+                            />
+                          ) : user.avatar ? (
                             <img
                               src={user.avatar}
                               alt={user.name}
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <IdenticonAvatar address={user.id} name={user.name} className="w-full h-full object-cover" />
+                            <IdenticonAvatar name={user.name} className="w-full h-full object-cover" />
                           )}
                         </div>
                         <span className="font-bold text-white text-lg group-hover:text-cyan-200 transition-colors truncate">
