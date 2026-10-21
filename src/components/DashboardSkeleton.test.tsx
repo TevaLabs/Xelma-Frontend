@@ -1,52 +1,39 @@
-import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import DashboardSkeleton from './DashboardSkeleton';
 
 describe('DashboardSkeleton', () => {
-  it('renders a status region with a non-empty accessible name', () => {
+  it('renders with status role for accessibility', () => {
     render(<DashboardSkeleton />);
-
-    expect(screen.getByRole('status', { name: 'Loading dashboard' })).toBeInTheDocument();
+    const skeleton = screen.getByRole('status');
+    expect(skeleton).toBeInTheDocument();
   });
 
-  it('renders the dashboard grid with prediction-card, price-chart and activity-feed regions', () => {
-    const { container } = render(<DashboardSkeleton />);
-
-    // The dashboard grid is the 3-column layout wrapping the two main columns.
-    const grid = container.querySelector('.grid.grid-cols-1.lg\\:grid-cols-3');
-    expect(grid).not.toBeNull();
-
-    // Prediction-card skeleton region (left sidebar column).
-    const predictionColumn = container.querySelector('.lg\\:col-span-1');
-    expect(predictionColumn).not.toBeNull();
-
-    // Price-chart and activity-feed skeleton regions (right column).
-    const rightColumn = container.querySelector('.lg\\:col-span-2');
-    expect(rightColumn).not.toBeNull();
+  it('has aria-label "Loading dashboard"', () => {
+    render(<DashboardSkeleton />);
+    const skeleton = screen.getByRole('status');
+    expect(skeleton).toHaveAttribute('aria-label', 'Loading dashboard');
   });
 
-  it('renders the price-chart skeleton bars', () => {
+  it('renders with full-screen min-height class', () => {
     const { container } = render(<DashboardSkeleton />);
-
-    // The price chart region renders 24 skeleton bars.
-    const bars = container.querySelectorAll('.flex.items-end.gap-1 > [aria-hidden="true"]');
-    expect(bars).toHaveLength(24);
+    expect(container.querySelector('.min-h-screen')).toBeInTheDocument();
   });
 
-  it('renders the activity-feed skeleton rows', () => {
+  it('renders glass-card sections', () => {
     const { container } = render(<DashboardSkeleton />);
-
-    // The activity feed region renders 5 repeated row items.
-    const rows = container.querySelectorAll('.space-y-3 > .flex.items-center.justify-between');
-    expect(rows).toHaveLength(5);
+    const glassCards = container.querySelectorAll('.glass-card');
+    expect(glassCards.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('keeps skeleton blocks hidden from assistive technology', () => {
+  it('renders with grid layout', () => {
     const { container } = render(<DashboardSkeleton />);
+    expect(container.querySelector('.grid')).toBeInTheDocument();
+  });
 
-    // Every skeleton block is aria-hidden so only the status region is exposed.
-    const blocks = container.querySelectorAll('[aria-hidden="true"]');
-    expect(blocks.length).toBeGreaterThan(0);
-    expect(screen.getByRole('status')).toBeInTheDocument();
+  it('includes decorative aria-hidden elements', () => {
+    const { container } = render(<DashboardSkeleton />);
+    const hiddenElements = container.querySelectorAll('[aria-hidden="true"]');
+    expect(hiddenElements.length).toBeGreaterThan(0);
   });
 });

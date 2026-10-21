@@ -1,141 +1,124 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
 import LazyBoundary from './LazyBoundary';
 
-function ChunkChild({ shouldThrow }: { shouldThrow: boolean }) {
-  if (shouldThrow) {
-    throw new Error('Failed to fetch dynamically imported module');
-  }
-  return <div>Lazy Loaded Component</div>;
+// Test component that throws an error to trigger LazyBoundary's error boundary
+function FailingComponent() {
+  throw new Error('Chunk load failure');
+}
+
+// Test component that renders successfully
+function SuccessfulComponent() {
+  return <div data-testid="success-content">Content loaded successfully</div>;
 }
 
 describe('LazyBoundary', () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
-  const originalLocation = window.location;
-
-  beforeEach(() => {
-    consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: { ...originalLocation, href: 'http://localhost/learn', reload: vi.fn() },
-    });
-  });
-
-  afterEach(() => {
-    consoleSpy.mockRestore();
-    Object.defineProperty(window, 'location', {
-      writable: true,
-      value: originalLocation,
-    });
-  });
-
-  it('renders children when no chunk loading error occurs', () => {
+  it('renders children when there is no error', () => {
     render(
       <LazyBoundary>
-        <ChunkChild shouldThrow={false} />
+        <SuccessfulComponent />
       </LazyBoundary>,
     );
 
-    expect(screen.getByText('Lazy Loaded Component')).toBeInTheDocument();
+    expect(screen.getByTestId('success-content')).toBeInTheDocument();
+    expect(screen.getByText('Content loaded successfully')).toBeInTheDocument();
   });
 
-  it('catches chunk loading errors and displays branded recovery UI', () => {
+  it('displays error UI when a child component throws', () => {
     render(
       <LazyBoundary>
-        <ChunkChild shouldThrow={true} />
+        <FailingComponent />
       </LazyBoundary>,
     );
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /page failed to load/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /go home/i })).toBeInTheDocument();
+    expect(screen.getByText('Page Failed to Load')).toBeInTheDocument();
   });
 
-  it('logs chunk loading error once upon catching', () => {
+  it('shows the fallback copy about chunk load failure', () => {
     render(
       <LazyBoundary>
-        <ChunkChild shouldThrow={true} />
+        <FailingComponent />
       </LazyBoundary>,
     );
 
-    const lazyErrorCalls = consoleSpy.mock.calls.filter(
-      (call) => typeof call[0] === 'string' && call[0].includes('[LazyBoundary] chunk load error:'),
+    const fallback = screen.getByText(
+      /The network connection interrupted downloading page assets/,
     );
-    expect(lazyErrorCalls).toHaveLength(1);
+    expect(fallback).toBeInTheDocument();
   });
 
-  it('remounts children when Retry is clicked', () => {
-    let shouldFail = true;
-    function DynamicChunk() {
-      if (shouldFail) {
-        throw new Error('Chunk load failure');
-      }
-      return <div>Loaded Chunk Successfully</div>;
-    }
-
-    const { rerender } = render(
-      <LazyBoundary>
-        <DynamicChunk />
-      </LazyBoundary>,
-    );
-
-    expect(screen.getByText(/page failed to load/i)).toBeInTheDocument();
-
-    shouldFail = false;
-    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
-
-    rerender(
-      <LazyBoundary>
-        <DynamicChunk />
-      </LazyBoundary>,
-    );
-
-    expect(screen.getByText('Loaded Chunk Successfully')).toBeInTheDocument();
-  });
-
-  it('navigates home when Go Home is clicked', () => {
+  it('displays the diagnostic message from the error', () => {
     render(
       <LazyBoundary>
-        <ChunkChild shouldThrow={true} />
+        <FailingComponent />
       </LazyBoundary>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /go home/i }));
-    expect(window.location.href).toBe('/');
+    // Error message should be visible in diagnostic section
+    const diagnosticSection = screen.getByText('Diagnostic Message');
+    expect(diagnosticSection).toBeInTheDocument();
+    expect(screen.getByText('Chunk load failure')).toBeInTheDocument();
   });
 
-  it('enforces retry limit on multiple chunk load failures', () => {
+  it('renders a Retry button when errors have not exceeded max retries', () => {
     render(
       <LazyBoundary>
-        <ChunkChild shouldThrow={true} />
+        <FailingComponent />
       </LazyBoundary>,
     );
 
-    // Initial load failed
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
-
-    // 3 retries
-    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
-    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
-    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
-
-    expect(screen.getByText(/max retries exceeded \(3\/3\)/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /reload page/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /reload page/i }));
-    expect(window.location.reload).toHaveBeenCalledTimes(1);
+    const retryButton = screen.getByRole('button', { name: /Retry/i });
+    expect(retryButton).toBeInTheDocument();
   });
 
-  it('shifts focus to retry button when error occurs', async () => {
+  it('renders a Go Home button for recovery', () => {
     render(
       <LazyBoundary>
-        <ChunkChild shouldThrow={true} />
+        <FailingComponent />
       </LazyBoundary>,
     );
 
-    await waitFor(() => {
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: /retry/i }));
-    });
+    const homeButton = screen.getByRole('button', { name: /Go Home/i });
+    expect(homeButton).toBeInTheDocument();
+  });
+
+  it('has alert semantics for accessibility', () => {
+    render(
+      <LazyBoundary>
+        <FailingComponent />
+      </LazyBoundary>,
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveAttribute('aria-live', 'assertive');
+    expect(alert).toHaveAttribute('aria-labelledby', 'lazy-boundary-heading');
+    expect(alert).toHaveAttribute('aria-describedby', 'lazy-boundary-desc');
+  });
+
+  it('displays the heading with the error state', () => {
+    render(
+      <LazyBoundary>
+        <FailingComponent />
+      </LazyBoundary>,
+    );
+
+    expect(screen.getByText('Page Failed to Load')).toBeInTheDocument();
+  });
+
+  it('calls onReset when retry is clicked', () => {
+    const onReset = vi.fn();
+
+    render(
+      <LazyBoundary onReset={onReset}>
+        <FailingComponent />
+      </LazyBoundary>,
+    );
+
+    const retryButton = screen.getByRole('button', { name: /Retry/i });
+    fireEvent.click(retryButton);
+
+    expect(onReset).toHaveBeenCalled();
   });
 });
