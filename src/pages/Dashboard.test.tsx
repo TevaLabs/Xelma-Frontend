@@ -185,6 +185,14 @@ vi.mock('../components/PredictionCard', () => ({
   },
 }));
 
+vi.mock('../components/LiveGameStatsPanel', () => ({
+  default: () => (
+    <section aria-label="Live game stats" data-testid="live-game-stats-panel">
+      Platform Pulse
+    </section>
+  ),
+}));
+
 vi.mock('../components/PredictionHistory', () => ({
   default: ({ userId }: { userId: string | null }) => (
     <div data-testid="prediction-history" data-user-id={userId}>
@@ -320,6 +328,7 @@ describe('Dashboard', () => {
 
       expect(screen.getByTestId('prediction-card')).toBeInTheDocument();
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('live-game-stats-panel')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-history')).toBeInTheDocument();
     });
 

@@ -43,6 +43,7 @@ import FriendbotFundCard from '../components/FriendbotFundCard';
 import NetworkMismatchCard from '../components/NetworkMismatchCard';
 import ProfileSummaryCard from '../components/ProfileSummaryCard';
 import SorobanInspectorPanel from '../components/SorobanInspectorPanel';
+import LiveGameStatsPanel from '../components/LiveGameStatsPanel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import ModeToggle, { type DashboardMode } from "../components/ModeToggle";
 
@@ -782,9 +783,10 @@ const Dashboard = () => {
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-<div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
+              <div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
                 <PriceChart height={280} asset={normalizedAsset} entryPrice={entryPrice} onPriceUpdate={handlePriceUpdate} />
               </div>
+              <LiveGameStatsPanel />
               {isWalletConnected && (
                 <RecentActivity
                   items={
