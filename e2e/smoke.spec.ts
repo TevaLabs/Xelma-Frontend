@@ -125,4 +125,22 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+
+  test('Skip link focuses main landmark when activated with keyboard', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Tab to skip link
+    await page.keyboard.press('Tab');
+    const skipLink = page.locator('a[href="#main-content"]');
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toBeVisible();
+
+    // Activate the skip link
+    await page.keyboard.press('Enter');
+
+    // Focus main landmark
+    const mainLandmark = page.locator('main#main-content');
+    await expect(mainLandmark).toBeFocused();
+  });
 });
