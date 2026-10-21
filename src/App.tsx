@@ -58,7 +58,12 @@ function App() {
                 <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
-                <Route path="*" element={<NotFound />} />                </Routes>
+                {/* Single catch-all: every unmatched path renders the 404 page.
+                    Never add a second `path="*"` route here — React Router only
+                    ever matches the first one, so a redirecting catch-all would
+                    shadow NotFound and make it unreachable. */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
             </RouteTransition>
           </Suspense>
         </LazyBoundary>
