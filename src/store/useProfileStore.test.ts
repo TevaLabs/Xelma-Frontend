@@ -109,7 +109,7 @@ describe('useProfileStore', () => {
         expect(state.profile).toEqual(mockProfile);
         expect(state.isLoading).toBe(false);
         expect(state.error).toBeNull();
-        expect(fetchProfile).toHaveBeenCalledWith('valid-jwt-token');
+        expect(fetchProfile).toHaveBeenCalledWith();
       });
 
       it('caches profile data locally after successful fetch', async () => {
@@ -212,7 +212,7 @@ describe('useProfileStore', () => {
         expect(result).toBe(true);
         expect(useProfileStore.getState().profile).toEqual(updatedProfile);
         expect(useProfileStore.getState().error).toBeNull();
-        expect(updateProfile).toHaveBeenCalledWith('valid-jwt-token', updatedProfile);
+        expect(updateProfile).toHaveBeenCalledWith(updatedProfile);
 
         const cached = localStorage.getItem('profile_settings_cache_v1');
         expect(cached).toBe(JSON.stringify(updatedProfile));
