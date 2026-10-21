@@ -7,6 +7,7 @@ import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import PredictionHelpTooltip from './PredictionHelpTooltip';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export interface PredictionData {
   direction: 'UP' | 'DOWN';
@@ -34,6 +35,16 @@ type PredictionMode = 'direction' | 'precision';
 const PRICE_MIN = 0.0001;
 const PRICE_MAX = 10;
 const PRICE_DECIMALS = 4;
+
+// Dialog semantics — the title id is shared by every view (confirm,
+// wallet-required and transaction timeline) so `aria-labelledby` always
+// resolves to the heading that is actually on screen.
+const DIALOG_TITLE_ID = 'prediction-modal-title';
+const DIALOG_DESCRIPTION_ID = 'prediction-modal-description';
+
+// The prediction-help popover renders inside the dialog and handles Escape
+// on its own, so the modal must not dismiss itself while it is open.
+const HELP_TOOLTIP_POPOVER_ID = 'bet-modal-prediction-help-popover';
 
 // Issue #413 — a side that holds this share (or more) of the UP/DOWN pool is
 // treated as "dominating". The warning is informational only and never blocks
@@ -109,6 +120,26 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
   const [feeEstimateStatus, setFeeEstimateStatus] = useState<'idle' | 'loading' | 'loaded' | 'failed'>('idle');
   const [feeEstimateError, setFeeEstimateError] = useState<string | null>(null);
   const estimateParamsRef = useRef('');
+
+  // Dialog plumbing — the modal is a focus-trapped `role="dialog"`.
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Escape dismisses the modal, except while the prediction-help popover is
+  // open — that popover closes itself on Escape and keeps the modal mounted.
+  const handleEscape = useCallback(() => {
+    if (document.getElementById(HELP_TOOLTIP_POPOVER_ID)) return;
+    onClose();
+  }, [onClose]);
+
+  useFocusTrap(modalRef, {
+    // The dialog only exists while it is open and has prediction details to
+    // render — the trap must not arm before the panel is mounted.
+    active: isOpen && Boolean(predictionData),
+    onEscape: handleEscape,
+    initialFocusRef: closeButtonRef,
+  });
 
   // Auto-fetch fee estimate when the confirm step is active.
   // Uses a params-key guard to avoid re-fetching on every stake keystroke.
@@ -384,6 +415,15 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         e.preventDefault();
         handleDirectionRef.current('DOWN');
       } else if (key === 'Enter') {
+        // The confirm button keeps the shortcut (it is the submit action),
+        // but every other control inside the dialog is left to its native
+        // activation behaviour so Enter on, say, the close button never
+        // submits the prediction.
+        const isNativeControl =
+          (target.tagName === 'BUTTON' || target.tagName === 'A') &&
+          target !== confirmButtonRef.current;
+        if (isNativeControl) return;
+
         e.preventDefault();
         handleConfirmRef.current();
       }
@@ -395,21 +435,42 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
   if (!isOpen || !predictionData) return null;
 
+  const dialogDescription =
+    view === 'wallet_required'
+      ? 'Connect and authenticate your wallet to submit this prediction.'
+      : 'Review the prediction details and stake, then confirm to submit the prediction on-chain.';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {outcomeAnnouncement && (
-        <div
-          aria-live={tx.step === 'error' ? 'assertive' : 'polite'}
-          aria-atomic="true"
-          className="sr-only"
-          role={tx.step === 'error' ? 'alert' : 'status'}
-        >
-          {outcomeAnnouncement}
-        </div>
-      )}
-      <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
-      <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
+      <div
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={DIALOG_TITLE_ID}
+        aria-describedby={DIALOG_DESCRIPTION_ID}
+        tabIndex={-1}
+        className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}
+      >
+        {outcomeAnnouncement && (
+          <div
+            aria-live={tx.step === 'error' ? 'assertive' : 'polite'}
+            aria-atomic="true"
+            className="sr-only"
+            role={tx.step === 'error' ? 'alert' : 'status'}
+          >
+            {outcomeAnnouncement}
+          </div>
+        )}
+        <p id={DIALOG_DESCRIPTION_ID} className="sr-only">
+          {dialogDescription}
+        </p>
         <button
+          ref={closeButtonRef}
           onClick={onClose}
           className="absolute right-4 top-4 text-gray-400 hover:text-white"
           aria-label="Close"
@@ -421,7 +482,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           <div className="text-center py-4">
             {isWatchOnly ? (
               <>
-                <h3 className="text-lg font-bold text-purple-400 mb-2">Watch-Only Mode</h3>
+                <h3 id={DIALOG_TITLE_ID} className="text-lg font-bold text-purple-400 mb-2">Watch-Only Mode</h3>
                 <p className="text-gray-400 text-sm mb-6">
                   You are viewing this address in watch-only mode. Connect a wallet with signing capability to submit predictions.
                 </p>
@@ -435,7 +496,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               </>
             ) : (
               <>
-                <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
+                <h3 id={DIALOG_TITLE_ID} className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
                 <p className="text-gray-400 text-sm mb-6">
                   You need to connect and authenticate your Stellar wallet to submit predictions.
                 </p>
@@ -454,8 +515,8 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         {view === 'confirm' && tx.step === 'idle' && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold" id="prediction-modal-title">Confirm Prediction</h3>
-              <PredictionHelpTooltip id="bet-modal-prediction-help-popover" />
+              <h3 className="text-lg font-bold" id={DIALOG_TITLE_ID}>Confirm Prediction</h3>
+              <PredictionHelpTooltip id={HELP_TOOLTIP_POPOVER_ID} />
             </div>
 
             <p className="mb-4 text-xs text-gray-500" aria-hidden="true">
@@ -749,6 +810,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
             )}
 
             <button
+              ref={confirmButtonRef}
               onClick={handleConfirm}
               disabled={!isConnected || feeEstimateStatus === 'failed' || tx.isInFlight}
               className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
@@ -759,15 +821,20 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         )}
 
         {isTimelineVisible && (
-          <TxStatusTimeline
-            step={tx.step}
-            txHash={tx.txHash}
-            errorMessage={tx.errorMessage}
-            successTitle="Prediction Submitted!"
-            successMessage="Your prediction has been successfully written on-chain and registered."
-            onRetry={handleConfirm}
-            onDone={onClose}
-          />
+          <>
+            {/* Keeps `aria-labelledby` resolvable while the timeline replaces
+                the confirmation form. */}
+            <h3 id={DIALOG_TITLE_ID} className="sr-only">Prediction status</h3>
+            <TxStatusTimeline
+              step={tx.step}
+              txHash={tx.txHash}
+              errorMessage={tx.errorMessage}
+              successTitle="Prediction Submitted!"
+              successMessage="Your prediction has been successfully written on-chain and registered."
+              onRetry={handleConfirm}
+              onDone={onClose}
+            />
+          </>
         )}
       </div>
     </div>
