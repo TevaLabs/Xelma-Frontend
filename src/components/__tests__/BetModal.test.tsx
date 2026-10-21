@@ -275,6 +275,92 @@ describe('BetModal Component', () => {
     });
   });
 
+  describe('dismiss guard while a transaction is in flight', () => {
+    /** Keeps the contract call pending so the modal stays in the in-flight state. */
+    function pendingBet() {
+      let resolveBet!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(place_bet).mockImplementation(
+        () => new Promise((resolve) => { resolveBet = resolve; })
+      );
+      return () => resolveBet({ txHash: 'tx_hash_in_flight', ledger: 1 });
+    }
+
+    it('ignores backdrop clicks while the transaction is in flight', async () => {
+      const resolveBet = pendingBet();
+      const onClose = vi.fn();
+
+      const { container } = render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      const backdrop = container.querySelector('.bg-black\\/60');
+      expect(backdrop).toBeInTheDocument();
+      fireEvent.click(backdrop as Element);
+
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet();
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+    });
+
+    it('disables the close button while the transaction is in flight', async () => {
+      const resolveBet = pendingBet();
+      const onClose = vi.fn();
+
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      expect(screen.getByLabelText('Close')).not.toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      const closeButton = screen.getByLabelText('Close');
+      expect(closeButton).toBeDisabled();
+      fireEvent.click(closeButton);
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet();
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+    });
+
+    it('re-enables dismissal once the transaction has settled', async () => {
+      const resolveBet = pendingBet();
+      const onClose = vi.fn();
+
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      resolveBet();
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+
+      const closeButton = screen.getByLabelText('Close');
+      expect(closeButton).not.toBeDisabled();
+      fireEvent.click(closeButton);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('amount validation', () => {
     it('displays zero stake correctly', () => {
       const prediction = { ...defaultPrediction, stake: '0' };

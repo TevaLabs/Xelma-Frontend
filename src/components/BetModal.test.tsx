@@ -271,6 +271,54 @@ describe('BetModal — transaction pending state (#163)', () => {
     });
   });
 
+  describe('dismiss guard while the transaction is in flight', () => {
+    it('ignores backdrop clicks while the transaction is in flight', async () => {
+      let resolveBet!: (value: { txHash: string }) => void;
+      placeBetImpl = () =>
+        new Promise<{ txHash: string }>((resolve) => {
+          resolveBet = resolve;
+        });
+
+      const { onClose, container } = renderOpen();
+
+      fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/preparing transaction/i)).toBeInTheDocument();
+      });
+
+      const backdrop = container.querySelector('.bg-black\\/60');
+      expect(backdrop).toBeInTheDocument();
+      fireEvent.click(backdrop as Element);
+
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'TX1' });
+    });
+
+    it('disables the close button while the transaction is in flight', async () => {
+      let resolveBet!: (value: { txHash: string }) => void;
+      placeBetImpl = () =>
+        new Promise<{ txHash: string }>((resolve) => {
+          resolveBet = resolve;
+        });
+
+      const { onClose } = renderOpen();
+
+      fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+      await waitFor(() => {
+        expect(screen.getByText(/preparing transaction/i)).toBeInTheDocument();
+      });
+
+      const closeButton = screen.getByLabelText('Close');
+      expect(closeButton).toBeDisabled();
+      fireEvent.click(closeButton);
+
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'TX1' });
+    });
+  });
+
   describe('Prediction Help Tooltip', () => {
     it('renders the help button in BetModal and opens on click displaying explanations', () => {
       renderOpen();

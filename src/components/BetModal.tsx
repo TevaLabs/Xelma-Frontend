@@ -333,6 +333,14 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
   const isTimelineVisible = view === 'confirm' && tx.step !== 'idle';
 
+  // Guarded dismiss — while a transaction is in flight (preparing → signing →
+  // submitting → syncing) the modal must not be dismissed, otherwise the user
+  // loses sight of the pending transaction while it is still signing.
+  const handleClose = useCallback(() => {
+    if (tx.isInFlight) return;
+    onClose();
+  }, [onClose, tx.isInFlight]);
+
   const prevTxStepRef = useRef(tx.step);
 
   useEffect(() => {
@@ -407,11 +415,16 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           {outcomeAnnouncement}
         </div>
       )}
-      <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
+      <div
+        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY} ${tx.isInFlight ? 'pointer-events-none' : ''}`}
+        onClick={handleClose}
+        data-testid="bet-modal-backdrop"
+      />
       <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
         <button
-          onClick={onClose}
-          className="absolute right-4 top-4 text-gray-400 hover:text-white"
+          onClick={handleClose}
+          disabled={tx.isInFlight}
+          className="absolute right-4 top-4 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400"
           aria-label="Close"
         >
           ✕
@@ -766,7 +779,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
             successTitle="Prediction Submitted!"
             successMessage="Your prediction has been successfully written on-chain and registered."
             onRetry={handleConfirm}
-            onDone={onClose}
+            onDone={handleClose}
           />
         )}
       </div>
