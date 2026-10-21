@@ -30,6 +30,11 @@ vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: useVirtualizerMock,
 }));
 
+const WALLET_ALICE = 'GAAZI4TCR3TY5OJHCTJC2A4AFLGFFL6VIP4SBGY6RXVO532LBW4DAZ4Q';
+const WALLET_BOB = 'GBHExampleAddressForTestingPurposesOnly1234567890ABCDE';
+const WALLET_CAROL = 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const WALLET_DAVE = 'GDAVE1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ12';
+
 function setWalletState(overrides: { publicKey?: string | null; status?: string } = {}) {
   const state = { publicKey: null, status: 'idle' as const, ...overrides };
   vi.mocked(useWalletStore).mockImplementation((selector: any) =>
@@ -46,12 +51,12 @@ function renderLeaderboard() {
 }
 
 const LEADERBOARD_FIXTURE: LeaderboardEntry[] = [
-  { id: 'user-1', username: 'Alice', xlm: 12000 },
-  { id: 'user-2', username: 'Bob', xlm: 8500 },
-  { id: 'user-3', username: 'Carol', xlm: 5000 },
-  { id: 'user-4', username: 'Dave', xlm: 2400 },
-  { id: 'user-5', username: 'Eve', xlm: 900 },
-  { id: 'user-6', username: 'Frank', xlm: 300 },
+  { id: 'db-1', userId: WALLET_ALICE, username: 'Alice', xlm: 12000 },
+  { id: 'db-2', userId: WALLET_BOB, username: 'Bob', xlm: 8500 },
+  { id: 'db-3', userId: WALLET_CAROL, username: 'Carol', xlm: 5000 },
+  { id: 'db-4', userId: WALLET_DAVE, username: 'Dave', xlm: 2400 },
+  { id: 'db-5', username: 'Eve', xlm: 900 },
+  { id: 'db-6', username: 'Frank', xlm: 300 },
 ];
 
 /** Renders every virtualised row so list content is assertable in jsdom. */
@@ -322,16 +327,36 @@ describe('Leaderboard wallet sticky row', () => {
     vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(LEADERBOARD_FIXTURE);
   });
 
-  it('shows the wallet summary when connected and the wallet appears on the board', async () => {
-    setWalletState({ publicKey: 'user-4', status: 'connected' });
-    mockVirtualizerWithAllRows();
+  it('identifies the current user by wallet address when row.id differs from the address', async () => {
+    // db-1 has id='db-1' but userId=WALLET_ALICE; they deliberately differ.
+    setWalletState({ publicKey: WALLET_ALICE, status: 'connected' });
     renderLeaderboard();
 
     expect(await screen.findByText('Current wallet summary')).toBeInTheDocument();
     const summary = screen.getByText('Current wallet summary').closest('.lg\\:sticky')!;
-    expect(within(summary).getByText('Dave')).toBeInTheDocument();
-    expect(within(summary).getByText('Rank #4')).toBeInTheDocument();
-    expect(within(summary).getByText('2.40K vXLM')).toBeInTheDocument();
+    expect(within(summary).getByText('Alice')).toBeInTheDocument();
+    expect(within(summary).getByText('Rank #1')).toBeInTheDocument();
+    expect(within(summary).getByText('12.00K vXLM')).toBeInTheDocument();
+  });
+
+  it('does not mark another wallet row as the current user', async () => {
+    setWalletState({ publicKey: WALLET_BOB, status: 'connected' });
+    renderLeaderboard();
+
+    expect(await screen.findByText('Current wallet summary')).toBeInTheDocument();
+    const summary = screen.getByText('Current wallet summary').closest('.lg\\:sticky')!;
+    expect(within(summary).getByText('Bob')).toBeInTheDocument();
+    expect(within(summary).getByText('Rank #2')).toBeInTheDocument();
+    // Alice (db-1) is a different wallet and must not be the current user.
+    expect(screen.queryByText('Rank #1')).not.toBeInTheDocument();
+  });
+
+  it('hides the wallet summary when disconnected', async () => {
+    setWalletState({ publicKey: null, status: 'idle' });
+    renderLeaderboard();
+
+    await waitFor(() => expect(screen.getByRole('tablist')).toBeInTheDocument());
+    expect(screen.queryByText('Current wallet summary')).not.toBeInTheDocument();
   });
 
   it('shows an unranked summary when connected but the wallet is not on the board', async () => {
@@ -342,11 +367,14 @@ describe('Leaderboard wallet sticky row', () => {
     expect(screen.getByText('Unranked')).toBeInTheDocument();
   });
 
-  it('hides the wallet summary when disconnected', async () => {
-    setWalletState({ publicKey: null, status: 'idle' });
+  it('matches using the wallet address field even when id is unrelated', async () => {
+    // db-4 has id='db-4' but userId=WALLET_DAVE; matching is by address.
+    setWalletState({ publicKey: WALLET_DAVE, status: 'connected' });
     renderLeaderboard();
 
-    await waitFor(() => expect(screen.getByRole('tablist')).toBeInTheDocument());
-    expect(screen.queryByText('Current wallet summary')).not.toBeInTheDocument();
+    expect(await screen.findByText('Current wallet summary')).toBeInTheDocument();
+    const summary = screen.getByText('Current wallet summary').closest('.lg\\:sticky')!;
+    expect(within(summary).getByText('Dave')).toBeInTheDocument();
+    expect(within(summary).getByText('Rank #4')).toBeInTheDocument();
   });
 });
