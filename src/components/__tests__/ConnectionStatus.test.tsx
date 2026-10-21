@@ -163,6 +163,43 @@ describe('ConnectionStatus', () => {
     const { container } = render(<ConnectionStatus className="custom-class" />);
     expect(container.firstChild).toHaveClass('custom-class');
   });
+
+  it('should render compact mode styling when compact prop is provided', () => {
+    (useConnectionStatus as any).mockReturnValue({
+      status: 'disconnected',
+      error: null,
+      reconnectAttempts: 0,
+      reconnect: vi.fn(),
+      isConnected: false,
+      isConnecting: false,
+      isReconnecting: false,
+      isDisconnected: true,
+    });
+
+    const { container } = render(<ConnectionStatus compact={true} />);
+    expect(container.firstChild).toHaveClass('px-2.5');
+    expect(container.firstChild).toHaveClass('py-1');
+    expect(container.firstChild).toHaveClass('text-xs');
+  });
+
+  it('should apply dark terminal glass token classes for statuses', () => {
+    (useConnectionStatus as any).mockReturnValue({
+      status: 'connecting',
+      error: null,
+      reconnectAttempts: 0,
+      reconnect: vi.fn(),
+      isConnected: false,
+      isConnecting: true,
+      isReconnecting: false,
+      isDisconnected: false,
+    });
+
+    const { container } = render(<ConnectionStatus />);
+    expect(container.firstChild).toHaveClass('glass-card');
+    expect(container.firstChild).toHaveClass('text-cyan-300');
+    expect(container.firstChild).toHaveClass('bg-cyan-500/10');
+    expect(container.firstChild).toHaveClass('border-cyan-500/30');
+  });
 });
 
 describe('ConnectionIndicator', () => {
