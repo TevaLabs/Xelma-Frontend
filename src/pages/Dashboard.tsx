@@ -16,7 +16,7 @@ import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
 import EventLogDrawer from "../components/EventLogDrawer";
-import { Eye, Radio, Rows3 } from "lucide-react";
+import { Eye, Radio, Rows3, RefreshCw } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
@@ -213,6 +213,7 @@ const Dashboard = () => {
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
   const isLoading = useRoundStore((state) => state.isLoading);
   const sseConnection = useRoundStore((state) => state.sseConnection);
+  const reconnectSSE = useRoundStore((state) => state.reconnectSSE);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const isWalletConnecting = useWalletStore(
     (s) => s.status === "connecting" || s.status === "checking"
@@ -554,8 +555,58 @@ const Dashboard = () => {
         {!isLoading &&
           (!isSocketConnected ||
             (sseConnection && sseConnection.status !== "connected")) && (
-            <div className="mb-4">
+            <div className="mb-4 space-y-2">
               <ConnectionStatus />
+              {sseConnection && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <div
+                    data-testid="sse-connection-chip"
+                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${
+                      sseConnection.status === "connected"
+                        ? "border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200"
+                        : sseConnection.status === "reconnecting" || sseConnection.status === "connecting"
+                          ? "border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200"
+                          : "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200"
+                    }`}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        sseConnection.status === "connected"
+                          ? "bg-green-500"
+                          : sseConnection.status === "reconnecting" || sseConnection.status === "connecting"
+                            ? "bg-yellow-500 animate-pulse"
+                            : "bg-red-500"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      SSE:{" "}
+                      {sseConnection.status === "connected"
+                        ? "connected"
+                        : sseConnection.status === "reconnecting"
+                          ? `reconnecting${sseConnection.reconnectAttempts > 0 ? ` (attempt ${sseConnection.reconnectAttempts})` : ""}`
+                          : sseConnection.status === "connecting"
+                            ? "connecting"
+                            : "disconnected"}
+                    </span>
+                  </div>
+                  {(sseConnection.status === "reconnecting" ||
+                    sseConnection.status === "disconnected") && (
+                    <button
+                      type="button"
+                      onClick={() => reconnectSSE()}
+                      data-testid="sse-reconnect-chip"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#2C4BFD]/40 bg-[#2C4BFD]/10 px-3 py-1 text-xs font-semibold text-[#BEC7FE] transition-colors hover:bg-[#2C4BFD]/20"
+                      aria-label="Reconnect SSE"
+                    >
+                      <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                      Reconnect
+                    </button>
+                  )}
+                </div>
+              )}
               {sseConnection &&
                 sseConnection.status !== "connected" &&
                 sseConnection.error && (
