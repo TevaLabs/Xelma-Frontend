@@ -94,3 +94,41 @@ describe('OnboardingChecklist dismiss persistence', () => {
     expect(screen.getByRole('heading', { name: /welcome to xelma/i })).toBeInTheDocument();
   });
 });
+
+describe('OnboardingChecklist wallet connect step', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('renders the Connect Wallet step with correct label and description', () => {
+    renderChecklist();
+
+    expect(screen.getByText('Connect Wallet')).toBeInTheDocument();
+    expect(screen.getByText(/link your freighter wallet to xelma/i)).toBeInTheDocument();
+  });
+
+  it('links the Connect Wallet step to /connect route', () => {
+    renderChecklist();
+
+    const connectLink = screen.getByText('Connect Wallet').closest('a');
+    expect(connectLink).toHaveAttribute('href', '/connect');
+  });
+
+  it('dismisses the checklist when Connect Wallet step is clicked', () => {
+    renderChecklist();
+
+    fireEvent.click(screen.getByText('Connect Wallet'));
+
+    expect(localStorage.getItem(ONBOARDING_KEY)).toBe('true');
+    expect(screen.queryByRole('heading', { name: /welcome to xelma/i })).not.toBeInTheDocument();
+  });
+
+  it('renders all four onboarding steps in order', () => {
+    renderChecklist();
+
+    expect(screen.getByText('Install Freighter')).toBeInTheDocument();
+    expect(screen.getByText('Connect Wallet')).toBeInTheDocument();
+    expect(screen.getByText('Fund Testnet')).toBeInTheDocument();
+    expect(screen.getByText('Place Practice Prediction')).toBeInTheDocument();
+  });
+});
