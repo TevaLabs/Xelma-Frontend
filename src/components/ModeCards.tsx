@@ -1,45 +1,39 @@
 import { TrendingUp, Crosshair } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
-/**
- * Mode selection cards shown on the Landing page.
- *
- * Displays two prediction modes:
- * - **Directional (UP/DOWN)** — blue accent, binary price prediction
- * - **Precision (Narrow Range)** — teal accent, tighter-window trading
- *
- * Both CTAs route to `/dashboard` where the prediction terminal lives.
- */
-const MODES = [
+type ModeAccent = 'blue' | 'teal';
+
+type ModeDefinition = {
+  id: 'directional' | 'precision';
+  titleKey: string;
+  subtitleKey: string;
+  descriptionKey: string;
+  bulletsKey: string;
+  accent: ModeAccent;
+  icon: typeof TrendingUp;
+};
+
+const MODE_DEFINITIONS: ModeDefinition[] = [
   {
     id: 'directional',
-    title: 'Directional Trading',
-    subtitle: 'UP / DOWN',
-    description:
-      'Predict whether an asset price will go up or down within a fixed time window.',
-    accent: 'blue' as const,
+    titleKey: 'landing.modes.directional.title',
+    subtitleKey: 'landing.modes.directional.subtitle',
+    descriptionKey: 'landing.modes.directional.description',
+    bulletsKey: 'landing.modes.directional.bullets',
+    accent: 'blue',
     icon: TrendingUp,
-    bullets: [
-      'Binary price prediction',
-      'Real-time market data',
-      'Instant settlement',
-    ],
   },
   {
     id: 'precision',
-    title: 'Precision Trading',
-    subtitle: 'Narrow Range',
-    description:
-      'Lock in tighter price windows for higher potential multipliers on each prediction.',
-    accent: 'teal' as const,
+    titleKey: 'landing.modes.precision.title',
+    subtitleKey: 'landing.modes.precision.subtitle',
+    descriptionKey: 'landing.modes.precision.description',
+    bulletsKey: 'landing.modes.precision.bullets',
+    accent: 'teal',
     icon: Crosshair,
-    bullets: [
-      'Tighter price windows',
-      'Higher payout multipliers',
-      'Advanced strategy mode',
-    ],
   },
-] as const;
+];
 
 const ACCENT_STYLES = {
   blue: {
@@ -65,6 +59,8 @@ const ACCENT_STYLES = {
 } as const;
 
 export default function ModeCards() {
+  const { t } = useTranslation();
+
   return (
     <section
       className="px-4 py-16 sm:px-6 lg:px-8"
@@ -75,17 +71,18 @@ export default function ModeCards() {
           id="modes-title"
           className="text-center text-3xl font-bold tracking-tight text-white"
         >
-          Two Prediction Modes
+          {t('landing.modes.title')}
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-center text-gray-400">
-          Choose the trading style that fits your strategy. Both modes use
-          practice vXLM — no deposit required.
+          {t('landing.modes.subtitle')}
         </p>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2">
-          {MODES.map((mode) => {
+          {MODE_DEFINITIONS.map((mode) => {
             const Icon = mode.icon;
             const styles = ACCENT_STYLES[mode.accent];
+            const bullets = t(mode.bulletsKey, { returnObjects: true }) as unknown;
+            const bulletItems = Array.isArray(bullets) ? (bullets as string[]) : [];
 
             return (
               <article
@@ -111,24 +108,24 @@ export default function ModeCards() {
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-xl font-bold text-white">
-                      {mode.title}
+                      {t(mode.titleKey)}
                     </h3>
                     <span
                       className={`mt-1 inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${styles.badge} ${styles.badgeBorder}`}
                     >
-                      {mode.subtitle}
+                      {t(mode.subtitleKey)}
                     </span>
                   </div>
                 </div>
 
                 {/* Description */}
                 <p className="mt-4 text-sm leading-relaxed text-gray-400">
-                  {mode.description}
+                  {t(mode.descriptionKey)}
                 </p>
 
                 {/* Feature bullets */}
                 <ul className="mt-4 space-y-2">
-                  {mode.bullets.map((bullet) => (
+                  {bulletItems.map((bullet) => (
                     <li key={bullet} className="flex items-start gap-2.5">
                       <span
                         className={`mt-1.5 inline-block size-1.5 shrink-0 rounded-full ${styles.bulletDot}`}
@@ -147,7 +144,7 @@ export default function ModeCards() {
                   to="/dashboard"
                   className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-xelma-bg ${styles.button}`}
                 >
-                  Start Predicting
+                  {t('landing.modes.cta')}
                   <span aria-hidden="true">&rarr;</span>
                 </Link>
               </article>

@@ -36,6 +36,33 @@ const en = {
     roundsResolved: 'Rounds Resolved',
     practiceVolume: 'Practice Volume',
     activePredictors: 'Active Predictors',
+    modes: {
+      title: 'Two Prediction Modes',
+      subtitle: 'Choose the trading style that fits your strategy. Both modes use practice vXLM — no deposit required.',
+      directional: {
+        title: 'Directional Trading',
+        subtitle: 'UP / DOWN',
+        description:
+          'Predict whether an asset price will go up or down within a fixed time window.',
+        bullets: [
+          'Binary price prediction',
+          'Real-time market data',
+          'Instant settlement',
+        ],
+      },
+      precision: {
+        title: 'Precision Trading',
+        subtitle: 'Narrow Range',
+        description:
+          'Lock in tighter price windows for higher potential multipliers on each prediction.',
+        bullets: [
+          'Tighter price windows',
+          'Higher payout multipliers',
+          'Advanced strategy mode',
+        ],
+      },
+      cta: 'Start Predicting',
+    },
     howItWorksSection: {
       title: 'How It Works',
       subtitle: 'Start predicting market trends on Stellar in three simple steps.',

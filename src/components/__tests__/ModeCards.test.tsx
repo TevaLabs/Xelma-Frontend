@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import ModeCards from '../ModeCards';
+import '../../i18n';
 
 describe('ModeCards', () => {
   const renderCards = () =>
