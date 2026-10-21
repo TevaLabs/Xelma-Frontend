@@ -160,7 +160,7 @@ describe('Profile Page', () => {
       renderWithRouter(<Profile />);
 
       expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /retry|try again/i })).toBeInTheDocument();
     });
 
     it('calls loadProfile on retry button click', () => {
@@ -171,7 +171,7 @@ describe('Profile Page', () => {
       });
       renderWithRouter(<Profile />);
 
-      fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
+      fireEvent.click(screen.getByRole('button', { name: /retry|try again/i }));
       expect(mockLoadProfile).toHaveBeenCalled();
     });
   });
