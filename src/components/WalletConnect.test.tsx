@@ -145,12 +145,13 @@ describe('WalletConnect', () => {
 
       expect(screen.getByText('Connecting…')).toBeInTheDocument();
       expect(screen.getByTestId('loader-icon')).toHaveClass('animate-spin');
+      expect(screen.getByTestId('loader-icon')).toHaveAttribute('aria-hidden', 'true');
     });
 
-    it('disables button during connecting', () => {
+    it('disables button during connecting and preserves accessible name with aria-busy', () => {
       render(<WalletConnect />);
 
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'Connect Wallet' });
       expect(button).toBeDisabled();
       expect(button).toHaveAttribute('aria-busy', 'true');
     });
@@ -169,12 +170,13 @@ describe('WalletConnect', () => {
 
       expect(screen.getByText('Checking wallet…')).toBeInTheDocument();
       expect(screen.getByTestId('loader-icon')).toHaveClass('animate-spin');
+      expect(screen.getByTestId('loader-icon')).toHaveAttribute('aria-hidden', 'true');
     });
 
-    it('disables button during checking', () => {
+    it('disables button during checking and preserves accessible name with aria-busy', () => {
       render(<WalletConnect />);
 
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'Connect Wallet' });
       expect(button).toBeDisabled();
       expect(button).toHaveAttribute('aria-busy', 'true');
     });
@@ -359,8 +361,10 @@ describe('WalletConnect', () => {
     it('has proper ARIA attributes for buttons', () => {
       render(<WalletConnect />);
 
-      const connectButton = screen.getByRole('button');
+      const connectButton = screen.getByRole('button', { name: 'Connect Wallet' });
       expect(connectButton).toHaveAttribute('type', 'button');
+      expect(connectButton).toHaveAttribute('aria-label', 'Connect Wallet');
+      expect(connectButton).toHaveAttribute('aria-busy', 'false');
     });
 
     it('has proper ARIA attributes for connected state', () => {
@@ -420,8 +424,85 @@ describe('WalletConnect', () => {
 
       render(<WalletConnect />);
 
-      const button = screen.getByRole('button');
+      const button = screen.getByRole('button', { name: 'Connect Wallet' });
       expect(button).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('has aria-busy="true" while loading and not busy otherwise', () => {
+      // Idle state
+      const { rerender } = render(<WalletConnect />);
+      const idleButton = screen.getByRole('button', { name: 'Connect Wallet' });
+      expect(idleButton).toHaveAttribute('aria-busy', 'false');
+
+      // Connecting state
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'connecting' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      const connectingButton = screen.getByRole('button', { name: 'Connect Wallet' });
+      expect(connectingButton).toHaveAttribute('aria-busy', 'true');
+
+      // Checking state
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'checking' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      const checkingButton = screen.getByRole('button', { name: 'Connect Wallet' });
+      expect(checkingButton).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('maintains a consistent, stable accessible name across idle and loading states', () => {
+      // Idle
+      const { rerender } = render(<WalletConnect />);
+      expect(screen.getByRole('button', { name: 'Connect Wallet' })).toBeInTheDocument();
+
+      // Connecting
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'connecting' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      expect(screen.getByRole('button', { name: 'Connect Wallet' })).toBeInTheDocument();
+
+      // Checking
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'checking' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      expect(screen.getByRole('button', { name: 'Connect Wallet' })).toBeInTheDocument();
+    });
+
+    it('marks icons aria-hidden so they do not pollute the accessible name', () => {
+      const { rerender } = render(<WalletConnect />);
+      expect(screen.getByTestId('wallet-icon')).toHaveAttribute('aria-hidden', 'true');
+
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'connecting' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      expect(screen.getByTestId('loader-icon')).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('exposes loading text with aria-live="polite" for assistive technology', () => {
+      const { rerender } = render(<WalletConnect />);
+
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'connecting' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      expect(screen.getByText('Connecting…')).toHaveAttribute('aria-live', 'polite');
+
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = { ...mockWalletStore, status: 'checking' };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      rerender(<WalletConnect />);
+      expect(screen.getByText('Checking wallet…')).toHaveAttribute('aria-live', 'polite');
     });
   });
 

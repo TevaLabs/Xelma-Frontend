@@ -55,6 +55,7 @@ const WalletConnect = () => {
 
   const isAuthFailure = status === 'connected' && errorCode === 'AUTH_FAILED';
   const isPendingAuth = status === 'connected' && !isAuthenticated && !errorMessage;
+  const isLoading = status === 'connecting' || status === 'checking';
 
   if (publicKey && status === 'connected') {
     return (
@@ -210,28 +211,29 @@ const WalletConnect = () => {
       <button
         type="button"
         onClick={() => setIsPickerOpen(true)}
-        disabled={status === 'connecting' || status === 'checking'}
+        disabled={isLoading}
         className={clsx(
           'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200',
           'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white shadow-lg shadow-blue-500/20',
           'disabled:opacity-70 disabled:cursor-not-allowed',
           focusRing
         )}
-        aria-busy={status === 'connecting' || status === 'checking'}
+        aria-busy={isLoading}
+        aria-label="Connect Wallet"
       >
         {status === 'connecting' ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-            <span>Connecting…</span>
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+            <span aria-live="polite">Connecting…</span>
           </>
         ) : status === 'checking' ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
-            <span>Checking wallet…</span>
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+            <span aria-live="polite">Checking wallet…</span>
           </>
         ) : (
           <>
-            <Wallet className="w-4 h-4" aria-hidden />
+            <Wallet className="w-4 h-4" aria-hidden="true" />
             <span>Connect Wallet</span>
           </>
         )}
