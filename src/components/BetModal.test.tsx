@@ -1,5 +1,6 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import axe from 'axe-core';
 import BetModal from './BetModal';
 import type { PredictionData } from './BetModal';
 
@@ -268,6 +269,113 @@ describe('BetModal — transaction pending state (#163)', () => {
       fireEvent.click(screen.getByRole('tab', { name: /precision/i }));
       expect(container.querySelector('#bet-modal-panel-precision')).toBeInTheDocument();
       expect(container.querySelector('#bet-modal-panel-direction')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Dialog semantics and focus trap (#833)', () => {
+    it('renders the modal as a dialog labelled by its heading', () => {
+      renderOpen();
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-labelledby', 'prediction-modal-title');
+      expect(dialog).toHaveAccessibleName('Confirm Prediction');
+    });
+
+    it('keeps the dialog labelled in the wallet-required view', () => {
+      mockIsConnected = false;
+      mockIsAuthenticated = false;
+      renderOpen();
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAccessibleName('Wallet & Auth Required');
+    });
+
+    it('moves focus into the dialog when it opens', async () => {
+      renderOpen();
+
+      const dialog = screen.getByRole('dialog');
+      const closeButton = screen.getByRole('button', { name: 'Close' });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+      expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    });
+
+    it('keeps Tab focus inside the dialog', async () => {
+      renderOpen();
+
+      const closeButton = screen.getByRole('button', { name: 'Close' });
+      const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+
+      // Tab from the last control wraps back to the first one…
+      confirmButton.focus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+
+      // …and Shift+Tab from the first control wraps to the last one.
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(confirmButton).toHaveFocus();
+    });
+
+    it('closes the dialog on Escape', async () => {
+      const onClose = vi.fn();
+      render(<BetModal isOpen onClose={onClose} predictionData={defaultPrediction} />);
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores focus to the trigger once the dialog closes', async () => {
+      const trigger = document.createElement('button');
+      trigger.textContent = 'Open bet modal';
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const { rerender } = render(
+        <BetModal isOpen onClose={vi.fn()} predictionData={defaultPrediction} />,
+      );
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus());
+
+      rerender(<BetModal isOpen={false} onClose={vi.fn()} predictionData={defaultPrediction} />);
+
+      expect(trigger).toHaveFocus();
+      trigger.remove();
+    });
+
+    it('keeps the dialog open when Escape is pressed inside the prediction-help popover', async () => {
+      const onClose = vi.fn();
+      render(<BetModal isOpen onClose={onClose} predictionData={defaultPrediction} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Help: Legend and Precision rules' }));
+      expect(screen.getByRole('tooltip')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('has no serious axe-core violations', async () => {
+      const { container } = renderOpen();
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      const results = await axe.run(container, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+        rules: {
+          // jsdom cannot compute colors or inline link context.
+          'color-contrast': { enabled: false },
+          'link-in-text-block': { enabled: false },
+        },
+      });
+
+      const serious = results.violations.filter(
+        (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+      );
+      expect(serious).toEqual([]);
     });
   });
 

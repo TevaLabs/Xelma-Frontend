@@ -399,6 +399,93 @@ describe('BetModal Component', () => {
     });
   });
 
+  describe('Dialog semantics and focus trap (#833)', () => {
+    it('renders the modal as a dialog labelled by its heading', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-labelledby', 'prediction-modal-title');
+      expect(dialog).toHaveAccessibleName('Confirm Prediction');
+    });
+
+    it('keeps the dialog labelled in the wallet_required view', () => {
+      useWalletStore.setState({ status: 'idle', publicKey: null });
+
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAccessibleName('Wallet & Auth Required');
+    });
+
+    it('moves focus into the dialog when it opens', async () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const dialog = screen.getByRole('dialog');
+      const closeButton = screen.getByRole('button', { name: 'Close' });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+      expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    });
+
+    it('keeps Tab focus inside the dialog', async () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const closeButton = screen.getByRole('button', { name: 'Close' });
+      const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+
+      confirmButton.focus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(confirmButton).toHaveFocus();
+    });
+
+    it('closes the dialog on Escape', async () => {
+      const onClose = vi.fn();
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores focus to the trigger once the dialog closes', async () => {
+      const trigger = document.createElement('button');
+      trigger.textContent = 'Open bet modal';
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const { rerender } = render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus());
+
+      rerender(
+        <BetModal isOpen={false} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      expect(trigger).toHaveFocus();
+      trigger.remove();
+    });
+  });
+
   describe('precision mode inputs', () => {
     it('lets users enter an exact price in precision mode before submitting', async () => {
       vi.mocked(place_precision_prediction).mockResolvedValue({ txHash: 'tx_hash_precision', ledger: 123 });
