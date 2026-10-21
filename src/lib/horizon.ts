@@ -58,6 +58,16 @@ export class HorizonError extends Error {
   }
 }
 
+export class HorizonRateLimitError extends HorizonError {
+  retryAfterSeconds: number | null;
+
+  constructor(message: string, retryAfterSeconds: number | null = null) {
+    super(message);
+    this.name = 'HorizonRateLimitError';
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 function normalizeBalance(entry: HorizonBalance): AssetBalance {
   const isNative = entry.asset_type === 'native';
   return {
@@ -92,6 +102,15 @@ export async function fetchAccountBalances(
 
   if (response.status === 404) {
     return { native: null, trustlines: [], isUnfunded: true };
+  }
+
+  if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    const retryAfterSeconds = retryAfter ? parseInt(retryAfter, 10) : null;
+    throw new HorizonRateLimitError(
+      'Horizon is rate-limiting requests. Please wait before trying again.',
+      retryAfterSeconds,
+    );
   }
 
   if (!response.ok) {

@@ -20,6 +20,10 @@ vi.mock('sonner', () => ({
   },
 }));
 
+vi.mock('../lib/rate-limit-toast', () => ({
+  notifyRateLimited: vi.fn(),
+}));
+
 vi.mock('@stellar/freighter-api', () => ({
   isConnected: vi.fn(),
   requestAccess: vi.fn(),
@@ -36,6 +40,8 @@ import {
   signMessage,
 } from '@stellar/freighter-api';
 import { useWalletStore, selectIsWalletConnected } from './useWalletStore';
+import { notifyRateLimited } from '../lib/rate-limit-toast';
+import { HorizonRateLimitError } from '../lib/horizon';
 
 function resetWalletState() {
   useWalletStore.setState({
@@ -283,5 +289,38 @@ describe('useWalletStore', () => {
     expect(clearAuth).toHaveBeenCalled();
     expect(s.errorCode).toBe('AUTH_FAILED');
     expect(s.errorMessage).toMatch(/sign-in/i);
+  });
+
+  it('refreshBalance keeps last balance on Horizon 429 and shows rate-limit toast', async () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GADDR',
+      balance: '10.50 XLM',
+    });
+
+    globalThis.fetch = vi.fn().mockRejectedValue(
+      new HorizonRateLimitError('Horizon is rate-limiting', 30),
+    ) as unknown as typeof fetch;
+
+    await useWalletStore.getState().refreshBalance();
+
+    const s = useWalletStore.getState();
+    expect(s.balance).toBe('10.50 XLM'); // Balance preserved
+    expect(notifyRateLimited).toHaveBeenCalledWith(30);
+  });
+
+  it('refreshBalance shows generic error toast on non-429 errors', async () => {
+    useWalletStore.setState({
+      status: 'connected',
+      publicKey: 'GADDR',
+      balance: '10.50 XLM',
+    });
+
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error')) as unknown as typeof fetch;
+
+    await useWalletStore.getState().refreshBalance();
+
+    const { toast } = await import('sonner');
+    expect(toast.error).toHaveBeenCalledWith('Could not refresh balance. Try again in a moment.');
   });
 });

@@ -178,6 +178,60 @@ vi.mock('../components/education/TipCard', () => ({
 import Dashboard from '../pages/Dashboard';
 
 // ═══════════════════════════════════════════════════════════
+// Settings page mocks (mirrors src/pages/Settings.test.tsx)
+// ═══════════════════════════════════════════════════════════
+
+vi.mock('lucide-react', () => ({
+  Bell: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-bell" {...props} />,
+  CheckCircle2: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg data-testid="icon-check" {...props} />
+  ),
+  Eye: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-eye" {...props} />,
+  Gauge: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-gauge" {...props} />,
+  RefreshCw: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg data-testid="icon-refresh" {...props} />
+  ),
+  Rows3: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-rows" {...props} />,
+  Settings: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg data-testid="icon-settings" {...props} />
+  ),
+  Sliders: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg data-testid="icon-sliders" {...props} />
+  ),
+  Volume2: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg data-testid="icon-volume" {...props} />
+  ),
+  Code: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-code" {...props} />,
+}));
+
+vi.mock('../utils/audioController', () => ({
+  bindSoundPreference: vi.fn(),
+  clearSoundPreferenceBinding: vi.fn(),
+  playTestTone: vi.fn(() => true),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+vi.mock('../components/DevSettingsDrawer', () => ({
+  default: () => null,
+}));
+
+vi.mock('../hooks/useReducedMotion', () => ({
+  useReducedMotion: () => ({
+    reduced: false,
+    systemPreference: false,
+    override: 'system',
+  }),
+}));
+
+import Settings from '../pages/Settings';
+
+// ═══════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════
 
@@ -317,6 +371,28 @@ describe('Accessibility Smoke Tests', () => {
       );
 
       await assertNoSeriousViolations(container, 'Dashboard page', 'critical');
+    });
+  });
+
+  describe('Settings Page', () => {
+    it('has no serious axe-core violations', async () => {
+      const { container } = render(
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>,
+      );
+
+      await assertNoSeriousViolations(container, 'Settings page', 'serious');
+    });
+
+    it('has no critical axe-core violations', async () => {
+      const { container } = render(
+        <MemoryRouter>
+          <Settings />
+        </MemoryRouter>,
+      );
+
+      await assertNoSeriousViolations(container, 'Settings page', 'critical');
     });
   });
 });

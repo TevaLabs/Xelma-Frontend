@@ -4,13 +4,14 @@ import { toast } from 'sonner';
 import { freighterAdapter } from '../lib/wallets';
 import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
-import { HORIZON_URL } from '../lib/horizon';
+import { HORIZON_URL, HorizonRateLimitError } from '../lib/horizon';
 import { FRIENDBOT_ENABLED, LOW_BALANCE_THRESHOLD_XLM } from '../lib/friendbot';
 import {
   EXPECTED_NETWORK_LABEL,
   isExpectedNetwork,
   networkPassphraseFor,
 } from '../lib/stellarNetwork';
+import { notifyRateLimited } from '../lib/rate-limit-toast';
 
 const API_BASE = getApiBaseUrl();
 
@@ -226,8 +227,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
     try {
       set({ balance: await fetchFormattedBalance(publicKey) });
-    } catch {
-      toast.error('Could not refresh balance. Try again in a moment.');
+    } catch (err) {
+      if (err instanceof HorizonRateLimitError) {
+        // Keep the last known balance and show a rate-limit toast
+        notifyRateLimited(err.retryAfterSeconds);
+      } else {
+        toast.error('Could not refresh balance. Try again in a moment.');
+      }
     }
   },
 
