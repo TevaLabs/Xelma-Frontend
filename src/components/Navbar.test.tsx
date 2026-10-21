@@ -19,10 +19,10 @@ vi.mock('../assets/logo.svg', () => ({ default: 'logo.svg' }));
 
 // Lucide icon stubs — keep them lightweight
 vi.mock('lucide-react', () => ({
-  Search: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-search" {...props} />,
   Menu: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-menu" {...props} />,
   X: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-x" {...props} />,
   Search: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-search" {...props} />,
+  Eye: (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon-eye" {...props} />,
 }));
 
 const connectMock = vi.fn();
@@ -215,6 +215,29 @@ describe('Navbar', () => {
       fireEvent.click(menuButton);
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(menuButton).toHaveFocus();
+    });
+
+    it('traps and cycles focus within the drawer when Tab or Shift+Tab is pressed', () => {
+      renderNavbar();
+      const menuButton = screen.getByRole('button', { name: /open mobile menu/i });
+      fireEvent.click(menuButton);
+
+      const dialog = screen.getByRole('dialog', { name: /mobile navigation menu/i });
+      const closeButton = screen.getByRole('button', { name: /close menu/i });
+      const focusableElements = dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const lastFocusable = focusableElements[focusableElements.length - 1];
+
+      // Tab key wraps around from last focusable element to first focusable element
+      lastFocusable.focus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+
+      // Shift+Tab wraps around from first focusable element to last focusable element
+      closeButton.focus();
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(lastFocusable).toHaveFocus();
     });
   });
 });
