@@ -826,12 +826,21 @@ describe('Dashboard', () => {
       expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
     });
 
+    it('renders loading state while user stats request is in flight', async () => {
+      vi.mocked(statsApi.getUserStats).mockReturnValue(new Promise(() => {}));
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('Loading user statistics...')).toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+    });
+
     it('renders error state when connected and API call fails', async () => {
       vi.mocked(statsApi.getUserStats).mockRejectedValue(new Error('Network failure'));
 
       render(<Dashboard />);
 
-      expect(await screen.findByText('Network failure')).toBeInTheDocument();
+      expect(await screen.findByRole('alert')).toHaveTextContent('Network failure');
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 

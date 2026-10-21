@@ -167,6 +167,11 @@ describe('StatsCard', () => {
       expect(onRetry).toHaveBeenCalledTimes(1);
     });
 
+    it('renders the error message with role="alert" for accessibility', () => {
+      renderCard({}, { error: 'Failed to load stats' });
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to load stats');
+    });
+
     it('omits the retry button when no onRetry handler is provided', () => {
       renderCard({}, { error: 'Failed to load stats' });
       expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
