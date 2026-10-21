@@ -36,6 +36,33 @@ const es = {
     roundsResolved: 'Rondas resueltas',
     practiceVolume: 'Volumen de práctica',
     activePredictors: 'Predictores activos',
+    modes: {
+      title: 'Dos modos de predicción',
+      subtitle: 'Elige el estilo de trading que se adapte a tu estrategia. Ambos modos usan vXLM de práctica — no se requiere depósito.',
+      directional: {
+        title: 'Trading direccional',
+        subtitle: 'SUBIR / BAJAR',
+        description:
+          'Predice si el precio de un activo subirá o bajará dentro de una ventana de tiempo fija.',
+        bullets: [
+          'Predicción binaria de precios',
+          'Datos de mercado en tiempo real',
+          'Liquidación instantánea',
+        ],
+      },
+      precision: {
+        title: 'Trading de precisión',
+        subtitle: 'Rango estrecho',
+        description:
+          'Asegura ventanas de precio más estrechas para obtener multiplicadores potenciales más altos en cada predicción.',
+        bullets: [
+          'Ventanas de precio más estrechas',
+          'Multiplicadores de pago más altos',
+          'Modo de estrategia avanzada',
+        ],
+      },
+      cta: 'Empezar a predecir',
+    },
     howItWorksSection: {
       title: 'Cómo funciona',
       subtitle: 'Comienza a predecir tendencias del mercado en Stellar en tres sencillos pasos.',
