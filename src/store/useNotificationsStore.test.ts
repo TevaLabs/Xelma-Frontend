@@ -264,6 +264,42 @@ describe('useNotificationsStore', () => {
       expect(fetchUnreadSpy).toHaveBeenCalled();
     });
 
+    it('rolls back list item and unread count on API failure', async () => {
+      const fetchUnreadSpy = vi.fn().mockResolvedValue(undefined);
+      useNotificationsStore.setState({ fetchUnread: fetchUnreadSpy });
+
+      vi.mocked(notificationsApi.markAsRead).mockRejectedValue(new Error('API error'));
+
+      await useNotificationsStore.getState().markAsRead('1');
+
+      const state = useNotificationsStore.getState();
+      expect(state.list.find((n) => n.id === '1')?.read).toBe(false);
+      expect(state.unread).toBe(1);
+    });
+
+    it('applies optimistic update before the API resolves', async () => {
+      let resolveApi: () => void;
+      vi.mocked(notificationsApi.markAsRead).mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveApi = resolve;
+        })
+      );
+
+      const markPromise = useNotificationsStore.getState().markAsRead('1');
+
+      // API still pending, but state should already be updated
+      const optimisticState = useNotificationsStore.getState();
+      expect(optimisticState.list.find((n) => n.id === '1')?.read).toBe(true);
+      expect(optimisticState.unread).toBe(0);
+
+      resolveApi!();
+      await markPromise;
+
+      const finalState = useNotificationsStore.getState();
+      expect(finalState.list.find((n) => n.id === '1')?.read).toBe(true);
+      expect(finalState.unread).toBe(0);
+    });
+
     it('handles non-existent notification ID gracefully', async () => {
       vi.mocked(notificationsApi.markAsRead).mockResolvedValue(undefined);
 

@@ -68,12 +68,21 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
     set((state) => ({ list: [item, ...state.list], unread: state.unread + 1 }));
   },
   markAsRead: async (id: string) => {
-    // optimistic update
-    set((state) => ({ list: state.list.map(n => n.id === id ? { ...n, read: true } : n), unread: Math.max(0, state.unread - (state.list.find(n => n.id === id && !n.read) ? 1 : 0)) }));
+    const previous = get().list.find((n) => n.id === id);
+    const wasUnread = Boolean(previous && !previous.read);
+    // optimistic update: flip the item and decrement the badge immediately
+    set((state) => ({
+      list: state.list.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      unread: Math.max(0, state.unread - (wasUnread ? 1 : 0)),
+    }));
     try {
       await notificationsApi.markAsRead(id);
     } catch {
-      // revert on failure by refetching count
+      // rollback the optimistic update, then resync the count from the server
+      set((state) => ({
+        list: state.list.map((n) => (n.id === id && previous ? { ...n, read: previous.read } : n)),
+        unread: state.unread + (wasUnread ? 1 : 0),
+      }));
       await get().fetchUnread();
     }
   },
