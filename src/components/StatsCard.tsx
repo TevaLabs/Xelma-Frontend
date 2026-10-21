@@ -79,7 +79,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   if (error) {
     return (
       <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
-        <p className="text-red-500 mb-2">{error}</p>
+        <p role="alert" className="text-red-500 mb-2">{error}</p>
         {onRetry && (
           <button
             type="button"
