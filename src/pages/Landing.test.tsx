@@ -30,6 +30,22 @@ describe('Landing Page', () => {
     expect(heroHeading).toHaveTextContent(/read the market/i);
     expect(heroHeading).toHaveTextContent(/prove your call/i);
     expect(screen.getByText(/stellar prediction infrastructure/i)).toBeInTheDocument();
+    expect(screen.getByText(/trustless, dual-mode prediction market/i)).toBeInTheDocument();
+  });
+
+  it('renders hero subtitle with accessible contrast token meeting WCAG AA', () => {
+    render(
+      <MemoryRouter>
+        <Landing />
+      </MemoryRouter>
+    );
+
+    // gray-400 may fail WCAG AA contrast requirements (< 4.5:1) against the dark theme background.
+    // The hero subtitle is tuned to text-gray-300 to ensure compliant contrast (>= 4.5:1).
+    const subtitle = screen.getByText(/trustless, dual-mode prediction market/i);
+    expect(subtitle).toBeInTheDocument();
+    expect(subtitle).toHaveClass('text-gray-300');
+    expect(subtitle).not.toHaveClass('text-gray-400');
   });
 
   it('renders primary CTA linking to dashboard with proper a11y', () => {
@@ -80,6 +96,7 @@ describe('Landing Page', () => {
     const heroHeading = screen.getByRole('heading', { level: 1 });
     expect(heroHeading).toHaveTextContent(/lee el mercado/i);
     expect(heroHeading).toHaveTextContent(/demuestra tu llamada/i);
+    expect(screen.getByText(/mercado de predicción sin confianza/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /entrar a la terminal de predicción/i })).toBeInTheDocument();
   });
 

@@ -239,6 +239,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
     <>
       {/* Mobile Overlay */}
       <div
+        data-testid="chat-mobile-overlay"
         className={`md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 ${MODAL_OVERLAY} ${isMobileOpen ? "opacity-100 block" : "opacity-0 hidden"}`}
         onClick={() => setIsMobileOpen(false)}
         aria-hidden="true"
@@ -251,6 +252,8 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         onClick={toggleMobile}
         aria-label="Toggle chat sidebar"
         aria-expanded={isMobileOpen}
+        aria-controls="chat-sidebar"
+        aria-haspopup="dialog"
       >
         <svg
           className="w-7 h-7 text-white"
@@ -282,9 +285,10 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
 
       {/* Sidebar / Bottom Sheet */}
       <aside
+        id="chat-sidebar"
         ref={sidebarRef}
         role={isMobileOpen ? "dialog" : "complementary"}
-        aria-modal={isMobileOpen || undefined}
+        aria-modal={isMobileOpen ? true : undefined}
         aria-label="Live chat"
         className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
         bg-[#0A0F1A] border-[#BEC7FE]/10

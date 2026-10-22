@@ -67,6 +67,7 @@ export default function Landing() {
             <span className="hero-headline-accent">{t('landing.headline2')}</span>
           </h1>
 
+          {/* Subtitle tuned to text-gray-300 for WCAG AA contrast compliance against dark background */}
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-300 sm:text-xl">
             {t('landing.subtitle')}
           </p>

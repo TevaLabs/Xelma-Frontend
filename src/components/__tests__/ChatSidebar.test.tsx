@@ -171,7 +171,7 @@ describe('ChatSidebar — offline guard and character limit', () => {
   });
 });
 
-describe('ChatSidebar — mobile sheet focus order', () => {
+describe('ChatSidebar — mobile sheet focus order and a11y', () => {
   it('moves focus into the sheet when opened on mobile', async () => {
     render(<ChatSidebar />);
 
@@ -204,11 +204,89 @@ describe('ChatSidebar — mobile sheet focus order', () => {
     render(<ChatSidebar />);
 
     const toggle = screen.getByLabelText('Toggle chat sidebar');
-    expect(screen.getByLabelText('Live chat')).not.toHaveAttribute('aria-modal', 'true');
+    const sidebar = screen.getByLabelText('Live chat');
+    expect(sidebar).toHaveAttribute('role', 'complementary');
+    expect(sidebar).not.toHaveAttribute('aria-modal');
 
     fireEvent.click(toggle);
 
-    expect(screen.getByLabelText('Live chat')).toHaveAttribute('aria-modal', 'true');
+    expect(sidebar).toHaveAttribute('role', 'dialog');
+    expect(sidebar).toHaveAttribute('aria-modal', 'true');
+  });
+
+  it('wires the mobile toggle button with aria-controls, aria-haspopup, and aria-expanded', () => {
+    render(<ChatSidebar />);
+
+    const toggle = screen.getByLabelText('Toggle chat sidebar');
+    const sidebar = screen.getByLabelText('Live chat');
+
+    expect(sidebar).toHaveAttribute('id', 'chat-sidebar');
+    expect(toggle).toHaveAttribute('aria-controls', 'chat-sidebar');
+    expect(toggle).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('traps Tab and Shift+Tab focus inside the mobile sheet', async () => {
+    render(<ChatSidebar />);
+
+    const toggle = screen.getByLabelText('Toggle chat sidebar');
+    fireEvent.click(toggle);
+
+    const input = screen.getByLabelText('Message input');
+    const sendButton = screen.getByLabelText('Send message');
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+    });
+
+    // Move focus to sendButton (last focusable element)
+    sendButton.focus();
+    expect(document.activeElement).toBe(sendButton);
+
+    // Tab from last focusable element wraps back to first (input)
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(input);
+
+    // Shift+Tab from first focusable element wraps to last (sendButton)
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(sendButton);
+  });
+
+  it('closes mobile sheet and restores focus when clicking the overlay', async () => {
+    render(<ChatSidebar />);
+
+    const toggle = screen.getByLabelText('Toggle chat sidebar');
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByLabelText('Message input'));
+    });
+
+    const overlay = screen.getByTestId('chat-mobile-overlay');
+    fireEvent.click(overlay);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(toggle);
+    });
+    expect(screen.getByLabelText('Live chat')).toHaveAttribute('role', 'complementary');
+    expect(screen.getByLabelText('Live chat')).not.toHaveAttribute('aria-modal');
+  });
+
+  it('manages document body scroll lock while mobile sheet is open', () => {
+    render(<ChatSidebar />);
+
+    const toggle = screen.getByLabelText('Toggle chat sidebar');
+    expect(document.body.style.overflow).toBe('');
+
+    fireEvent.click(toggle);
+    expect(document.body.style.overflow).toBe('hidden');
+
+    fireEvent.click(toggle);
+    expect(document.body.style.overflow).toBe('');
   });
 });
 
