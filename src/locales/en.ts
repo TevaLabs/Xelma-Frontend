@@ -56,6 +56,9 @@ const en = {
       }
     },
   },
+  profile: {
+    loadErrorRetry: 'Retry',
+  },
   footer: {
     description: 'Collective market intelligence on Stellar',
   },

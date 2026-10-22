@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   ArrowUpRight,
@@ -76,6 +77,7 @@ function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
 }
 
 export default function Profile() {
+  const { t } = useTranslation();
   const profile = useProfileStore((s) => s.profile);
   const isLoading = useProfileStore((s) => s.isLoading);
   const error = useProfileStore((s) => s.error);
@@ -172,7 +174,7 @@ export default function Profile() {
                       className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300/30 px-3 py-2 text-xs font-bold text-red-50 hover:bg-red-400/10"
                     >
                       <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-                      Retry
+                      {t('profile.loadErrorRetry')}
                     </button>
                   </div>
                 )}

@@ -2,7 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BrowserRouter } from 'react-router-dom';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import i18n from '../i18n';
 
 // Mock useProfileStore
 const mockLoadProfile = vi.fn();
@@ -172,6 +173,25 @@ describe('Profile Page', () => {
       renderWithRouter(<Profile />);
 
       fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
+      expect(mockLoadProfile).toHaveBeenCalled();
+    });
+  });
+
+  describe('error state i18n', () => {
+    afterEach(async () => {
+      await i18n.changeLanguage('en');
+    });
+
+    it('renders the retry button in Spanish and still retries', async () => {
+      await i18n.changeLanguage('es');
+      mockStoreState({
+        profile: null,
+        isLoading: false,
+        error: 'Failed to load profile',
+      });
+      renderWithRouter(<Profile />);
+
+      fireEvent.click(screen.getByRole('button', { name: /Reintentar/i }));
       expect(mockLoadProfile).toHaveBeenCalled();
     });
   });

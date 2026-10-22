@@ -66,6 +66,9 @@ const es = {
     joinCTA: 'Unirse al Torneo',
     ctaDisabledHint: 'El modo torneo se lanza después del mainnet. Conecta tu billetera para ser notificado.',
   },
+  profile: {
+    loadErrorRetry: 'Reintentar',
+  },
   footer: {
     description: 'Inteligencia colectiva de mercado en Stellar',
   },
