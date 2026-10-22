@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import Landing from './Landing';
+import { useNetworkStats } from '../hooks/useNetworkStats';
 import '../i18n';
 import i18n from '../i18n';
 
@@ -14,11 +15,25 @@ vi.mock('../components/ModeCards', () => ({
   default: () => <div data-testid="mode-cards-mock">Mode Cards Mock</div>
 }));
 
+vi.mock('../hooks/useNetworkStats', () => ({
+  useNetworkStats: vi.fn(),
+}));
+
+const baseStats = { totalRounds: 10, vXlmDistributed: 1000, activePlayers: 5 };
+
 afterEach(async () => {
   await i18n.changeLanguage('en');
 });
 
 describe('Landing Page', () => {
+  beforeEach(() => {
+    vi.mocked(useNetworkStats).mockReturnValue({
+      stats: baseStats,
+      loading: false,
+      isStale: false,
+    } as ReturnType<typeof useNetworkStats>);
+  });
+
   it('renders hero section with headline and subtitle', () => {
     render(
       <MemoryRouter>
@@ -108,5 +123,28 @@ describe('Landing Page', () => {
     
     // Check if the #how-it-works anchor exists
     expect(container.querySelector('#how-it-works')).toBeInTheDocument();
+  });
+
+  it('shows the cached-stats chip when stats are stale', () => {
+    vi.mocked(useNetworkStats).mockReturnValue({
+      stats: baseStats,
+      loading: false,
+      isStale: true,
+    } as ReturnType<typeof useNetworkStats>);
+    render(
+      <MemoryRouter>
+        <Landing />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(/showing cached metrics/i);
+  });
+
+  it('hides the cached-stats chip when stats are fresh', () => {
+    render(
+      <MemoryRouter>
+        <Landing />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText(/showing cached metrics/i)).not.toBeInTheDocument();
   });
 });
