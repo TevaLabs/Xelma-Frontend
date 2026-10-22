@@ -125,4 +125,20 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+  test('Learn page shows its guides heading or empty state', async ({ page }) => {
+    await page.route('**/api/education/guides', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }),
+    );
+    await page.route('**/api/education/tip', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) }),
+    );
+
+    await page.goto('/learn');
+    await expect(page).toHaveTitle(/Xelma/i);
+    await expect(page.getByRole('heading', { name: 'Xelma Academy' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /Expert Guides|No guides available/ }),
+    ).toBeVisible();
+  });
+
 });
