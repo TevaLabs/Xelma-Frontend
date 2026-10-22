@@ -125,4 +125,16 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+  test('Tournament Coming Soon page supports browser back navigation', async ({ page }) => {
+    await page.goto('/');
+    await page.goto('/tournament');
+
+    await expect(page.getByText('Coming Soon', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Tournament/i }).first()).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { name: /Read the market/i })).toBeVisible();
+  });
+
 });
