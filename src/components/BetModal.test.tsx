@@ -1,4 +1,5 @@
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { createRef } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BetModal from './BetModal';
 import type { PredictionData } from './BetModal';
@@ -313,5 +314,59 @@ describe('BetModal — transaction pending state (#163)', () => {
 
       expect(screen.queryByRole('button', { name: /Set stake to 25% of balance/i })).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('BetModal — focus return on close (#800)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsConnected = true;
+    mockPublicKey = 'G_TEST_PUBLIC_KEY';
+    mockIsAuthenticated = true;
+  });
+
+  it('returns focus to the element that opened the modal', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { rerender } = render(
+      <BetModal isOpen onClose={vi.fn()} predictionData={defaultPrediction} />,
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    rerender(<BetModal isOpen={false} onClose={vi.fn()} predictionData={defaultPrediction} />);
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
+
+  it('prefers restoreFocusRef when provided', () => {
+    const opener = document.createElement('button');
+    const target = document.createElement('button');
+    document.body.append(opener, target);
+    opener.focus();
+    const ref = createRef<HTMLElement>();
+    (ref as { current: HTMLElement | null }).current = target;
+
+    const { rerender } = render(
+      <BetModal isOpen onClose={vi.fn()} predictionData={defaultPrediction} restoreFocusRef={ref} />,
+    );
+    rerender(
+      <BetModal
+        isOpen={false}
+        onClose={vi.fn()}
+        predictionData={defaultPrediction}
+        restoreFocusRef={ref}
+      />,
+    );
+    expect(target).toHaveFocus();
+    opener.remove();
+    target.remove();
+  });
+
+  it('closes on Escape', () => {
+    const { onClose } = renderOpen();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

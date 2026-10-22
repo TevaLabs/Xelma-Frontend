@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type RefObject } from 'react';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { place_bet, place_precision_prediction, estimatePlaceBet, estimatePrecisionPrediction, humanizeContractError, type FeeEstimate } from '../lib/xelma-contract';
@@ -7,6 +7,7 @@ import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import PredictionHelpTooltip from './PredictionHelpTooltip';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export interface PredictionData {
   direction: 'UP' | 'DOWN';
@@ -26,6 +27,8 @@ interface BetModalProps {
   onSuccess?: (txHash: string) => void;
   onPending?: (prediction: UserPrediction) => void;
   onPredictionError?: () => void;
+  /** Element to focus when the modal closes. Defaults to whatever had focus when it opened. */
+  restoreFocusRef?: RefObject<HTMLElement | null>;
 }
 
 type ModalView = 'confirm' | 'wallet_required';
@@ -79,7 +82,7 @@ function validateExactPrice(value: string): string | null {
   return null;
 }
 
-export default function BetModal({ isOpen, onClose, predictionData, onSuccess, onPending, onPredictionError }: BetModalProps) {
+export default function BetModal({ isOpen, onClose, predictionData, onSuccess, onPending, onPredictionError, restoreFocusRef }: BetModalProps) {
   const isConnected = useWalletStore(selectIsWalletConnected);
   const publicKey = useWalletStore((s) => s.publicKey);
   const connect = useWalletStore((s) => s.connect);
@@ -393,6 +396,13 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [isOpen, view]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, {
+    active: isOpen && Boolean(predictionData),
+    onEscape: onClose,
+    restoreFocusRef,
+  });
+
   if (!isOpen || !predictionData) return null;
 
   return (
@@ -408,7 +418,13 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
         </div>
       )}
       <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
-      <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Confirm prediction"
+        tabIndex={-1}
+        className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
         <button
           onClick={onClose}
           className="absolute right-4 top-4 text-gray-400 hover:text-white"
