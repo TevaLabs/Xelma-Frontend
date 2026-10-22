@@ -1,0 +1,18 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "feat/issue-773-add-commandpalette-keyboard-navigation-unit",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "feat/issue-773-add-commandpalette-keyboard-navigation-unit": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "feat/issue-773-add-commandpalette-keyboard-navigation-unit",
+    "origin"
+  ]
+}

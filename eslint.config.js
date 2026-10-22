@@ -37,4 +37,4 @@ export default defineConfig([
       '@typescript-eslint/no-unsafe-function-type': 'off',
     },
   },
-])
+]);

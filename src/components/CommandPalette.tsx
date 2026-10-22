@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, LayoutDashboard, Trophy, BookOpen, Wallet, User, Droplets } from 'lucide-react';
 import clsx from 'clsx';
@@ -33,8 +33,9 @@ export default function CommandPalette() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const filtered = routes.filter((r) =>
-    r.label.toLowerCase().includes(query.toLowerCase()),
+  const filtered = useMemo(
+    () => routes.filter((r) => r.label.toLowerCase().includes(query.toLowerCase())),
+    [query],
   );
   const safeSelectedIndex = filtered.length === 0 ? 0 : Math.min(selectedIndex, filtered.length - 1);
 
@@ -71,13 +72,6 @@ export default function CommandPalette() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, open, close]);
 
-  // Reset selected index when filtered list changes
-  useEffect(() => {
-    setSelectedIndex(0);
-    const reset = window.setTimeout(() => setSelectedIndex(0), 0);
-    return () => window.clearTimeout(reset);
-  }, [query]);
-
   // Scroll selected item into view
   useEffect(() => {
     if (!isOpen) return;
@@ -96,7 +90,7 @@ export default function CommandPalette() {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (filtered.length > 0) {
-        setSelectedIndex((i) => (i + 1) % filtered.length);
+        setSelectedIndex((i) => (Math.min(i, filtered.length - 1) + 1) % filtered.length);
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -157,6 +151,7 @@ export default function CommandPalette() {
                 role="combobox"
                 aria-expanded={isOpen}
                 aria-controls="command-palette-listbox"
+                aria-autocomplete="list"
                 aria-activedescendant={
                   filtered[safeSelectedIndex] ? `command-palette-option-${safeSelectedIndex}` : undefined
                 }
