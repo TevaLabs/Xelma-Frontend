@@ -176,4 +176,16 @@ describe('<Settings />', () => {
     fireEvent.click(screen.getByTestId('settings-test-sound'));
     expect(playTestTone).toHaveBeenCalled();
   });
+
+  it('renders exactly one main element with id="main-content" and tabIndex={-1}', () => {
+    renderSettings();
+
+    const mainElements = document.querySelectorAll('main');
+    expect(mainElements).toHaveLength(1);
+    const mainContent = document.getElementById('main-content');
+    expect(mainContent).toBeInTheDocument();
+    expect(mainContent).toBe(mainElements[0]);
+    expect(mainContent).toHaveAttribute('tabindex', '-1');
+  });
 });
+

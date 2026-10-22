@@ -84,6 +84,18 @@ describe('Profile Page', () => {
 
       expect(screen.getByRole('button', { name: /Edit profile/i })).toBeInTheDocument();
     });
+
+    it('renders exactly one main element with id="main-content" and tabIndex={-1}', () => {
+      mockStoreState({});
+      renderWithRouter(<Profile />);
+
+      const mainElements = document.querySelectorAll('main');
+      expect(mainElements).toHaveLength(1);
+      const mainContent = document.getElementById('main-content');
+      expect(mainContent).toBeInTheDocument();
+      expect(mainContent).toBe(mainElements[0]);
+      expect(mainContent).toHaveAttribute('tabindex', '-1');
+    });
   });
 
   describe('loading state', () => {
