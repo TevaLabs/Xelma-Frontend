@@ -883,7 +883,11 @@ setOptimisticPrediction(null);
         onClose={dismissResolvedRound}
         result={endRoundResult}
       />
-      <EventLogDrawer isOpen={isEventLogOpen} onClose={() => setIsEventLogOpen(false)} />
+      <EventLogDrawer
+        isOpen={isEventLogOpen}
+        onClose={() => setIsEventLogOpen(false)}
+        selectedAsset={normalizedAsset}
+      />
     </main>
   );
 };

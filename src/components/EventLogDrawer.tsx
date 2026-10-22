@@ -9,10 +9,36 @@ import {
 import { txUrl } from '../lib/explorer';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
+import { ASSETS } from '../constants/assets';
+import type { Asset } from '../types/asset';
 
 interface EventLogDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Asset currently selected in AssetTabs. The asset chips follow it. */
+  selectedAsset?: Asset;
+}
+
+type AssetFilter = Asset | 'ALL';
+
+/**
+ * Best-effort asset of an event, read from its name or payload (`asset`,
+ * `symbol`, `pair`). Returns null when the event does not say, so unscoped
+ * events stay visible under every asset filter.
+ */
+function eventAsset(event: PredictionEvent): Asset | null {
+  const candidates: unknown[] = [event.name];
+  if (event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload)) {
+    const record = event.payload as Record<string, unknown>;
+    candidates.push(record.asset, record.symbol, record.pair, record.feed);
+  }
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') continue;
+    const upper = candidate.toUpperCase();
+    const hit = ASSETS.find((asset) => new RegExp(`(^|[^A-Z])${asset}([^A-Z]|$)`).test(upper));
+    if (hit) return hit;
+  }
+  return null;
 }
 
 type LoadState = 'idle' | 'loading' | 'loaded' | 'error';
@@ -89,14 +115,20 @@ function EventRow({ event }: { event: PredictionEvent }) {
 
 /**
  * Slide-over drawer listing recent on-chain prediction and settlement events,
- * with a round-id filter and explorer links for events that carry a tx hash.
+ * with round-id and asset filters and explorer links for events that carry a tx hash.
  */
-export default function EventLogDrawer({ isOpen, onClose }: EventLogDrawerProps) {
+export default function EventLogDrawer({ isOpen, onClose, selectedAsset }: EventLogDrawerProps) {
   const [events, setEvents] = useState<PredictionEvent[]>([]);
   const [state, setState] = useState<LoadState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [roundFilter, setRoundFilter] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [assetFilter, setAssetFilter] = useState<AssetFilter>(selectedAsset ?? 'ALL');
+
+  // Keep the chips in step with the asset tab.
+  useEffect(() => {
+    setAssetFilter(selectedAsset ?? 'ALL');
+  }, [selectedAsset]);
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -136,11 +168,19 @@ export default function EventLogDrawer({ isOpen, onClose }: EventLogDrawerProps)
     };
   }, [isOpen, reloadKey]);
 
-  const visible = useMemo(() => filterByRound(events, roundFilter), [events, roundFilter]);
+  const visible = useMemo(
+    () =>
+      filterByRound(events, roundFilter).filter((event) => {
+        if (assetFilter === 'ALL') return true;
+        const asset = eventAsset(event);
+        return asset === null || asset === assetFilter;
+      }),
+    [events, roundFilter, assetFilter],
+  );
 
   if (!isOpen) return null;
 
-  const isFiltered = roundFilter.trim().length > 0;
+  const isFiltered = roundFilter.trim().length > 0 || assetFilter !== 'ALL';
 
   return (
     <div className="fixed inset-0 z-[70] flex">
@@ -204,6 +244,31 @@ export default function EventLogDrawer({ isOpen, onClose }: EventLogDrawerProps)
           </button>
         </div>
 
+        <div
+          className="flex flex-wrap gap-2 border-b border-white/5 px-4 py-3"
+          role="group"
+          aria-label="Filter by asset"
+        >
+          {(['ALL', ...ASSETS] as AssetFilter[]).map((asset) => {
+            const active = assetFilter === asset;
+            return (
+              <button
+                key={asset}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setAssetFilter(asset)}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] ${
+                  active
+                    ? 'border-[#2C4BFD]/60 bg-[#2C4BFD]/20 text-white'
+                    : 'border-gray-700 text-gray-400 hover:text-white'
+                }`}
+              >
+                {asset === 'ALL' ? 'All assets' : asset}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex-1 overflow-y-auto p-4">
           {state === 'loading' && (
             <div className="space-y-2" aria-busy="true" aria-label="Loading on-chain events">
@@ -236,7 +301,11 @@ export default function EventLogDrawer({ isOpen, onClose }: EventLogDrawerProps)
           {state === 'loaded' && visible.length === 0 && (
             <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
               <p className="text-sm font-semibold text-gray-300">
-                {isFiltered ? 'No events for that round' : 'No events yet'}
+                {!isFiltered
+                  ? 'No events yet'
+                  : assetFilter === 'ALL'
+                    ? 'No events for that round'
+                    : 'No events match these filters'}
               </p>
               <p className="mt-1 text-xs text-gray-500">
                 {isFiltered
@@ -246,7 +315,10 @@ export default function EventLogDrawer({ isOpen, onClose }: EventLogDrawerProps)
               {isFiltered && (
                 <button
                   type="button"
-                  onClick={() => setRoundFilter('')}
+                  onClick={() => {
+                    setRoundFilter('');
+                    setAssetFilter('ALL');
+                  }}
                   className="mt-3 rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:text-white"
                 >
                   Clear filter

@@ -133,4 +133,51 @@ describe('EventLogDrawer', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it('filters events to the selected asset and keeps unscoped events', async () => {
+    fetchMock.mockResolvedValue([
+      event({ id: 'a', name: 'settle', payload: { asset: 'BTC' }, roundId: '1' }),
+      event({ id: 'b', name: 'settle', payload: { asset: 'ETH' }, roundId: '2' }),
+      event({ id: 'c', name: 'settle', payload: { winner: 'UP' }, roundId: '3' }),
+    ]);
+
+    render(<EventLogDrawer isOpen onClose={vi.fn()} selectedAsset="BTC" />);
+
+    expect(await screen.findByText(/round 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/round 3/i)).toBeInTheDocument();
+    expect(screen.queryByText(/round 2/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'BTC' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('lets the user switch chips and shows all assets', async () => {
+    fetchMock.mockResolvedValue([
+      event({ id: 'a', payload: { asset: 'BTC' }, roundId: '1' }),
+      event({ id: 'b', payload: { asset: 'ETH' }, roundId: '2' }),
+    ]);
+
+    render(<EventLogDrawer isOpen onClose={vi.fn()} selectedAsset="BTC" />);
+    await screen.findByText(/round 1/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'ETH' }));
+    expect(screen.getByText(/round 2/i)).toBeInTheDocument();
+    expect(screen.queryByText(/round 1/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'All assets' }));
+    expect(screen.getByText(/round 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/round 2/i)).toBeInTheDocument();
+  });
+
+  it('follows the asset tab when selectedAsset changes', async () => {
+    fetchMock.mockResolvedValue([
+      event({ id: 'a', payload: { asset: 'BTC' }, roundId: '1' }),
+      event({ id: 'b', payload: { asset: 'ETH' }, roundId: '2' }),
+    ]);
+
+    const { rerender } = render(<EventLogDrawer isOpen onClose={vi.fn()} selectedAsset="BTC" />);
+    await screen.findByText(/round 1/i);
+
+    rerender(<EventLogDrawer isOpen onClose={vi.fn()} selectedAsset="ETH" />);
+    expect(screen.getByText(/round 2/i)).toBeInTheDocument();
+    expect(screen.queryByText(/round 1/i)).not.toBeInTheDocument();
+  });
 });
