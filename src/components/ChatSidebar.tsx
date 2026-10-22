@@ -45,7 +45,7 @@ function getInitials(username: string): string {
 function ChatIcon() {
   return (
     <svg
-      className="w-8 h-8 text-[#2C4BFD]"
+      className="h-6 w-6 text-xelma-teal-bright"
       viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -286,8 +286,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         role={isMobileOpen ? "dialog" : "complementary"}
         aria-modal={isMobileOpen || undefined}
         aria-label="Live chat"
-        className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
-        bg-[#0A0F1A] border-[#BEC7FE]/10
+        className={`chat-sidebar fixed flex flex-col z-60 border-r border-[#BEC7FE]/10 bg-[#070B12]/95 backdrop-blur-xl ${TRANSFORM_TRANSITION}
         
         /* Desktop: Side Drawer */
         md:left-0 md:w-80 md:translate-x-0 md:transition-none
@@ -298,25 +297,43 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         ${isMobileOpen ? "translate-y-0 ease-out" : "translate-y-full ease-in md:translate-y-0 md:translate-x-0"}`}
       >
         {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <ChatIcon />
-            <h2 className="font-['DM_Sans'] font-semibold text-xl text-white">
-              Live Chat
-            </h2>
+        <header className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-xelma-blue/30 bg-xelma-blue/10">
+              <ChatIcon />
+            </span>
+            <div>
+              <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.28em] text-xelma-teal-bright/70">
+                Comms channel
+              </p>
+              <h2 className="font-['DM_Sans'] text-xl font-semibold text-white">
+                Live Chat
+              </h2>
+            </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-white">
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1 text-white">
             <span className="status-dot status-dot-live" />
-            <span className="font-['DM_Sans'] font-semibold text-sm">
+            <span className="font-['DM_Sans'] text-sm font-semibold tabular-nums">
               {onlineCount}
+            </span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-500">
+              online
             </span>
           </div>
         </header>
 
+        {/* Channel strip */}
+        <div className="flex items-center justify-between gap-2 border-b border-white/5 bg-black/20 px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-gray-500">
+          <span className="truncate">channel / {channelId}</span>
+          <span className="shrink-0 tabular-nums">
+            {messages.length} {messages.length === 1 ? 'msg' : 'msgs'}
+          </span>
+        </div>
+
         {/* Messages */}
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-2.5 flex flex-col gap-3 glass-card mx-2.5 mt-2.5 p-3.5 rounded-xl overscroll-contain"
+          className="mx-2.5 mt-2.5 flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain rounded-xl border border-white/10 bg-black/30 p-3.5"
         >
           {messages.length === 0 && (
             <EmptyState
@@ -333,27 +350,27 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
                   ? "Be the first to say something in the chat."
                   : "Reconnect to see and send messages."
               }
-              className="min-h-[160px] border-none bg-transparent backdrop-blur-none"
+              className="min-h-[180px] justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] backdrop-blur-none"
             />
           )}
           {messages.map((message) => (
             <div
               key={message.id}
-              className="flex items-start gap-2.5 p-2.5 bg-white/5 border border-white/5 rounded-xl text-gray-200"
+              className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] p-3 transition-colors duration-150 hover:border-xelma-blue/35 hover:bg-white/[0.06]"
             >
-              <div className="w-9 h-9 rounded-full bg-linear-to-br from-[#E0E7FF] to-[#2C4BFD] shrink-0 flex items-center justify-center text-white font-semibold text-sm">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-xelma-blue to-xelma-teal-bright text-sm font-semibold text-white shadow-[0_0_16px_rgba(44,75,253,0.25)]">
                 {getInitials(message.username)}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-['DM_Sans'] font-semibold text-sm text-white">
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="font-['DM_Sans'] text-sm font-semibold text-white">
                     {message.username}
                   </span>
-                  <span className="font-['DM_Sans'] font-normal text-xs text-gray-400">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-gray-500">
                     {formatRelativeTime(message.timestamp)}
                   </span>
                 </div>
-                <p className="font-['DM_Sans'] font-normal text-sm text-gray-300 text-wrap wrap-break-word">
+                <p className="font-['DM_Sans'] text-sm leading-relaxed text-gray-300 text-wrap wrap-break-word">
                   {message.content}
                 </p>
               </div>
@@ -363,22 +380,22 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] glass-card border-t border-x-0 border-b-0 rounded-none shrink-0">
+        <div className="shrink-0 border-t border-white/10 bg-black/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {!isConnected && (
             <div
-              className="mb-2 flex items-center justify-center gap-1.5 text-xs text-red-400"
+              className="mb-2 flex items-center justify-center gap-1.5 rounded-lg border border-rose-500/25 bg-rose-500/10 px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-rose-300"
               role="status"
             >
               <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
               Chat is offline - messages cannot be sent
             </div>
           )}
-          <div className="flex items-end gap-2 p-2 bg-white/5 border border-white/10 rounded-xl">
+          <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-black/40 p-2 transition-colors duration-150 focus-within:border-xelma-teal-bright/50 focus-within:ring-2 focus-within:ring-xelma-teal-bright/30">
             <textarea
               ref={textareaRef}
               rows={1}
               maxLength={MAX_MESSAGE_LENGTH}
-              className={`flex-1 border-none bg-transparent outline-none font-['DM_Sans'] text-sm text-white placeholder-gray-500 resize-none overflow-y-auto py-2 min-h-[36px] max-h-[120px] ${
+              className={`max-h-[120px] min-h-[36px] flex-1 resize-none overflow-y-auto border-none bg-transparent py-2 font-['DM_Sans'] text-sm text-white caret-xelma-teal-bright outline-none placeholder-gray-500 ${
                 !isConnected ? 'opacity-50' : ''
               }`}
               placeholder={isConnected ? "Type a message..." : "Chat offline..."}
@@ -389,7 +406,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               aria-label="Message input"
             />
             <button
-              className={`btn-primary flex items-center justify-center min-w-[36px] w-9 h-9 p-0 rounded-lg shrink-0 ${
+              className={`btn-primary flex h-9 w-9 min-w-[36px] shrink-0 items-center justify-center rounded-lg p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal-bright focus-visible:ring-offset-2 focus-visible:ring-offset-[#070B12] ${
                 !isConnected || inputValue.length > MAX_MESSAGE_LENGTH ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               disabled={!isConnected || inputValue.length > MAX_MESSAGE_LENGTH}
@@ -399,14 +416,14 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
               <SendIcon />
             </button>
           </div>
-          <div className="flex items-center justify-between mt-1.5 px-1">
+          <div className="mt-1.5 flex items-center justify-between gap-2 px-1">
             {inputValue.length > MAX_MESSAGE_LENGTH && (
-              <span className="text-xs text-red-400">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-rose-400">
                 Message too long (max {MAX_MESSAGE_LENGTH} characters)
               </span>
             )}
-            <span className={`text-xs ml-auto ${
-              inputValue.length > MAX_MESSAGE_LENGTH ? 'text-red-400' : 'text-gray-400'
+            <span className={`ml-auto font-mono text-[10px] tabular-nums ${
+              inputValue.length > MAX_MESSAGE_LENGTH ? 'text-rose-400' : 'text-gray-500'
             }`}>
               {inputValue.length}/{MAX_MESSAGE_LENGTH}
             </span>

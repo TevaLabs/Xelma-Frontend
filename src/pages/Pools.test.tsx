@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 
 import Pools from './Pools';
@@ -13,7 +13,6 @@ afterAll(() => server.close());
 const loaded = () => screen.findByRole('heading', { name: 'BTC Pool' });
 
 describe('Pools Page', () => {
-
   describe('rendering', () => {
     it('renders the Pools heading', async () => {
       render(<Pools />);
@@ -52,59 +51,118 @@ describe('Pools Page', () => {
     });
   });
 
-  describe('pool cards', () => {
-    it('renders pool cards for BTC, ETH, and XLM', async () => {
+  describe('asset tabs', () => {
+    it('renders a tab for BTC, ETH, and XLM', async () => {
       render(<Pools />);
 
       await loaded();
 
-      expect(screen.getByRole('heading', { name: 'BTC Pool' })).toBeInTheDocument();
+      expect(screen.getByRole('tablist', { name: /pool assets/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /BTC/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /ETH/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /XLM/ })).toBeInTheDocument();
+    });
+
+    it('selects the first pool and labels its panel with the active tab', async () => {
+      render(<Pools />);
+
+      await loaded();
+
+      expect(screen.getByRole('tab', { name: /BTC/ })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tab', { name: /ETH/ })).toHaveAttribute('aria-selected', 'false');
+
+      const panel = screen.getByRole('tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'pool-tab-BTC');
+    });
+
+    it('switches the visible pool when another asset tab is clicked', async () => {
+      render(<Pools />);
+
+      await loaded();
+
+      fireEvent.click(screen.getByRole('tab', { name: /ETH/ }));
+
       expect(screen.getByRole('heading', { name: 'ETH Pool' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'BTC Pool' })).not.toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /ETH/ })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('moves between tabs with arrow keys and wraps at the ends', async () => {
+      render(<Pools />);
+
+      await loaded();
+
+      const btcTab = screen.getByRole('tab', { name: /BTC/ });
+      btcTab.focus();
+
+      fireEvent.keyDown(btcTab, { key: 'ArrowRight' });
+      expect(screen.getByRole('tab', { name: /ETH/ })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('heading', { name: 'ETH Pool' })).toBeInTheDocument();
+
+      const ethTab = screen.getByRole('tab', { name: /ETH/ });
+      fireEvent.keyDown(ethTab, { key: 'ArrowLeft' });
+      expect(screen.getByRole('tab', { name: /BTC/ })).toHaveAttribute('aria-selected', 'true');
+
+      fireEvent.keyDown(screen.getByRole('tab', { name: /BTC/ }), { key: 'ArrowLeft' });
+      expect(screen.getByRole('tab', { name: /XLM/ })).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByRole('heading', { name: 'XLM Pool' })).toBeInTheDocument();
-    });
-
-    it('displays total volume for each pool', async () => {
-      render(<Pools />);
-
-      await loaded();
-
-      expect(screen.getAllByText(/total volume/i).length).toBeGreaterThan(0);
-    });
-
-    it('renders UP/DOWN pool sections', async () => {
-      render(<Pools />);
-
-      await loaded();
-
-      expect(screen.getAllByText(/UP\/DOWN Pool/i).length).toBeGreaterThan(0);
-    });
-
-    it('renders Precision Pool sections', async () => {
-      render(<Pools />);
-
-      await loaded();
-
-      expect(screen.getAllByText(/precision pool/i).length).toBeGreaterThan(0);
-    });
-
-    it('renders Historical Yield sections', async () => {
-      render(<Pools />);
-
-      await loaded();
-
-      expect(screen.getAllByText(/historical yield/i).length).toBeGreaterThan(0);
     });
   });
 
-  describe('loaded state', () => {
-    it('renders pool data after loading completes', async () => {
+  describe('pool detail', () => {
+    it('displays total volume for the selected pool', async () => {
       render(<Pools />);
 
       await loaded();
 
-      expect(screen.getByRole('heading', { name: 'BTC Pool' })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'ETH Pool' })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: 'XLM Pool' })).toBeInTheDocument();
+      expect(screen.getByText('Total volume')).toBeInTheDocument();
+      expect(screen.getAllByText('1.25M').length).toBeGreaterThan(0);
+    });
+
+    it('renders UP/DOWN versus precision allocation bars', async () => {
+      render(<Pools />);
+
+      await loaded();
+
+      expect(screen.getByText('UP/DOWN vs Precision')).toBeInTheDocument();
+      expect(
+        screen.getByRole('img', { name: /Allocation: 68% UP\/DOWN pool, 32% precision pool/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('renders UP/DOWN and Precision pool sections', async () => {
+      render(<Pools />);
+
+      await loaded();
+
+      expect(screen.getByRole('heading', { name: 'UP/DOWN Pool' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Precision Pool' })).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: /UP\/DOWN split: 53% UP, 47% DOWN/i })).toBeInTheDocument();
+    });
+
+    it('renders the historical yield callout', async () => {
+      render(<Pools />);
+
+      await loaded();
+
+      expect(screen.getByRole('heading', { name: 'Historical Yield' })).toBeInTheDocument();
+      expect(screen.getByText('+4.2%')).toBeInTheDocument();
+      expect(screen.queryByText(/highest this cycle/i)).not.toBeInTheDocument();
+    });
+
+    it('shows the highest yield badge only on the top-yielding pool', async () => {
+      render(<Pools />);
+
+      await loaded();
+
+      fireEvent.click(screen.getByRole('tab', { name: /XLM/ }));
+
+      expect(screen.getByText('+5.1%')).toBeInTheDocument();
+      expect(screen.getByText(/highest this cycle/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('tab', { name: /ETH/ }));
+
+      expect(screen.queryByText(/highest this cycle/i)).not.toBeInTheDocument();
     });
   });
 
@@ -124,7 +182,7 @@ describe('Pools Page', () => {
       await screen.findByText("Couldn't load pools");
 
       server.resetHandlers();
-      screen.getByRole('button', { name: /retry/i }).click();
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }));
 
       await waitFor(() =>
         expect(screen.getByRole('heading', { name: 'BTC Pool' })).toBeInTheDocument(),

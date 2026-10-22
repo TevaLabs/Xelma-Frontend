@@ -83,6 +83,37 @@ describe('EndRoundModal accessibility', () => {
   });
 });
 
+describe('EndRoundModal outcome states', () => {
+  it('renders push visuals when the round nets zero', () => {
+    render(
+      <EndRoundModal
+        isOpen
+        onClose={vi.fn()}
+        result={{ isWin: false, amount: 0, tip: 'Right at the line.' }}
+      />,
+    );
+
+    expect(screen.getByRole('dialog', { name: /round pushed/i })).toBeInTheDocument();
+    expect(screen.getByText('$0.00')).toBeInTheDocument();
+    expect(screen.getByText(/round result: push/i)).toBeInTheDocument();
+  });
+
+  it('renders loss visuals without the contributor placeholder', () => {
+    render(
+      <EndRoundModal
+        isOpen
+        onClose={vi.fn()}
+        result={{ isWin: false, amount: 15, tip: 'Better luck next round.' }}
+      />,
+    );
+
+    expect(screen.getByRole('dialog', { name: /tough break/i })).toBeInTheDocument();
+    expect(screen.getByText('-$15.00')).toBeInTheDocument();
+    expect(screen.queryByText(/contributor task/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /share result/i })).toBeInTheDocument();
+  });
+});
+
 describe('EndRoundModal sharing functionality', () => {
   beforeEach(() => {
     vi.stubGlobal('navigator', {
@@ -127,5 +158,20 @@ describe('EndRoundModal sharing functionality', () => {
     render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
     expect(screen.getByText('+$42.00')).toBeInTheDocument();
     expect(screen.getByText(result.tip)).toBeInTheDocument();
+    expect(screen.getByText('ETH')).toBeInTheDocument();
+    expect(screen.getByText('DOWN')).toBeInTheDocument();
+  });
+
+  it('shares the round result through the Web Share API', async () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /share result/i }));
+
+    await waitFor(() => expect(navigator.share).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(navigator.share).mock.calls[0][0]).toMatchObject({
+      title: 'Xelma round result',
+      text: expect.stringContaining('Win: +$42.00 on ETH (DOWN)'),
+    });
+    expect(await screen.findByRole('button', { name: /shared/i })).toBeInTheDocument();
   });
 });
