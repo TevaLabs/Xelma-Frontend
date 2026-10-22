@@ -125,4 +125,17 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+  test('Pools page loads and shows its heading or empty state', async ({ page }) => {
+    await page.route('**/api/pools', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }),
+    );
+
+    await page.goto('/pools');
+    await expect(page).toHaveTitle(/Xelma/i);
+    await expect(page.getByRole('heading', { name: 'Liquidity Pools' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /No pools available|Couldn't load pools/ }),
+    ).toBeVisible();
+  });
+
 });
