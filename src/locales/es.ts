@@ -117,6 +117,34 @@ const es = {
       connectRequired: 'Conecta tu cartera para cambiar al modo En cadena',
     },
   },
+  learn: {
+    hero: {
+      title: 'Xelma',
+      titleAccent: 'Academia',
+      subtitle:
+        'Domina el arte de la predicción. Aprende estrategias, entiende el ecosistema Stellar y mejora tu juego de trading.',
+    },
+    guidesHeading: 'Guías de expertos',
+    tipHeading: 'Alpha rápido',
+    sidebarLabel: 'Consejos y comunidad',
+    loading: 'Obteniendo el último alpha…',
+    errorMessage: 'No se pudo cargar el contenido educativo. Revisa tu conexión.',
+    guidesEmpty: {
+      title: 'No hay guías disponibles',
+      message:
+        'Nuestros expertos están redactando contenido nuevo. ¡Vuelve pronto para conocer las últimas estrategias!',
+    },
+    tipEmpty: {
+      title: 'Sin consejo por hoy',
+      message: 'No hay un consejo específico por el momento. ¡Mantén los ojos en el gráfico!',
+    },
+    contribute: {
+      heading: '¿Quieres contribuir?',
+      description:
+        '¿Eres experto en Stellar o en mercados de predicción? Comparte tu conocimiento con la comunidad.',
+      apply: 'Postúlate como educador',
+    },
+  },
 };
 
 export default es;

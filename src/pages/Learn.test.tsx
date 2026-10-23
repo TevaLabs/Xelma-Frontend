@@ -2,6 +2,8 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LearnPage from './Learn';
 import { educationApi } from '../lib/api-client';
+import '../i18n';
+import i18n from '../i18n';
 
 // Mock the API client
 vi.mock('../lib/api-client', () => ({
@@ -48,8 +50,9 @@ const mockTip = {
 };
 
 describe('LearnPage', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks();
+        await i18n.changeLanguage('en');
     });
 
     it('renders loading state initially', async () => {
@@ -105,5 +108,51 @@ describe('LearnPage', () => {
             expect(screen.getByText('How to Predict')).toBeInTheDocument();
         });
         expect(screen.getByText(/No tip today/i)).toBeInTheDocument();
+    });
+
+    it('renders localized headings in English by default', async () => {
+        mockedEducationApi.getGuides.mockResolvedValue([]);
+        mockedEducationApi.getTip.mockResolvedValue(null);
+
+        render(<LearnPage />);
+
+        await waitFor(() => {
+            expect(
+                screen.getByRole('heading', { level: 1, name: 'Xelma Academy' }),
+            ).toBeInTheDocument();
+        });
+        expect(
+            screen.getByRole('heading', { level: 2, name: 'Expert Guides' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { level: 2, name: 'Quick Alpha' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('No guides available')).toBeInTheDocument();
+        expect(screen.getByText('No tip today')).toBeInTheDocument();
+    });
+
+    it('renders Spanish headings and empty states when locale is es', async () => {
+        mockedEducationApi.getGuides.mockResolvedValue([]);
+        mockedEducationApi.getTip.mockResolvedValue(null);
+
+        await i18n.changeLanguage('es');
+        render(<LearnPage />);
+
+        await waitFor(() => {
+            expect(
+                screen.getByRole('heading', { level: 1, name: 'Xelma Academia' }),
+            ).toBeInTheDocument();
+        });
+        expect(
+            screen.getByRole('heading', { level: 2, name: 'Guías de expertos' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { level: 2, name: 'Alpha rápido' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('No hay guías disponibles')).toBeInTheDocument();
+        expect(screen.getByText('Sin consejo por hoy')).toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', { level: 3, name: '¿Quieres contribuir?' }),
+        ).toBeInTheDocument();
     });
 });
