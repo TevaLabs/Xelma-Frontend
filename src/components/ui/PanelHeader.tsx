@@ -92,5 +92,3 @@ export function PanelHeader({
     </div>
   );
 }
-
-export default PanelHeader;

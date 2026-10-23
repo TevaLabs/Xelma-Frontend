@@ -1,5 +1,5 @@
 import type React from 'react';
-import PanelHeader from '../components/ui/PanelHeader';
+import { PanelHeader } from '../components/ui/PanelHeader';
 
 export default {
   title: 'Glass Card Primitives/PanelHeader',
