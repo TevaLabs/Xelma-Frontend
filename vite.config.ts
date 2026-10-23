@@ -85,8 +85,13 @@ export default defineConfig({
           if (id.includes("lightweight-charts")) {
             return "lightweight-charts";
           }
-          if (id.includes("socket.io-client")) {
-            return "socket";
+          if (
+            id.includes("socket.io-client") ||
+            id.includes("engine.io-client") ||
+            id.includes("socket.io-parser") ||
+            id.includes("@socket.io/component-emitter")
+          ) {
+            return "socket-vendor";
           }
         },
       },
