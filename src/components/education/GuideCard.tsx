@@ -31,7 +31,7 @@ export const GuideCard = ({ guide, className }: GuideCardProps) => {
     <article
       tabIndex={0}
       className={cn(
-        'glass-card group relative flex flex-col rounded-2xl p-5 rounded-2xl border border-white/10 bg-[#0A0F1A]/70 backdrop-blur-xl transition-all duration-300',
+        'glass-card group relative flex flex-col rounded-2xl p-5 border border-white/10 bg-[#0A0F1A]/70 backdrop-blur-xl transition-all duration-300',
         'hover:-translate-y-1 hover:border-xelma-teal/35 hover:shadow-[0_8px_32px_rgba(6,182,212,0.12)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]',
         className,
@@ -46,11 +46,11 @@ export const GuideCard = ({ guide, className }: GuideCardProps) => {
             alt=""
             loading="lazy"
             onError={() => setImageError(true)}
-            className="h-h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div
-            className="flex h-h-full w-full items-center justify-center bg-gradient-to-br from-xelma-blue/10 via-xelma-teal/5 to-transparent"
+            className="flex h-full w-full items-center justify-center bg-gradient-to-br from-xelma-blue/10 via-xelma-teal/5 to-transparent"
             aria-hidden="true"
           >
             <BookOpen className="h-8 w-8 text-xelma-teal/40" />

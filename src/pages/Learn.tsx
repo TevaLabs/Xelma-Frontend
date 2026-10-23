@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { educationApi } from "../lib/api-client";
 import { normalizeApiError } from "../lib/api";
 import type { Guide, Tip } from "../types/education";
@@ -12,7 +12,6 @@ const LearnPage = () => {
     const [tip, setTip] = useState<Tip | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const guidesHeadingRef = useRef<HTMLHeadingElement>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -61,14 +60,6 @@ const LearnPage = () => {
         return () => clearTimeout(timer);
     }, [fetchData]);
 
-    const handleGuideFocus = useCallback((index: number) => {
-        const cards = document.querySelectorAll<HTMLElement>('[data-guide-card="true"]');
-        const target = cards[index];
-        if (target) {
-            target.focus();
-        }
-    }, []);
-
     if (loading) {
         return (
             <div className="xelma-grid-bg min-h-screen relative flex items-center justify-center overflow-hidden">
@@ -113,20 +104,15 @@ const LearnPage = () => {
                         <section aria-labelledby="learn-guides-heading">
                             <div className="flex items-center gap-3 mb-8">
                                 <BookMarked className="text-xelma-teal shrink-0" size={24} aria-hidden />
-                                <h2 id="learn-guides-heading" ref={guidesHeadingRef} className="text-2xl font-bold text-white">
+                                <h2 id="learn-guides-heading" className="text-2xl font-bold text-white">
                                     Expert Guides
                                 </h2>
                             </div>
 
                             {guides.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {guides.map((guide, index) => (
-                                        <GuideCard
-                                            key={guide.id}
-                                            guide={guide}
-                                            headingId="learn-guides-heading"
-                                            onFocusRequest={() => handleGuideFocus(index)}
-                                        />
+                                    {guides.map((guide) => (
+                                        <GuideCard key={guide.id} guide={guide} />
                                     ))}
                                 </div>
                             ) : (
