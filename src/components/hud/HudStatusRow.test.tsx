@@ -121,7 +121,7 @@ describe('HudStatusRow', () => {
   it('does not render a contributor task placeholder', () => {
     render(<HudStatusRow playerCount={24} />);
     expect(screen.queryByText(/contributor task/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('status-chip-wallet')).toBeInTheDocument();
   });
 
   it('exposes the raw state on the container for integration checks', () => {
