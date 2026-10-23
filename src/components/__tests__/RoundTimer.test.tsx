@@ -120,4 +120,70 @@ describe('RoundTimer', () => {
       });
     }).not.toThrow();
   });
+
+  describe('circular progress arc', () => {
+    /** The second circle is the animated progress arc; the first is the track. */
+    const arc = () => document.querySelectorAll('circle')[1];
+    const arcOffset = () => Number(arc().getAttribute('stroke-dashoffset'));
+
+    it('stays teal while the round has time to run', () => {
+      render(<RoundTimer endTime={inSeconds(300)} playersOnline={null} />);
+      expect(screen.getByRole('timer')).toHaveAttribute('data-arc-state', 'open');
+      expect(arc()).toHaveAttribute('stroke', '#06B6D4');
+    });
+
+    it('turns amber inside two minutes', () => {
+      render(<RoundTimer endTime={inSeconds(100)} playersOnline={null} />);
+      expect(screen.getByRole('timer')).toHaveAttribute('data-arc-state', 'closing');
+      expect(arc()).toHaveAttribute('stroke', '#FBBF24');
+    });
+
+    it('turns red inside thirty seconds', () => {
+      render(<RoundTimer endTime={inSeconds(20)} playersOnline={null} />);
+      expect(screen.getByRole('timer')).toHaveAttribute('data-arc-state', 'urgent');
+      expect(arc()).toHaveAttribute('stroke', '#EF4444');
+    });
+
+    it('greys out and reads as ended once time runs out', () => {
+      render(<RoundTimer endTime={inSeconds(2)} playersOnline={null} />);
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(screen.getByRole('timer')).toHaveAttribute('data-arc-state', 'ended');
+      expect(arc()).toHaveAttribute('stroke', '#6B7280');
+      expect(arcOffset()).toBeCloseTo(2 * Math.PI * 44, 1);
+    });
+
+    it('sweeps the arc as the round burns down', () => {
+      render(<RoundTimer endTime={inSeconds(60)} playersOnline={null} />);
+      expect(arcOffset()).toBeLessThan(5);
+
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      // Half the round gone: the arc sits at ~half its circumference.
+      expect(arcOffset()).toBeGreaterThan(100);
+    });
+
+    it('re-baselines the arc when endTime moves to the next round', () => {
+      const { rerender } = render(<RoundTimer endTime={inSeconds(30)} playersOnline={null} />);
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(arcOffset()).toBeGreaterThan(50);
+
+      rerender(<RoundTimer endTime={inSeconds(120)} playersOnline={null} />);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByRole('timer')).toHaveAttribute('data-arc-state', 'closing');
+      // A fresh round means a full arc again.
+      expect(arcOffset()).toBeLessThan(5);
+    });
+
+    it('hides the players line when no live count is available', () => {
+      render(<RoundTimer endTime={inSeconds(120)} playersOnline={null} />);
+      expect(screen.queryByText(/playing now/i)).not.toBeInTheDocument();
+    });
+  });
 });

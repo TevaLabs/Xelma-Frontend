@@ -1,74 +1,87 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
+import { cn } from '../../lib/utils';
 
-export type ChipStatus = "active" | "inactive" | "loading" | "error" | "warning" | "info";
+export type ChipStatus = 'active' | 'inactive' | 'loading' | 'error' | 'warning' | 'info';
 
 export interface StatusChipProps {
   label: string;
   value?: string;
   status: ChipStatus;
+  /** Overrides the spoken state, e.g. "Live" or "Not connected". */
+  statusText?: string;
   icon?: ReactNode;
   className?: string;
 }
 
-const statusStyles: Record<ChipStatus, string> = {
-  active:
-    "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800",
-  inactive:
-    "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700",
-  loading:
-    "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-  error:
-    "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800",
-  warning:
-    "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800",
-  info:
-    "bg-[#2C4BFD]/8 dark:bg-[#2C4BFD]/20 text-[#2C4BFD] dark:text-blue-300 border-[#2C4BFD]/20 dark:border-[#2C4BFD]/40",
-};
-
-const dotStyles: Record<ChipStatus, string> = {
-  active: "bg-green-500",
-  inactive: "bg-gray-400 dark:bg-gray-500",
-  loading: "bg-blue-500 animate-pulse",
-  error: "bg-red-500",
-  warning: "bg-yellow-500 animate-pulse",
-  info: "bg-[#2C4BFD]",
+/**
+ * Dark terminal glass palette. Colour is never the only carrier of meaning:
+ * every chip also speaks its state to assistive tech.
+ */
+const CHIP_META: Record<ChipStatus, { shell: string; dot: string; text: string }> = {
+  active: {
+    shell: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300',
+    dot: 'status-dot status-dot-live',
+    text: 'Active',
+  },
+  inactive: {
+    shell: 'border-white/10 bg-white/5 text-gray-400',
+    dot: 'status-dot bg-gray-500',
+    text: 'Idle',
+  },
+  loading: {
+    shell: 'border-[#2C4BFD]/40 bg-[#2C4BFD]/15 text-[#BEC7FE]',
+    dot: 'status-dot status-dot-yellow',
+    text: 'Working',
+  },
+  error: {
+    shell: 'border-rose-500/40 bg-rose-500/10 text-rose-300',
+    dot: 'status-dot status-dot-urgent',
+    text: 'Error',
+  },
+  warning: {
+    shell: 'border-amber-400/30 bg-amber-400/10 text-amber-200',
+    dot: 'status-dot status-dot-yellow',
+    text: 'Warning',
+  },
+  info: {
+    shell: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-300',
+    dot: 'status-dot status-dot-green',
+    text: 'Info',
+  },
 };
 
 export const StatusChip = ({
   label,
   value,
   status,
+  statusText,
   icon,
-  className = "",
+  className = '',
 }: StatusChipProps) => {
+  const meta = CHIP_META[status];
+  const spokenStatus = statusText ?? meta.text;
+
   return (
-    <div
-      className={[
-        "inline-flex items-center gap-1.5",
-        "px-2.5 py-1",
-        "rounded-full border text-xs font-medium",
-        "transition-colors duration-200",
-        statusStyles[status],
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-200',
+        meta.shell,
         className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      )}
+      data-status={status}
+      data-testid={`status-chip-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
       {icon ? (
-        <span className="w-3.5 h-3.5 flex-shrink-0">{icon}</span>
+        <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden="true">
+          {icon}
+        </span>
       ) : (
-        <span
-          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotStyles[status]}`}
-          aria-hidden
-        />
+        <span className={cn('shrink-0', meta.dot)} aria-hidden="true" />
       )}
-      <span className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
-        {label}
-      </span>
-      {value && (
-        <span className="font-semibold">{value}</span>
-      )}
-    </div>
+      <span className="text-[11px] font-semibold uppercase tracking-wide">{label}</span>
+      {value && <span className="font-mono text-[11px] font-semibold">{value}</span>}
+      <span className="sr-only">{`: ${spokenStatus}`}</span>
+    </span>
   );
 };
 

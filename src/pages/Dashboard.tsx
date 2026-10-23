@@ -6,9 +6,12 @@ import PredictionHistory from "../components/PredictionHistory";
 import StatsCard from "../components/StatsCard";
 import RecentActivity from "../components/RecentActivity";
 import RoundCard from "../components/RoundCard";
+import RoundTimer from "../components/RoundTimer";
+import HudStatusRow from "../components/hud/HudStatusRow";
 import AssetTabs from "../components/AssetTabs";
 import { ASSETS } from "../constants/assets";
 import type { Asset } from "../types/asset";
+import { getRoundEndTimestamp, getRoundPlayerCount } from "../lib/roundTelemetry";
 
 import { useTranslation } from 'react-i18next';
 import type { PredictionData } from "../components/PredictionControls";
@@ -321,6 +324,19 @@ const Dashboard = () => {
     [normalizedAsset],
   );
 
+  // Round the HUD counts down to: the live round's end time when the API gives
+  // one, otherwise the open round for the selected asset. The base timestamp is
+  // captured once so a re-render can never restart (or jump) the countdown.
+  const [hudBaseTimeMs] = useState(() => Date.now());
+  const liveRoundEndsAt = activeRound?.endsAt;
+  const hudRoundEndMs = useMemo(() => {
+    const fromApi = getRoundEndTimestamp(liveRoundEndsAt);
+    if (fromApi !== null && fromApi > hudBaseTimeMs) return fromApi;
+    const openRound = filteredRounds.find((round) => round.closesInSeconds > 0);
+    return openRound ? hudBaseTimeMs + openRound.closesInSeconds * 1000 : null;
+  }, [filteredRounds, hudBaseTimeMs, liveRoundEndsAt]);
+  const hudPlayerCount = getRoundPlayerCount(activeRound);
+
   // Scroll the deep-linked RoundCard into view once it's actually rendered
   // (it may be filtered out by the selected asset tab, so we only scroll
   // when it resolves to a visible card).
@@ -550,8 +566,15 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Round-update connectivity, ported from /play so users see SSE/socket health. */}
-        {!isLoading &&
+        {/* Live platform HUD: round, stream, wallet and player-count chips. */}
+        {!isLoading && (
+          <HudStatusRow
+            playerCount={hudPlayerCount}
+            className="glass-card mb-4 rounded-xl px-3 py-2"
+          />
+        )}
+
+        {/* Round-update connectivity, ported from /play so users see SSE/socket health. */}        {!isLoading &&
           (!isSocketConnected ||
             (sseConnection && sseConnection.status !== "connected")) && (
             <div className="mb-4">
@@ -753,6 +776,13 @@ const Dashboard = () => {
         {!isLoading && isRoundActive && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="dashboard__center lg:col-span-1 flex flex-col gap-6">
+              {hudRoundEndMs !== null && (
+                <RoundTimer
+                  endTime={hudRoundEndMs}
+                  playersOnline={hudPlayerCount ?? null}
+                  className="w-full"
+                />
+              )}
               {isWalletConnected && <ProfileSummaryCard />}
               <PredictionCard
                 isWalletConnected={isWalletConnected}
