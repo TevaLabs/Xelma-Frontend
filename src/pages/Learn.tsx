@@ -6,8 +6,11 @@ import { GuideCard } from "../components/education/GuideCard";
 import { TipCard } from "../components/education/TipCard";
 import { LoadingState, ErrorState, EmptyState } from "../components/ui/StatusStates";
 import { BookMarked, GraduationCap, Telescope } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 
 const LearnPage = () => {
+    const { t } = useTranslation();
     const [guides, setGuides] = useState<Guide[]>([]);
     const [tip, setTip] = useState<Tip | null>(null);
     const [loading, setLoading] = useState(true);
@@ -41,7 +44,7 @@ const LearnPage = () => {
 
             // If both failed, show error
             if (guidesResult.status === 'rejected' && tipResult.status === 'rejected') {
-                setError("Unable to load education content. Please check your connection.");
+                setError(i18n.t("learn.errorMessage"));
             }
         } catch (err) {
             const normalized = normalizeApiError(err, "An unexpected error occurred");
@@ -64,7 +67,7 @@ const LearnPage = () => {
         return (
             <div className="xelma-grid-bg min-h-screen relative flex items-center justify-center overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.15),_transparent_60%)]" aria-hidden />
-                <LoadingState message="Fetching the latest alpha..." className="min-h-[60vh] relative z-10" />
+                <LoadingState message={t("learn.loading")} className="min-h-[60vh] relative z-10" />
             </div>
         );
     }
@@ -91,10 +94,10 @@ const LearnPage = () => {
                         <GraduationCap size={32} aria-hidden />
                     </div>
                     <h1 className="hero-headline text-4xl lg:text-5xl font-black mb-4 tracking-tight">
-                        Xelma <span className="hero-headline-accent">Academy</span>
+                        {t("learn.hero.title")} <span className="hero-headline-accent">{t("learn.hero.titleAccent")}</span>
                     </h1>
                     <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-                        Master the art of prediction. Learn strategies, understand the Stellar ecosystem, and level up your trading game.
+                        {t("learn.hero.subtitle")}
                     </p>
                 </header>
 
@@ -105,7 +108,7 @@ const LearnPage = () => {
                             <div className="flex items-center gap-3 mb-8">
                                 <BookMarked className="text-xelma-teal shrink-0" size={24} aria-hidden />
                                 <h2 id="learn-guides-heading" className="text-2xl font-bold text-white">
-                                    Expert Guides
+                                    {t("learn.guidesHeading")}
                                 </h2>
                             </div>
 
@@ -117,8 +120,8 @@ const LearnPage = () => {
                                 </div>
                             ) : (
                                 <EmptyState
-                                    title="No guides available"
-                                    message="Our experts are currently drafting new content. Check back soon for the latest strategies!"
+                                    title={t("learn.guidesEmpty.title")}
+                                    message={t("learn.guidesEmpty.message")}
                                     icon={<Telescope className="h-12 w-12 text-gray-600 mb-4" />}
                                 />
                             )}
@@ -126,12 +129,12 @@ const LearnPage = () => {
                     </div>
 
                     {/* Sidebar: Tip of the day */}
-                    <aside className="lg:col-span-4" aria-label="Tips and community">
+                    <aside className="lg:col-span-4" aria-label={t("learn.sidebarLabel")}>
                         <div className="sticky top-32 space-y-6">
                             <section aria-labelledby="learn-tip-heading">
                                 <div className="flex items-center gap-3 mb-6">
                                     <h2 id="learn-tip-heading" className="text-xl font-bold text-white">
-                                        Quick Alpha
+                                        {t("learn.tipHeading")}
                                     </h2>
                                 </div>
 
@@ -139,8 +142,8 @@ const LearnPage = () => {
                                     <TipCard tip={tip} />
                                 ) : (
                                     <EmptyState
-                                        title="No tip today"
-                                        message="No specific tip for the moment. Keep your eyes on the chart!"
+                                        title={t("learn.tipEmpty.title")}
+                                        message={t("learn.tipEmpty.message")}
                                         icon={<BookMarked className="h-8 w-8 text-gray-600 mb-3" />}
                                     />
                                 )}
@@ -148,15 +151,15 @@ const LearnPage = () => {
 
                             {/* Additional info box */}
                             <div className="p-6 rounded-2xl glass-card">
-                                <h3 className="font-bold mb-2 text-white">Want to contribute?</h3>
+                                <h3 className="font-bold mb-2 text-white">{t("learn.contribute.heading")}</h3>
                                 <p className="text-sm text-gray-400 mb-4">
-                                    Are you an expert in Stellar or prediction markets? Share your knowledge with the community.
+                                    {t("learn.contribute.description")}
                                 </p>
                                 <button
                                     type="button"
                                     className="btn-ghost w-full py-2.5 px-4 rounded-xl text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
                                 >
-                                    Apply as Educator
+                                    {t("learn.contribute.apply")}
                                 </button>
                             </div>
                         </div>

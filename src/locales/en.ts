@@ -117,6 +117,34 @@ const en = {
     joinCTA: 'Join Tournament',
     ctaDisabledHint: 'Tournament mode launches after mainnet. Connect your wallet to be notified.',
   },
+  learn: {
+    hero: {
+      title: 'Xelma',
+      titleAccent: 'Academy',
+      subtitle:
+        'Master the art of prediction. Learn strategies, understand the Stellar ecosystem, and level up your trading game.',
+    },
+    guidesHeading: 'Expert Guides',
+    tipHeading: 'Quick Alpha',
+    sidebarLabel: 'Tips and community',
+    loading: 'Fetching the latest alpha...',
+    errorMessage: 'Unable to load education content. Please check your connection.',
+    guidesEmpty: {
+      title: 'No guides available',
+      message:
+        'Our experts are currently drafting new content. Check back soon for the latest strategies!',
+    },
+    tipEmpty: {
+      title: 'No tip today',
+      message: 'No specific tip for the moment. Keep your eyes on the chart!',
+    },
+    contribute: {
+      heading: 'Want to contribute?',
+      description:
+        'Are you an expert in Stellar or prediction markets? Share your knowledge with the community.',
+      apply: 'Apply as Educator',
+    },
+  },
   testFallback: 'Fallback test',
 };
 
