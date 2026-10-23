@@ -1,4 +1,4 @@
-import { X, SparkLes, Terminal } from 'lucide-react';
+import { X, Sparkles, Terminal } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import './NewsRibbon.css';
 
@@ -38,7 +38,7 @@ export function NewsRibbon({ newsItems = DEFAULT_NEWS, onClose }: NewsRibbonProp
       aria-label="News updates"
       aria-live="polite"
     >
-      <div className="news-riblon__container">
+      <div className="news-ribbon__container">
         <span className="news-ribbon__icon" aria-hidden="true">
           <Terminal size={16} />
         </span>
@@ -47,7 +47,7 @@ export function NewsRibbon({ newsItems = DEFAULT_NEWS, onClose }: NewsRibbonProp
           <span>NEWS</span>
         </span>
         <div className="news-ribbon__track">
-          <div className="news-riblon__scroll">
+          <div className="news-ribbon__scroll">
             {[...newsItems, ...newsItems].map((item, index) => (
               <span key={`${item.id}-${index}`} className="news-ribbon__message">
                 <span className="news-ribbon__prompt" aria-hidden="true">
@@ -55,7 +55,7 @@ export function NewsRibbon({ newsItems = DEFAULT_NEWS, onClose }: NewsRibbonProp
                 </span>
                 {item.text}
                 {index < newsItems.length * 2 - 1 && (
-                  <span className="news-riblon__separator" aria-hidden="true">
+                  <span className="news-ribbon__separator" aria-hidden="true">
                     &bull;
                   </span>
                 )}
