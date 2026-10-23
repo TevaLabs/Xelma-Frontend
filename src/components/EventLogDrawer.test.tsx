@@ -133,4 +133,97 @@ describe('EventLogDrawer', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  describe('active round filter seeding (issue #837)', () => {
+    it('seeds the filter with the active round id on open', async () => {
+      fetchMock.mockResolvedValue([
+        event({ id: 'a', roundId: '7' }),
+        event({ id: 'b', roundId: '8', name: 'settle_other' }),
+      ]);
+
+      render(<EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={8} />);
+
+      expect(screen.getByLabelText(/filter by round id/i)).toHaveValue('8');
+      expect(await screen.findByText('settle_other')).toBeInTheDocument();
+      expect(screen.queryByText('settle')).not.toBeInTheDocument();
+    });
+
+    it('accepts a string round id', async () => {
+      fetchMock.mockResolvedValue([event({ roundId: '7' })]);
+
+      render(<EventLogDrawer isOpen onClose={vi.fn()} activeRoundId="7" />);
+
+      expect(screen.getByLabelText(/filter by round id/i)).toHaveValue('7');
+      expect(await screen.findByText('settle')).toBeInTheDocument();
+    });
+
+    it('re-seeds the filter when reopened after the user cleared it', async () => {
+      fetchMock.mockResolvedValue([event({ roundId: '7' })]);
+
+      const { rerender } = render(
+        <EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={7} />,
+      );
+      await screen.findByText('settle');
+
+      fireEvent.change(screen.getByLabelText(/filter by round id/i), {
+        target: { value: '' },
+      });
+      rerender(<EventLogDrawer isOpen={false} onClose={vi.fn()} activeRoundId={7} />);
+      rerender(<EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={7} />);
+
+      // Let the reopened drawer's refetch settle inside act before asserting.
+      await screen.findByText('settle');
+      expect(screen.getByLabelText(/filter by round id/i)).toHaveValue('7');
+    });
+
+    it('picks up a new active round id between opens', async () => {
+      fetchMock.mockResolvedValue([
+        event({ id: 'a', roundId: '7' }),
+        event({ id: 'b', roundId: '9', name: 'settle_next' }),
+      ]);
+
+      const { rerender } = render(
+        <EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={7} />,
+      );
+      await screen.findByText('settle');
+
+      rerender(<EventLogDrawer isOpen={false} onClose={vi.fn()} activeRoundId={7} />);
+      rerender(<EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={9} />);
+
+      expect(screen.getByLabelText(/filter by round id/i)).toHaveValue('9');
+      expect(await screen.findByText('settle_next')).toBeInTheDocument();
+      expect(screen.queryByText('settle')).not.toBeInTheDocument();
+    });
+
+    it('leaves the filter empty when no round is active', async () => {
+      fetchMock.mockResolvedValue([event()]);
+
+      render(<EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={null} />);
+
+      expect(screen.getByLabelText(/filter by round id/i)).toHaveValue('');
+      expect(await screen.findByText('settle')).toBeInTheDocument();
+    });
+
+    it('keeps a manual filter edit until the next open', async () => {
+      fetchMock.mockResolvedValue([
+        event({ id: 'a', roundId: '7' }),
+        event({ id: 'b', roundId: '3', name: 'settle_old' }),
+      ]);
+
+      const { rerender } = render(
+        <EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={7} />,
+      );
+      await screen.findByText('settle');
+
+      fireEvent.change(screen.getByLabelText(/filter by round id/i), {
+        target: { value: '3' },
+      });
+      expect(screen.getByText('settle_old')).toBeInTheDocument();
+
+      // Round changes while the drawer is open — the manual edit must survive.
+      rerender(<EventLogDrawer isOpen onClose={vi.fn()} activeRoundId={9} />);
+      expect(screen.getByText('settle_old')).toBeInTheDocument();
+      expect(screen.getByLabelText(/filter by round id/i)).toHaveValue('3');
+    });
+  });
 });

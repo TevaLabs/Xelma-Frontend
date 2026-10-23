@@ -13,6 +13,11 @@ import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 interface EventLogDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * Id of the currently active round. Seeds the round-id filter every time
+   * the drawer opens so users don't have to type it manually (issue #837).
+   */
+  activeRoundId?: string | number | null;
 }
 
 type LoadState = 'idle' | 'loading' | 'loaded' | 'error';
@@ -91,12 +96,33 @@ function EventRow({ event }: { event: PredictionEvent }) {
  * Slide-over drawer listing recent on-chain prediction and settlement events,
  * with a round-id filter and explorer links for events that carry a tx hash.
  */
-export default function EventLogDrawer({ isOpen, onClose }: EventLogDrawerProps) {
+export default function EventLogDrawer({
+  isOpen,
+  onClose,
+  activeRoundId = null,
+}: EventLogDrawerProps) {
   const [events, setEvents] = useState<PredictionEvent[]>([]);
   const [state, setState] = useState<LoadState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [roundFilter, setRoundFilter] = useState('');
+  // Issue #837 — seed the round filter with the active round id so users don't
+  // have to type it on every open. Seeding happens in state initializers and
+  // during render (not in an effect) so we never call setState synchronously
+  // from an effect (react-hooks/set-state-in-effect).
+  const [roundFilter, setRoundFilter] = useState(() =>
+    activeRoundId === null || activeRoundId === undefined ? '' : String(activeRoundId),
+  );
   const [reloadKey, setReloadKey] = useState(0);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    // Re-seed every time the drawer opens; manual edits survive until then.
+    if (isOpen) {
+      setRoundFilter(
+        activeRoundId === null || activeRoundId === undefined ? '' : String(activeRoundId),
+      );
+    }
+  }
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
