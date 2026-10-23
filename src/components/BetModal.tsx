@@ -7,17 +7,17 @@ import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import PredictionHelpTooltip from './PredictionHelpTooltip';
+import {
+  PRICE_MAX,
+  PRICE_MIN,
+  areStakePresetsDisabled,
+  computePresetStake,
+  validateExactPrice,
+  validateStake,
+  type PredictionData,
+} from '../lib/predictionValidation';
 
-export interface PredictionData {
-  direction: 'UP' | 'DOWN';
-  stake: string;
-  isLegend: boolean;
-  exactPrice?: string;
-  /** Share of the UP/DOWN pool held by each side (0-100). Present only for
-   *  UP/DOWN rounds; used to surface the pool-imbalance soft warning. */
-  poolUpPct?: number;
-  poolDownPct?: number;
-}
+export type { PredictionData };
 
 interface BetModalProps {
   isOpen: boolean;
@@ -31,53 +31,10 @@ interface BetModalProps {
 type ModalView = 'confirm' | 'wallet_required';
 type PredictionMode = 'direction' | 'precision';
 
-const PRICE_MIN = 0.0001;
-const PRICE_MAX = 10;
-const PRICE_DECIMALS = 4;
-
 // Issue #413 — a side that holds this share (or more) of the UP/DOWN pool is
 // treated as "dominating". The warning is informational only and never blocks
 // the submit.
 const POOL_IMBALANCE_THRESHOLD_PCT = 70;
-
-function parseBalance(balance: string | null): number {
-  if (!balance) return 0;
-  const numericPart = balance.replace(' XLM', '');
-  return parseFloat(numericPart) || 0;
-}
-
-function computePresetStake(balanceStr: string | null | undefined, percentage: number): string {
-  const available = parseBalance(balanceStr ?? null);
-  if (available <= 0) return '';
-  const raw = available * percentage;
-  const factor = 10000;
-  const truncated = Math.floor(raw * factor + 1e-9) / factor;
-  const safeAmount = Math.min(truncated, available);
-  return Number(safeAmount.toFixed(4)).toString();
-}
-
-function validateStake(value: string, walletBalance: string | null): string | null {
-  if (!value.trim()) return 'Enter a stake amount';
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return 'Stake must be greater than 0';
-  
-  const availableBalance = parseBalance(walletBalance);
-  if (amount > availableBalance) {
-    return `Stake exceeds available balance (${walletBalance || '0.00 XLM'})`;
-  }
-  
-  return null;
-}
-
-function validateExactPrice(value: string): string | null {
-  if (!value.trim()) return 'Enter an exact price target';
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return 'Exact price must be a valid number';
-  if (amount < PRICE_MIN || amount > PRICE_MAX) return `Exact price must be between ${PRICE_MIN} and ${PRICE_MAX}`;
-  const decimals = value.split('.')[1];
-  if (decimals && decimals.length > PRICE_DECIMALS) return `Use ${PRICE_DECIMALS} decimal places or fewer`;
-  return null;
-}
 
 export default function BetModal({ isOpen, onClose, predictionData, onSuccess, onPending, onPredictionError }: BetModalProps) {
   const isConnected = useWalletStore(selectIsWalletConnected);
@@ -234,8 +191,11 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     }
   };
 
-  const availableBalance = parseBalance(balance);
-  const arePresetsDisabled = !isConnected || availableBalance <= 0 || tx.isInFlight;
+  const arePresetsDisabled = areStakePresetsDisabled({
+    isWalletConnected: isConnected,
+    walletBalance: balance,
+    isActionBlocked: tx.isInFlight,
+  });
 
   const handlePresetClick = (percentage: number) => {
     const calculatedStake = computePresetStake(balance, percentage);
@@ -248,6 +208,13 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     const error = validateStake(value, balance);
     setInlineStakeError(error || '');
   };
+
+  // Field-level precision target feedback, mirroring the prediction card so an
+  // out-of-range price is flagged where it is typed, not only on submit.
+  const exactPriceFieldError =
+    mode === 'precision' && exactPrice !== ''
+      ? validateExactPrice(exactPrice)
+      : null;
 
   const handleConfirm = useCallback(async () => {
     const stakeError = validateStake(stake, balance);
@@ -426,9 +393,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
                   You are viewing this address in watch-only mode. Connect a wallet with signing capability to submit predictions.
                 </p>
                 <button
+                  type="button"
                   onClick={handleConnectAndAuth}
                   disabled={isConnecting}
-                  className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="btn-primary w-full rounded-xl py-3 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isConnecting ? 'Connecting…' : 'Connect Wallet'}
                 </button>
@@ -440,9 +408,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
                   You need to connect and authenticate your Stellar wallet to submit predictions.
                 </p>
                 <button
+                  type="button"
                   onClick={handleConnectAndAuth}
                   disabled={isConnecting}
-                  className="w-full py-3 bg-[#2C4BFD] hover:bg-[#2C4BFD]/80 rounded-xl font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="btn-primary w-full rounded-xl py-3 font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isConnecting ? 'Connecting…' : 'Connect & Authenticate'}
                 </button>
@@ -602,10 +571,21 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
                     step="0.0001"
                     value={exactPrice}
                     onChange={(event) => { setExactPrice(event.target.value); setFormError(''); }}
-                    className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-yellow-400"
+                    className={`w-full rounded-lg border bg-gray-950 px-3 py-2 text-white outline-none transition ${
+                      exactPriceFieldError
+                        ? 'border-red-500/70 focus:border-red-400'
+                        : 'border-gray-700 focus:border-yellow-400'
+                    }`}
                     placeholder="0.2295"
+                    aria-invalid={Boolean(exactPriceFieldError)}
+                    aria-describedby={exactPriceFieldError ? 'bet-modal-exact-price-error' : undefined}
                   />
-                  {exactPrice && <p className="mt-2 text-xs font-semibold text-yellow-400">${exactPrice}</p>}
+                  {exactPriceFieldError && (
+                    <p id="bet-modal-exact-price-error" className="mt-2 text-xs font-semibold text-red-400" role="alert">
+                      {exactPriceFieldError}
+                    </p>
+                  )}
+                  {!exactPriceFieldError && exactPrice && <p className="mt-2 text-xs font-semibold text-yellow-400">${exactPrice}</p>}
                 </div>
               )}
 
@@ -651,13 +631,23 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
                     step="0.0000001"
                     value={stake}
                     onChange={(event) => handleStakeChange(event.target.value)}
-                    className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-white outline-none transition focus:border-cyan-400"
+                    className={`w-full rounded-lg border bg-gray-950 px-3 py-2 text-white outline-none transition ${
+                      inlineStakeError
+                        ? 'border-red-500/70 focus:border-red-400'
+                        : 'border-gray-700 focus:border-cyan-400'
+                    }`}
                     placeholder="15"
+                    aria-invalid={Boolean(inlineStakeError)}
+                    aria-describedby={inlineStakeError ? 'bet-modal-stake-error' : undefined}
                   />
                   <span className="font-bold text-cyan-400">XLM</span>
                 </div>
-                {stake && <p className="mt-2 text-xs text-cyan-300">{stake} XLM</p>}
-                {inlineStakeError && <p className="mt-2 text-xs font-semibold text-red-400" role="alert">{inlineStakeError}</p>}
+                {stake && !inlineStakeError && <p className="mt-2 text-xs text-cyan-300">{stake} XLM</p>}
+                {inlineStakeError && (
+                  <p id="bet-modal-stake-error" className="mt-2 text-xs font-semibold text-red-400" role="alert">
+                    {inlineStakeError}
+                  </p>
+                )}
               </div>
 
               {formError && <p className="text-sm font-semibold text-red-400" role="alert">{formError}</p>}
@@ -749,9 +739,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
             )}
 
             <button
+              type="button"
               onClick={handleConfirm}
               disabled={!isConnected || feeEstimateStatus === 'failed' || tx.isInFlight}
-              className="w-full py-3.5 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-600"
+              className="btn-primary w-full rounded-xl py-3.5 font-bold disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Confirm
             </button>

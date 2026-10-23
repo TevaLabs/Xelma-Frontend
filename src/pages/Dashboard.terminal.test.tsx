@@ -289,4 +289,35 @@ describe('Dashboard Terminal & Round Flows', () => {
       // If refresh functionality is needed, it should be added back to the EmptyState component
     });
   });
+
+  describe('HUD wiring', () => {
+    it('renders the status row from live round and wallet state', () => {
+      render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      const group = screen.getByRole('group', { name: 'Platform status' });
+      expect(group).toHaveAttribute('data-round-active', 'true');
+      expect(group).toHaveAttribute('data-wallet-connected', 'true');
+      ['round', 'stream', 'wallet', 'playing'].forEach((label) => {
+        expect(screen.getByTestId(`status-chip-${label}`)).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('status-chip-wallet').textContent).toContain('Connected');
+      expect(screen.queryByText(/contributor task/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the circular countdown for the active round', () => {
+      render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>
+      );
+
+      const timer = screen.getByRole('timer');
+      expect(timer).toBeInTheDocument();
+      expect(['open', 'closing', 'urgent']).toContain(timer.getAttribute('data-arc-state'));
+    });
+  });
 });

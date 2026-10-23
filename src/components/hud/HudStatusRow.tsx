@@ -10,8 +10,10 @@ interface HudStatusRowProps {
 }
 
 /**
- * HUD Status Row - displays live status chips for Round, Wallet, Stream, and Playing count.
- * Maps store/hook state to visual status indicators with appropriate colors.
+ * HUD Status Row — live Round / Stream / Wallet / Playing chips for the
+ * dashboard terminal. State comes from the round store, the wallet store and
+ * the socket hook; each chip also carries a spoken status so colour is never
+ * the only signal.
  */
 export const HudStatusRow = ({ playerCount, className = '' }: HudStatusRowProps) => {
   const isRoundActive = useRoundStore((s) => s.isRoundActive);
@@ -21,40 +23,37 @@ export const HudStatusRow = ({ playerCount, className = '' }: HudStatusRowProps)
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const { status: socketStatus } = useConnectionStatus();
 
-  // Map round state to chip status
-  const getRoundStatus = (): ChipStatus => {
-    if (roundError) return 'error';
-    if (isRoundLoading) return 'loading';
-    if (isRoundActive) return 'active';
-    return 'inactive';
-  };
+  const roundChip: { status: ChipStatus; text: string } = roundError
+    ? { status: 'error', text: 'Round lookup failed' }
+    : isRoundLoading
+      ? { status: 'loading', text: 'Syncing round' }
+      : isRoundActive
+        ? { status: 'active', text: 'Live' }
+        : { status: 'inactive', text: 'No active round' };
 
-  // Map wallet state to chip status
-  const getWalletStatus = (): ChipStatus => {
-    if (walletStatus === 'error') return 'error';
-    if (walletStatus === 'connecting' || walletStatus === 'checking') return 'loading';
-    if (isWalletConnected) return 'active';
-    return 'inactive';
-  };
+  const walletChip: { status: ChipStatus; text: string } =
+    walletStatus === 'error'
+      ? { status: 'error', text: 'Wallet error' }
+      : walletStatus === 'connecting' || walletStatus === 'checking'
+        ? { status: 'loading', text: 'Connecting' }
+        : isWalletConnected
+          ? { status: 'active', text: 'Connected' }
+          : { status: 'inactive', text: 'Not connected' };
 
-  // Map stream/socket state to chip status
-  const getStreamStatus = (): ChipStatus => {
-    if (socketStatus === 'connected') return 'active';
-    if (socketStatus === 'connecting' || socketStatus === 'reconnecting') return 'loading';
-    return 'inactive';
-  };
+  const streamChip: { status: ChipStatus; text: string } =
+    socketStatus === 'connected'
+      ? { status: 'active', text: 'Live feed' }
+      : socketStatus === 'connecting' || socketStatus === 'reconnecting'
+        ? { status: 'loading', text: 'Reconnecting' }
+        : { status: 'inactive', text: 'Offline' };
 
-  // Map player count to chip status
-  const getPlayingStatus = (): ChipStatus => {
-    if (playerCount && playerCount > 0) return 'active';
-    return 'inactive';
-  };
+  const hasPlayerCount = playerCount !== undefined && playerCount > 0;
 
   return (
     <div
       className={`flex flex-wrap items-center gap-2 ${className}`}
+      role="group"
       aria-label="Platform status"
-      role="status"
       data-round-active={String(isRoundActive)}
       data-round-loading={String(isRoundLoading)}
       data-wallet-status={walletStatus}
@@ -64,24 +63,28 @@ export const HudStatusRow = ({ playerCount, className = '' }: HudStatusRowProps)
     >
       <StatusChip
         label="Round"
-        status={getRoundStatus()}
-        icon={<Activity className="w-3.5 h-3.5" />}
-      />
-      <StatusChip
-        label="Wallet"
-        status={getWalletStatus()}
-        icon={<Wallet className="w-3.5 h-3.5" />}
+        status={roundChip.status}
+        statusText={roundChip.text}
+        icon={<Activity className="h-3.5 w-3.5" />}
       />
       <StatusChip
         label="Stream"
-        status={getStreamStatus()}
-        icon={<Zap className="w-3.5 h-3.5" />}
+        status={streamChip.status}
+        statusText={streamChip.text}
+        icon={<Zap className="h-3.5 w-3.5" />}
+      />
+      <StatusChip
+        label="Wallet"
+        status={walletChip.status}
+        statusText={walletChip.text}
+        icon={<Wallet className="h-3.5 w-3.5" />}
       />
       <StatusChip
         label="Playing"
-        value={playerCount ? String(playerCount) : undefined}
-        status={getPlayingStatus()}
-        icon={<Users className="w-3.5 h-3.5" />}
+        status={hasPlayerCount ? 'active' : 'inactive'}
+        statusText={hasPlayerCount ? `${playerCount} playing now` : 'Awaiting live count'}
+        value={hasPlayerCount ? String(playerCount) : undefined}
+        icon={<Users className="h-3.5 w-3.5" />}
       />
     </div>
   );

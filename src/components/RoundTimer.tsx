@@ -1,11 +1,11 @@
-import { useState } from 'react';
 import { useRoundCountdown } from '../hooks/useRoundCountdown';
 
 interface RoundTimerProps {
   /** Target end time for the countdown. */
   endTime: string | number | Date;
-  /** Label shown below the timer. */
-  playersOnline?: number;
+  /** Players shown on the "Playing now" line. Pass `null` to hide it when no
+   *  live count is available. */
+  playersOnline?: number | null;
   className?: string;
 }
 
@@ -14,12 +14,24 @@ const RADIUS = 44;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ≈ 276.46
 const VIEWBOX_SIZE = 120;
 
-/** Returns a hex colour keyed to how much time is left. */
-function getArcColour(timeLeftMs: number, isExpired: boolean): string {
-  if (isExpired) return '#6B7280';
-  if (timeLeftMs < 30_000) return '#EF4444'; // red — < 30 s
-  if (timeLeftMs < 120_000) return '#FBBF24'; // amber — < 2 min
-  return '#06B6D4'; // teal — > 2 min
+const URGENT_MS = 30_000;
+const WARNING_MS = 120_000;
+
+/** Countdown colour band, keyed to how much time is left. */
+type ArcState = 'ended' | 'urgent' | 'closing' | 'open';
+
+const ARC_COLOURS: Record<ArcState, string> = {
+  ended: '#6B7280',
+  urgent: '#EF4444',
+  closing: '#FBBF24',
+  open: '#06B6D4',
+};
+
+function getArcState(timeLeftMs: number, isExpired: boolean): ArcState {
+  if (isExpired) return 'ended';
+  if (timeLeftMs < URGENT_MS) return 'urgent';
+  if (timeLeftMs < WARNING_MS) return 'closing';
+  return 'open';
 }
 
 /**
@@ -34,29 +46,22 @@ export default function RoundTimer({
   playersOnline = 128,
   className = '',
 }: RoundTimerProps) {
-  const { formattedTime, isExpired, timeLeftMs } = useRoundCountdown(endTime);
+  const {
+    formattedTime,
+    isExpired,
+    timeLeftMs,
+    initialTimeLeftMs,
+  } = useRoundCountdown(endTime);
 
-  // Store the initial duration (in ms) once so we can compute the arc
-  // percentage. Computed synchronously so the arc is correct from the
-  // first paint — no flicker. Re‑computed only when `endTime` changes.
-  const resolveTimestamp = (t: string | number | Date): number => {
-    if (t instanceof Date) return t.getTime();
-    if (typeof t === 'string') return new Date(t).getTime();
-    return Number(t);
-  };
-
-  const [initialDurationMs] = useState(() => {
-    const diff = resolveTimestamp(endTime) - Date.now();
-    return diff > 0 ? diff : 1;
-  });
-
+  // The hook re-baselines `initialTimeLeftMs` whenever `endTime` moves to the
+  // next round, so the arc always sweeps a full turn for the current round.
   const progress =
-    initialDurationMs > 0
-      ? Math.min(timeLeftMs / initialDurationMs, 1)
+    initialTimeLeftMs > 0
+      ? Math.min(Math.max(timeLeftMs / initialTimeLeftMs, 0), 1)
       : 1;
 
   const offset = CIRCUMFERENCE * (1 - progress);
-  const arcColour = getArcColour(timeLeftMs, isExpired);
+  const arcState = getArcState(timeLeftMs, isExpired);
 
   return (
     <div
@@ -67,6 +72,7 @@ export default function RoundTimer({
           ? 'Round has ended'
           : `Time remaining: ${formattedTime}`
       }
+      data-arc-state={arcState}
     >
       {/* Circular countdown */}
       <svg
@@ -90,7 +96,7 @@ export default function RoundTimer({
           cy={VIEWBOX_SIZE / 2}
           r={RADIUS}
           fill="none"
-          stroke={arcColour}
+          stroke={ARC_COLOURS[arcState]}
           strokeWidth="5"
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
@@ -114,9 +120,11 @@ export default function RoundTimer({
       </svg>
 
       {/* Players-online label */}
-      <p className="mt-2 text-xs font-medium text-gray-400 sm:text-sm">
-        Playing now: {playersOnline.toLocaleString()}
-      </p>
+      {playersOnline !== null && (
+        <p className="mt-2 text-xs font-medium text-gray-400 sm:text-sm">
+          Playing now: {playersOnline.toLocaleString()}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,50 +1,19 @@
 import { useState, useCallback, useRef } from "react";
 import PredictionHelpTooltip from "./PredictionHelpTooltip";
+import {
+  PRICE_MAX,
+  PRICE_MIN,
+  PREDICTION_HINTS,
+  areStakePresetsDisabled,
+  computePresetStake,
+  getPredictionBlockReason,
+  isPredictionSubmittable,
+  validateExactPrice,  validateStake,
+  type PredictionData,
+} from "../lib/predictionValidation";
 import "./PredictionCard.css";
 
-const EXACT_PRICE_MIN = 0.0001;
-const EXACT_PRICE_MAX = 10.0;
-const EXACT_PRICE_DECIMAL_PLACES = 4;
-
-function parseBalance(balance: string | null | undefined): number {
-  if (!balance) return 0;
-  const numericPart = balance.replace(' XLM', '');
-  return parseFloat(numericPart) || 0;
-}
-
-function computePresetStake(balanceStr: string | null | undefined, percentage: number): string {
-  const available = parseBalance(balanceStr);
-  if (available <= 0) return '';
-  const raw = available * percentage;
-  const factor = 10000;
-  const truncated = Math.floor(raw * factor + 1e-9) / factor;
-  const safeAmount = Math.min(truncated, available);
-  return Number(safeAmount.toFixed(4)).toString();
-}
-
-function validateStake(value: string, walletBalance: string | null | undefined): string | null {
-  if (!value.trim()) return 'Enter a stake amount';
-  const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return 'Stake must be greater than 0';
-  
-  const availableBalance = parseBalance(walletBalance);
-  if (amount > availableBalance) {
-    return `Stake exceeds available balance (${walletBalance || '0.00 XLM'})`;
-  }
-  
-  return null;
-}
-
-export interface PredictionData {
-  direction: "UP" | "DOWN";
-  stake: string;
-  exactPrice?: string;
-  isLegend: boolean;
-  /** Share of the UP/DOWN pool held by each side (0-100). Present only for
-   *  UP/DOWN rounds; lets the BetModal surface the pool-imbalance warning. */
-  poolUpPct?: number;
-  poolDownPct?: number;
-}
+export type { PredictionData };
 
 export interface PredictionControlsProps {
   isWalletConnected?: boolean;
@@ -55,20 +24,6 @@ export interface PredictionControlsProps {
   isSubmittingPrediction?: boolean;
   onPrediction?: (prediction: PredictionData) => void;
   walletBalance?: string | null;
-}
-
-function validateExactPrice(value: string): string | null {
-  if (!value.trim()) return "Enter an exact price";
-  const num = parseFloat(value);
-  if (Number.isNaN(num)) return "Must be a valid number";
-  if (num < EXACT_PRICE_MIN || num > EXACT_PRICE_MAX) {
-    return `Must be between ${EXACT_PRICE_MIN} and ${EXACT_PRICE_MAX.toFixed(1)}`;
-  }
-  const parts = value.split(".");
-  if (parts.length === 2 && parts[1].length > EXACT_PRICE_DECIMAL_PLACES) {
-    return `Maximum ${EXACT_PRICE_DECIMAL_PLACES} decimal places`;
-  }
-  return null;
 }
 
 export function PredictionControls({
@@ -97,8 +52,17 @@ export function PredictionControls({
 
   const isDisabled =
     !isWalletConnected || !isRoundActive || isConnecting || isSubmitting;
-  const availableBalance = parseBalance(walletBalance);
-  const arePresetsDisabled = isDisabled || !isWalletConnected || availableBalance <= 0;
+  const arePresetsDisabled = areStakePresetsDisabled({
+    isWalletConnected,
+    walletBalance,
+    isActionBlocked: isDisabled,
+  });
+  const blockReason = getPredictionBlockReason({
+    isWalletConnected,
+    isRoundActive,
+    isConnecting,
+    isSubmitting,
+  });
 
   const validateExactPriceField = useCallback(() => {
     if (!isLegend) return;
@@ -178,7 +142,12 @@ export function PredictionControls({
     }, 500);
   };
 
-  const canSubmit = Boolean(stake) && !stakeError && (!isLegend || (exactPrice && !exactPriceError));
+  const canSubmit = isPredictionSubmittable({
+    stake,
+    walletBalance,
+    isLegend,
+    exactPrice,
+  });
 
   return (
     <>
@@ -189,12 +158,12 @@ export function PredictionControls({
 
       {isConnecting && (
         <p className="prediction-card__connecting" role="status">
-          Connecting wallet...
+          {PREDICTION_HINTS.walletConnecting}
         </p>
       )}
       {isSubmitting && !isConnecting && (
         <p className="prediction-card__connecting" role="status">
-          Submitting prediction...
+          {PREDICTION_HINTS.predictionSubmitting}
         </p>
       )}
 
@@ -234,13 +203,18 @@ export function PredictionControls({
           <input
             id="stake-input"
             type="number"
-            className="prediction-card__input"
+            className={`prediction-card__input ${
+              stakeError ? "prediction-card__input--error" : ""
+            }`}
             placeholder="Enter amount"
             value={stake}
             onChange={(e) => handleStakeChange(e.target.value)}
             disabled={isDisabled}
+            inputMode="decimal"
             min="0"
             step="0.01"
+            aria-invalid={Boolean(stakeError)}
+            aria-describedby={stakeError ? "stake-error" : undefined}
           />
           <div className="prediction-card__preset-buttons" role="group" aria-label="Stake presets">
             <button
@@ -273,7 +247,7 @@ export function PredictionControls({
           </div>
         </div>
         {stakeError && (
-          <p className="prediction-card__exact-price-error" role="alert">
+          <p id="stake-error" className="prediction-card__exact-price-error" role="alert">
             {stakeError}
           </p>
         )}
@@ -317,8 +291,8 @@ export function PredictionControls({
             onBlur={handleExactPriceBlur}
             disabled={isDisabled}
             step="0.0001"
-            min={EXACT_PRICE_MIN}
-            max={EXACT_PRICE_MAX}
+            min={PRICE_MIN}
+            max={PRICE_MAX}
             aria-invalid={Boolean(exactPriceError)}
             aria-describedby={exactPriceError ? "exact-price-error" : undefined}
           />
@@ -333,10 +307,9 @@ export function PredictionControls({
         </div>
       )}
 
-      {isDisabled && !isConnecting && !isSubmitting && (
+      {isDisabled && !isConnecting && !isSubmitting && blockReason && (
         <div className="prediction-card__disabled-message">
-          {!isWalletConnected && <p>Connect your wallet to make predictions</p>}
-          {isWalletConnected && !isRoundActive && <p>This round is not active</p>}
+          <p>{blockReason}</p>
         </div>
       )}
     </>
