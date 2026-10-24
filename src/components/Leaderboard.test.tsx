@@ -257,6 +257,47 @@ describe('Leaderboard data states', () => {
     expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
   });
 
+  it('handles error retry failure when subsequent retry request also rejects', async () => {
+    mockVirtualizerWithAllRows();
+    vi.mocked(leaderboardApi.getLeaderboard)
+      .mockRejectedValueOnce(new Error('First failure'))
+      .mockRejectedValueOnce(new Error('Second failure'));
+
+    renderLeaderboard();
+
+    expect(await screen.findByText('First failure')).toBeInTheDocument();
+    const retryBtn = screen.getByRole('button', { name: /try again/i });
+
+    fireEvent.click(retryBtn);
+
+    expect(await screen.findByText('Second failure')).toBeInTheDocument();
+    expect(leaderboardApi.getLeaderboard).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders correctly when API returns between 1 and 3 entries (podium only, no virtual list)', async () => {
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue([
+      { id: 'user-1', username: 'SoloWinner', xlm: 5000 },
+    ]);
+
+    renderLeaderboard();
+
+    expect(await screen.findByText('SoloWinner')).toBeInTheDocument();
+    expect(screen.getByText('5.00K vXLM')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Leaderboard ranked list')).not.toBeInTheDocument();
+    expect(screen.queryByText('No leaderboard data yet')).not.toBeInTheDocument();
+  });
+
+  it('renders fallback Anonymous name and 0 vXLM when entry properties are missing', async () => {
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue([
+      { id: 'unknown-user' } as any,
+    ]);
+
+    renderLeaderboard();
+
+    expect(await screen.findByText('Anonymous')).toBeInTheDocument();
+    expect(screen.getByText('0 vXLM')).toBeInTheDocument();
+  });
+
   it('renders the empty state when the API returns no entries', async () => {
     vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue([]);
 
