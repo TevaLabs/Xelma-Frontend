@@ -125,4 +125,40 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+
+  test('Settings privacy toggle hides balance and affects MaskedBalance on dashboard', async ({ page }) => {
+    // 1. Visit Settings page and toggle privacy / streamer mode (hide balance)
+    await page.goto('/settings');
+    await page.waitForLoadState('networkidle');
+
+    const privacyToggle = page.locator('[data-testid="settings-toggle-streamer"]');
+    await expect(privacyToggle).toBeVisible();
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'false');
+
+    // Click toggle to enable hide balance (streamer mode)
+    await privacyToggle.click();
+    await expect(privacyToggle).toHaveAttribute('aria-checked', 'true');
+
+    // Verify persisted setting in localStorage
+    const savedSettings = await page.evaluate(() => {
+      const raw = localStorage.getItem('xelma-settings-v1');
+      return raw ? JSON.parse(raw) : null;
+    });
+    expect(savedSettings?.state?.streamerMode).toBe(true);
+
+    // 2. Navigate to Dashboard and verify balances are masked
+    await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // Close any modal overlay if present
+    const modalOverlay = page.locator('.fixed.inset-0');
+    if (await modalOverlay.first().isVisible().catch(() => false)) {
+      await page.keyboard.press('Escape');
+    }
+
+    // MaskedBalance elements should render maskedText
+    const maskedElements = page.locator('span[title="Hidden by streamer mode"]');
+    await expect(maskedElements.first()).toBeVisible();
+    await expect(maskedElements.first()).toContainText('••••••');
+  });
 });

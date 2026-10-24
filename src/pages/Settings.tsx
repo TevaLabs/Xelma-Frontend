@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Code,
   Eye,
+  EyeOff,
   Gauge,
   Rows3,
   RefreshCw,
@@ -407,19 +408,18 @@ export default function Settings() {
                 id="settings-streamer-heading"
                 className="text-lg font-bold text-white"
               >
-                Streamer mode
+                Privacy & Streamer mode
               </h2>
               <p className="text-xs text-gray-500">
-                Mirror of the public profile flag. Use this as a quick toggle without
-                opening the profile modal.
+                Hide sensitive wallet balances across the app and mirror the public profile streamer flag.
               </p>
             </div>
           </header>
 
           <ToggleRow
-            title="Streamer mode"
-            description="Highlight that you're a streamer on your public profile. This mirrors the toggle inside the Profile → Edit profile modal, so you don't need to dig into profile settings to flip it."
-            icon={<Eye className="h-5 w-5" />}
+            title="Hide balance (Streamer mode)"
+            description="Mask wallet and practice balances across the dashboard, navbar, and controls with ••••••. Also highlights that you're a streamer on your public profile."
+            icon={streamerMode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             checked={streamerMode}
             onToggle={() => setStreamerMode(!streamerMode)}
             testId="settings-toggle-streamer"
