@@ -346,6 +346,56 @@ describe('Dashboard', () => {
       expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
       expect(screen.getByTestId('share-rounds-btn')).toHaveTextContent(/Share|dashboard\.share\.button/i);
     });
+
+    it('shares via navigator.share when supported', async () => {
+      const shareMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, { share: shareMock });
+      render(<Dashboard />);
+
+      await fireEvent.click(screen.getByTestId('share-rounds-btn'));
+      expect(shareMock).toHaveBeenCalledWith({
+        title: 'Xelma',
+        url: window.location.href,
+      });
+    });
+
+    it('falls back to clipboard.writeText when navigator.share is unavailable', async () => {
+      const writeTextMock = vi.fn().mockResolvedValue(undefined);
+      Object.assign(navigator, { share: undefined, clipboard: { writeText: writeTextMock } });
+      render(<Dashboard />);
+
+      await fireEvent.click(screen.getByTestId('share-rounds-btn'));
+      expect(writeTextMock).toHaveBeenCalledWith(window.location.href);
+      expect(toast.success).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ id: 'share-round-url' })
+      );
+    });
+
+    it('shows error toast when clipboard copy fails', async () => {
+      const writeTextMock = vi.fn().mockRejectedValue(new Error('Permission denied'));
+      Object.assign(navigator, { share: undefined, clipboard: { writeText: writeTextMock } });
+      render(<Dashboard />);
+
+      await fireEvent.click(screen.getByTestId('share-rounds-btn'));
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ id: 'share-round-url' })
+      );
+    });
+
+    it('does not toast when user cancels navigator.share (AbortError)', async () => {
+      const abortError = new Error('Share canceled');
+      abortError.name = 'AbortError';
+      const shareMock = vi.fn().mockRejectedValue(abortError);
+      const writeTextMock = vi.fn();
+      Object.assign(navigator, { share: shareMock, clipboard: { writeText: writeTextMock } });
+      render(<Dashboard />);
+
+      await fireEvent.click(screen.getByTestId('share-rounds-btn'));
+      expect(shareMock).toHaveBeenCalled();
+      expect(writeTextMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('spectate mode (wallet disconnected)', () => {

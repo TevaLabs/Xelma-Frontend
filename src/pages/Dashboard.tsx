@@ -616,21 +616,36 @@ const Dashboard = () => {
                   <button
                     type="button"
                     onClick={async () => {
-                      const url = new URL(window.location.href);
+                      const shareData = {
+                        title: "Xelma",
+                        url: window.location.href,
+                      };
+
+                      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+                        try {
+                          await navigator.share(shareData);
+                          return;
+                        } catch (err: unknown) {
+                          if (err instanceof Error && err.name === "AbortError") {
+                            return;
+                          }
+                        }
+                      }
+
                       try {
-                        await navigator.clipboard.writeText(url.toString());
-                        toast.success("Link copied to clipboard", {
+                        await navigator.clipboard.writeText(shareData.url);
+                        toast.success(t("dashboard.share.copied"), {
                           id: "share-round-url",
                         });
                       } catch {
-                        toast.error("Could not copy link", {
+                        toast.error(t("dashboard.share.copyError"), {
                           id: "share-round-url",
                         });
                       }
                     }}
                     data-testid="share-rounds-btn"
                     className="btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
-                    aria-label="Copy share link"
+                    aria-label={t("dashboard.share.copyAriaLabel")}
                   >
                     <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                     {t('dashboard.share.button')}
