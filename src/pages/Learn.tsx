@@ -147,14 +147,14 @@ const LearnPage = () => {
                             </section>
 
                             {/* Additional info box */}
-                            <div className="p-6 rounded-2xl glass-card">
+                            <div className="p-6 rounded-2xl glass-card border border-white/10 backdrop-blur-md bg-white/5">
                                 <h3 className="font-bold mb-2 text-white">Want to contribute?</h3>
                                 <p className="text-sm text-gray-400 mb-4">
                                     Are you an expert in Stellar or prediction markets? Share your knowledge with the community.
                                 </p>
                                 <button
                                     type="button"
-                                    className="btn-ghost w-full py-2.5 px-4 rounded-xl text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
+                                    className="btn-ghost w-full py-2.5 px-4 rounded-xl text-sm font-bold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
                                 >
                                     Apply as Educator
                                 </button>
