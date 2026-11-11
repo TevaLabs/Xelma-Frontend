@@ -1,4 +1,4 @@
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, Terminal } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import './NewsRibbon.css';
 
@@ -40,15 +40,24 @@ export function NewsRibbon({ newsItems = DEFAULT_NEWS, onClose }: NewsRibbonProp
     >
       <div className="news-ribbon__container">
         <span className="news-ribbon__icon" aria-hidden="true">
-          <Sparkles size={18} />
+          <Terminal size={16} />
+        </span>
+        <span className="news-ribbon__label" aria-hidden="true">
+          <Sparkles size={12} />
+          <span>NEWS</span>
         </span>
         <div className="news-ribbon__track">
           <div className="news-ribbon__scroll">
             {[...newsItems, ...newsItems].map((item, index) => (
               <span key={`${item.id}-${index}`} className="news-ribbon__message">
+                <span className="news-ribbon__prompt" aria-hidden="true">
+                  &gt;
+                </span>
                 {item.text}
                 {index < newsItems.length * 2 - 1 && (
-                  <span className="news-ribbon__separator" aria-hidden="true">•</span>
+                  <span className="news-ribbon__separator" aria-hidden="true">
+                    &bull;
+                  </span>
                 )}
               </span>
             ))}

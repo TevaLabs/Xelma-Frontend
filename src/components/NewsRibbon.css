@@ -1,18 +1,44 @@
-/* News Ribbon - Sticky banner below header */
+/* News Ribbon - Dark terminal ticker */
 .news-ribbon {
   position: fixed;
   top: 80px; /* Below header (h-20 = 5rem = 80px) */
   left: 0;
   right: 0;
   z-index: 15; /* Between header and content; sidebar starts below ribbon */
-  background: linear-gradient(90deg, #2c4bfd 0%, #6366f1 100%);
-  color: white;
-  padding: 10px 16px;
-  font-family: "DM Sans", sans-serif;
-  font-size: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 15, 20, 0.92) 0%,
+    rgba(6, 10, 14, 0.96) 100%
+  );
+  color: #e4e4e7;
+  padding: 8px 16px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
   line-height: 1.4;
-  box-shadow: 0 2px 8px rgba(44, 75, 253, 0.2);
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.18);
+  box-shadow: 
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
   overflow: hidden;
+}
+
+/* Subtle scan-line glass texture */
+.news-ribbon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.02) 0,
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.6;
 }
 
 @media (min-width: 1024px) {
@@ -22,37 +48,63 @@
 }
 
 .dark .news-ribbon {
-  background: linear-gradient(90deg, #1e3a8a 0%, #4338ca 100%);
-  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
+  background: linear-gradient(
+    180deg,
+    rga(8, 12, 16, 0.94) 0%,
+    rgba(4, 7, 10, 0.97) 100%
+  );
+  border-bottom-color: rgba(125, 211, 252, 0.22);
 }
 
 .news-ribbon__container {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  z-index: 1;
 }
 
 .news-ribbon__icon {
   flex-shrink: 0;
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  color: #7ee3cc; /* terminal green */
+  filter: drop-shadow(0 0 6px rgba(126, 227, 204, 0.55));
+}
+
+.news-ribbon__label {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(126, 227, 204, 0.35);
+  background: rgba(126, 227, 204, 0.08);
+  color: #7ee3cc;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 /* Track container - clips the scrolling content */
 .news-ribbon__track {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   mask-image: linear-gradient(
     to right,
     transparent 0%,
-    black 5%,
-    black 95%,
+    black 6%,
+    black 94%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0%,
-    black 5%,
-    black 95%,
+    black 6%,
+    black 94%,
     transparent 100%
   );
 }
@@ -61,15 +113,17 @@
 .news-ribbon__scroll {
   display: flex;
   align-items: center;
+  width: max-content;
   white-space: nowrap;
-  animation: marquee 30s linear infinite;
+  animation: marquee 38s linear infinite;
 }
 
 .news-ribbon__scroll--paused {
   animation-play-state: paused;
 }
 
-.news-ribbon:hover .news-ribbon__scroll {
+.news-ribbon:hover .news-ribbon__scroll,
+.news-ribbon__scroll:focus-within {
   animation-play-state: paused;
 }
 
@@ -77,15 +131,23 @@
 .news-ribbon__message {
   display: inline-flex;
   align-items: center;
-  padding-right: 0;
+  gap: 6px;
+  color: #d4d4d8;
+}
+
+.news-ribbon__prompt {
+  color: #7ee3cc;
+  font-weight: 700;
+  opacity: 0.85;
 }
 
 /* Separator between messages */
 .news-ribbon__separator {
   display: inline-block;
-  margin: 0 24px;
-  opacity: 0.6;
-  font-size: 12px;
+  margin: 0 20px;
+  color: #7ee3cc;
+  opacity: 0.55;
+  font-size: 10px;
 }
 
 /* Marquee animation - scrolls from right to left */
@@ -105,18 +167,27 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
+  border-radius: 4px;
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: #c4c4c8;
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
-  transition: background var(--duration-fast) var(--ease-out);
+  transition: background var(--duration-fast, 150ms) var(--ease-out, ease-out),
+    color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+    border-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
 }
 
 .news-ribbon__close:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(126, 227, 204, 0.15);
+  color: #7ee3cc;
+  border-color: rgba(126, 227, 204, 0.5);
+}
+
+.news-ribbon__close:focus-visible {
+  outline: 2px solid rgba(126, 227, 204, 0.6);
+  outline-offset: 2px;
 }
 
 /* Animation for ribbon appearing */
@@ -132,7 +203,7 @@
 }
 
 .news-ribbon {
-  animation: slideDown var(--duration-slow) var(--ease-out);
+  animation: slideDown var(--duration-slow, 400ms) var(--ease-out, ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -150,16 +221,15 @@
 /* Mobile adjustments */
 @media (max-width: 640px) {
   .news-ribbon {
-    padding: 8px 12px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 12px;
   }
 
-  .news-ribbon__icon {
-    font-size: 16px;
+  .news-ribbon__label {
+    display: none;
   }
 
   .news-ribbon__separator {
-    margin: 0 16px;
+    margin: 0 14px;
   }
 }
-
