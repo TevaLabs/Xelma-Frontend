@@ -328,7 +328,7 @@ const Dashboard = () => {
   const roundCardRefs = useRef(new Map<number, HTMLElement>());
   const { reduced: prefersReducedMotion } = useReducedMotion();
 
-  useEffect(() => {
+  const scrollToDeepLinkedRound = useCallback(() => {
     if (deepLinkedRoundId === null) return;
     if (!filteredRounds.some((r) => r.id === deepLinkedRoundId)) return;
 
@@ -340,6 +340,11 @@ const Dashboard = () => {
       block: "center",
     });
   }, [deepLinkedRoundId, filteredRounds, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (isLoading || !isRoundActive) return;
+    scrollToDeepLinkedRound();
+  }, [scrollToDeepLinkedRound, isLoading, isRoundActive]);
 
   const fetchStats = useCallback(async () => {
     if (!isWalletConnected) {
@@ -644,6 +649,9 @@ const Dashboard = () => {
                     ref={(el) => {
                       if (el) {
                         roundCardRefs.current.set(round.id, el);
+                        if (round.id === deepLinkedRoundId) {
+                          scrollToDeepLinkedRound();
+                        }
                       } else {
                         roundCardRefs.current.delete(round.id);
                       }
