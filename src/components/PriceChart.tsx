@@ -137,6 +137,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [chartMode, setChartMode] = useState<ChartMode>(getStoredChartMode);
+  const activeSeriesModeRef = useRef<ChartMode>(chartMode);
   const { reduced: prefersReducedMotion } = useReducedMotion();
 
   // y-coordinate of the last data point for the badge
@@ -254,6 +255,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
     });
 
     chartRef.current = chart;
+    activeSeriesModeRef.current = chartMode;
 
     // Create initial series based on stored preference
     if (chartMode === "line") {
@@ -298,6 +300,10 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   // Handle chart mode switching — replace series without recreating the chart
   useEffect(() => {
     if (!chartRef.current) return;
+    // Skip if the active series already matches the requested chartMode (prevents remount flicker)
+    if (activeSeriesModeRef.current === chartMode && seriesRef.current !== null) {
+      return;
+    }
     const chart = chartRef.current;
     const currentData = dataRef.current;
 
@@ -351,7 +357,24 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       }
     }
 
+    activeSeriesModeRef.current = chartMode;
     chart.timeScale().fitContent();
+
+    // Reattach entry-price marker line if present
+    if (seriesRef.current && entryPriceRef.current != null && Number.isFinite(entryPriceRef.current)) {
+      try {
+        entryPriceLineRef.current = seriesRef.current.createPriceLine({
+          price: entryPriceRef.current,
+          color: "#FACC15",
+          lineWidth: 2,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: false,
+          title: "",
+        });
+      } catch {
+        entryPriceLineRef.current = null;
+      }
+    }
 
     // Update positions after series switch
     requestAnimationFrame(() => {
@@ -508,7 +531,9 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   }, []);
 
   const loadInitialPrices = useCallback(async () => {
-    setIsLoading(true);
+    if (dataRef.current.length === 0) {
+      setIsLoading(true);
+    }
     setLoadError(null);
 
     try {
@@ -524,35 +549,20 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
 
   // Reload data when asset changes — reset and load mock/API data
   useEffect(() => {
-    // Reset and refresh chart state when the selected asset changes.
-    setData([]);
-    setIsLoading(true);
-    setLoadError(null);
-
-    // Use mock data directly for instant visual feedback per asset
+    // Use mock data directly for instant visual feedback per asset without remount flicker
     const mockData = mockPriceData[asset];
     if (mockData && mockData.length > 0) {
       setData(mockData);
       setLastUpdatedAt(new Date());
       setIsLoading(false);
-    }
-    const timer = setTimeout(() => {
+    } else {
       setData([]);
       setIsLoading(true);
-      setLoadError(null);
+    }
+    setLoadError(null);
 
-      // Use mock data directly for instant visual feedback per asset
-      const mockData = mockPriceData[asset];
-      if (mockData && mockData.length > 0) {
-        setData(mockData);
-        setLastUpdatedAt(new Date());
-        setIsLoading(false);
-      }
-
-      // Also attempt to fetch live data from API
-      void loadInitialPrices();
-    }, 0);
-    return () => clearTimeout(timer);
+    // Also attempt to fetch live data from API
+    void loadInitialPrices();
   }, [asset, loadInitialPrices]);
 
   // Update chart line color when asset changes
@@ -633,6 +643,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
               type="button"
               onClick={toggleChartMode}
               aria-pressed={chartMode === "candlestick"}
+              data-testid="chart-mode-toggle"
               className={`relative flex items-center rounded-full bg-[#1e3a5f]/60 p-0.5 text-xs font-medium hover:bg-[#1e3a5f]/80 ${
                 prefersReducedMotion ? "transition-none" : "transition-colors"
               }`}
