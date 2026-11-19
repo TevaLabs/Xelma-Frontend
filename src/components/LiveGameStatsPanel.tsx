@@ -24,7 +24,10 @@ function normalizeStatsPayload(payload: unknown): LiveStatsSnapshot {
   if (!payload || typeof payload !== 'object') {
     return {};
   }
-  const data = payload as LiveStatsPayload;
+  const data = (Array.isArray(payload) ? payload[0] : payload) as LiveStatsPayload;
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
   const nested =
     data.stats && typeof data.stats === 'object'
       ? (data.stats as LiveStatsPayload)
@@ -118,19 +121,27 @@ function Metric({
   );
 }
 
+export interface LiveGameStatsPanelProps {
+  className?: string;
+  initialStats?: LiveStatsSnapshot;
+}
+
 /**
  * Platform Pulse — active players, recent predictions, and round state, fed by
  * the `live_game_stats` socket channel with the round store as the fallback
  * source of truth for round status.
  */
-export default function LiveGameStatsPanel() {
+export default function LiveGameStatsPanel({
+  className = '',
+  initialStats,
+}: LiveGameStatsPanelProps = {}) {
   const activeRound = useRoundStore((state) => state.activeRound);
   const isRoundActive = useRoundStore((state) => state.isRoundActive);
   const isLoading = useRoundStore((state) => state.isLoading);
   const sseConnection = useRoundStore((state) => state.sseConnection);
   const reconnectSSE = useRoundStore((state) => state.reconnectSSE);
   const { isConnected: isSocketConnected, reconnect: reconnectSocket } = useConnectionStatus();
-  const [liveStats, setLiveStats] = useState<LiveStatsSnapshot>({});
+  const [liveStats, setLiveStats] = useState<LiveStatsSnapshot>(() => initialStats ?? {});
 
   useEffect(() => {
     if (!socketService.isConnected()) {
@@ -156,6 +167,21 @@ export default function LiveGameStatsPanel() {
   const sseStatus = sseConnection?.status;
   const feedHealth = resolveFeedHealth(isSocketConnected, sseStatus);
 
+  const activePlayers =
+    liveStats.activePlayers ??
+    toFiniteNumber(activeRound?.activePlayers) ??
+    toFiniteNumber(activeRound?.playersOnline) ??
+    toFiniteNumber(activeRound?.playerCount) ??
+    toFiniteNumber(activeRound?.participantsCount);
+
+  const recentPredictions =
+    liveStats.recentPredictions ??
+    toFiniteNumber(activeRound?.recentPredictions) ??
+    toFiniteNumber(activeRound?.recentPredictionsCount) ??
+    toFiniteNumber(activeRound?.predictionsCount) ??
+    toFiniteNumber(activeRound?.predictionCount) ??
+    toFiniteNumber(activeRound?.totalPredictions);
+
   const roundStatus = isLoading
     ? 'Syncing'
     : isRoundActive
@@ -171,14 +197,15 @@ export default function LiveGameStatsPanel() {
   return (
     <section
       aria-label="Live game stats"
-      className="rounded-2xl border border-cyan-500/20 bg-black/40 p-5 shadow-inner shadow-cyan-950/30"
+      data-testid="live-game-stats-panel"
+      className={`rounded-2xl border border-cyan-500/20 bg-black/40 p-5 shadow-inner shadow-cyan-950/30 ${className}`.trim()}
       data-loading={String(isLoading)}
       data-round-active={String(isRoundActive)}
       data-socket-connected={String(isSocketConnected)}
       data-sse-status={sseConnection?.status ?? 'disconnected'}
       data-active-round-id={activeRound?.id ?? ''}
-      data-live-players={liveStats.activePlayers ?? ''}
-      data-live-predictions={liveStats.recentPredictions ?? ''}
+      data-live-players={activePlayers ?? ''}
+      data-live-predictions={recentPredictions ?? ''}
       data-feed-health={feedHealth}
     >
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -205,15 +232,15 @@ export default function LiveGameStatsPanel() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Metric
           label="Active players"
-          value={formatMetric(liveStats.activePlayers)}
-          hint={liveStats.activePlayers === undefined ? 'Awaiting feed' : 'Connected right now'}
+          value={formatMetric(activePlayers)}
+          hint={activePlayers === undefined ? 'Awaiting feed' : 'Connected right now'}
           icon={<Users className="h-3 w-3" />}
         />
         <Metric
           label="Recent predictions"
-          value={formatMetric(liveStats.recentPredictions)}
+          value={formatMetric(recentPredictions)}
           hint={
-            liveStats.recentPredictions === undefined ? 'Awaiting feed' : 'Submitted this session'
+            recentPredictions === undefined ? 'Awaiting feed' : 'Submitted this session'
           }
           icon={<TrendingUp className="h-3 w-3" />}
         />
@@ -251,3 +278,5 @@ export default function LiveGameStatsPanel() {
     </section>
   );
 }
+
+export { LiveGameStatsPanel };

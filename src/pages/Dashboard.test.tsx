@@ -320,7 +320,15 @@ describe('Dashboard', () => {
 
       expect(screen.getByTestId('prediction-card')).toBeInTheDocument();
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('live-game-stats-panel')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-history')).toBeInTheDocument();
+    });
+
+    it('shows the live game stats panel on dashboard', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('live-game-stats-panel')).toBeInTheDocument();
+      expect(screen.getByText('Platform Pulse')).toBeInTheDocument();
     });
 
     it('passes correct props to PredictionCard', () => {
@@ -844,6 +852,73 @@ describe('Dashboard', () => {
       render(<Dashboard />);
 
       expect(screen.queryByText('Your Record')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('round deep-link scroll behavior (?round=)', () => {
+    it('scrolls the highlighted RoundCard into view when the round id is visible', async () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      // Multiple RoundCards render (one per XLM round); find the highlighted one.
+      const cards = await screen.findAllByTestId('round-card');
+      const highlighted = cards.find((c) => c.getAttribute('data-highlighted') === 'true');
+
+      expect(highlighted).toBeTruthy();
+      expect(highlighted).toHaveAttribute('data-highlighted', 'true');
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ block: 'center' }),
+      );
+    });
+
+    it('does not call scrollIntoView when the round id is missing', () => {
+      mockSearchParams = new URLSearchParams();
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not call scrollIntoView when the deep-linked round is filtered out by the asset tab', () => {
+      // Round id 3 is an XLM round; requesting it while on the BTC tab means
+      // it never renders, so there is nothing to scroll to.
+      mockSearchParams = new URLSearchParams('round=3&asset=BTC');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses instant scroll behavior when reduced motion is preferred', () => {
+      mockSearchParams = new URLSearchParams('round=3');
+      const scrollIntoViewSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoViewSpy;
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+          matches: query.includes('prefers-reduced-motion'),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(),
+        })),
+      });
+
+      render(<Dashboard />);
+
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
     });
   });
 });

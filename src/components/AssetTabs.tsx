@@ -12,10 +12,13 @@ interface AssetTabsProps {
 
 export function AssetTabs({ onAssetChange, className }: AssetTabsProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeAsset = (searchParams.get("asset") as Asset) || "XLM";
+  const rawAsset = searchParams.get("asset");
 
-  // Normalize invalid asset values to XLM
-  const normalizedAsset = ASSETS.includes(activeAsset) ? activeAsset : "XLM";
+  // Normalize invalid or case-mismatched asset values to a valid Asset
+  const matchedAsset = rawAsset
+    ? ASSETS.find((a) => a.toLowerCase() === rawAsset.trim().toLowerCase())
+    : undefined;
+  const normalizedAsset: Asset = matchedAsset ?? "XLM";
 
   const tabListRef = useRef<HTMLDivElement>(null);
 
@@ -40,9 +43,9 @@ export function AssetTabs({ onAssetChange, className }: AssetTabsProps) {
     [setSearchParams],
   );
 
-  // Normalize on mount if needed
+  // Normalize bad ?asset= query param in URL on mount or param change
   useEffect(() => {
-    if (activeAsset !== normalizedAsset) {
+    if (rawAsset !== null && rawAsset !== normalizedAsset) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -52,7 +55,7 @@ export function AssetTabs({ onAssetChange, className }: AssetTabsProps) {
         { replace: true },
       );
     }
-  }, [activeAsset, normalizedAsset, setSearchParams]);
+  }, [rawAsset, normalizedAsset, setSearchParams]);
 
   // Focus management for keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -60,9 +63,11 @@ export function AssetTabs({ onAssetChange, className }: AssetTabsProps) {
 
     switch (e.key) {
       case "ArrowRight":
+      case "ArrowDown":
         nextIndex = (index + 1) % ASSETS.length;
         break;
       case "ArrowLeft":
+      case "ArrowUp":
         nextIndex = (index - 1 + ASSETS.length) % ASSETS.length;
         break;
       case "Home":

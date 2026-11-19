@@ -43,6 +43,7 @@ import FriendbotFundCard from '../components/FriendbotFundCard';
 import NetworkMismatchCard from '../components/NetworkMismatchCard';
 import ProfileSummaryCard from '../components/ProfileSummaryCard';
 import SorobanInspectorPanel from '../components/SorobanInspectorPanel';
+import LiveGameStatsPanel from '../components/LiveGameStatsPanel';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import ModeToggle, { type DashboardMode } from "../components/ModeToggle";
 
@@ -327,7 +328,7 @@ const Dashboard = () => {
   const roundCardRefs = useRef(new Map<number, HTMLElement>());
   const { reduced: prefersReducedMotion } = useReducedMotion();
 
-  useEffect(() => {
+  const scrollToDeepLinkedRound = useCallback(() => {
     if (deepLinkedRoundId === null) return;
     if (!filteredRounds.some((r) => r.id === deepLinkedRoundId)) return;
 
@@ -339,6 +340,11 @@ const Dashboard = () => {
       block: "center",
     });
   }, [deepLinkedRoundId, filteredRounds, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (isLoading || !isRoundActive) return;
+    scrollToDeepLinkedRound();
+  }, [scrollToDeepLinkedRound, isLoading, isRoundActive]);
 
   const fetchStats = useCallback(async () => {
     if (!isWalletConnected) {
@@ -643,6 +649,9 @@ const Dashboard = () => {
                     ref={(el) => {
                       if (el) {
                         roundCardRefs.current.set(round.id, el);
+                        if (round.id === deepLinkedRoundId) {
+                          scrollToDeepLinkedRound();
+                        }
                       } else {
                         roundCardRefs.current.delete(round.id);
                       }
@@ -785,6 +794,7 @@ const Dashboard = () => {
 <div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
                 <PriceChart height={280} asset={normalizedAsset} entryPrice={entryPrice} onPriceUpdate={handlePriceUpdate} />
               </div>
+              <LiveGameStatsPanel />
               {isWalletConnected && (
                 <RecentActivity
                   items={

@@ -1,7 +1,7 @@
 // ISSUE: Wire place_bet() to Xelma TypeScript bindings (xelma-contract)
 // ISSUE: Real-time round updates via Soroban event polling
 
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { MockRound } from '../types';
 import CountdownTimer from './CountdownTimer';
@@ -47,6 +47,29 @@ const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
   ref,
 ) {
   const { reduced } = useReducedMotion();
+  const cardRef = useRef<HTMLElement | null>(null);
+
+  const setCardRef = useCallback(
+    (node: HTMLElement | null) => {
+      cardRef.current = node;
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<HTMLElement | null>).current = node;
+      }
+    },
+    [ref],
+  );
+
+  useEffect(() => {
+    if (isHighlighted && cardRef.current) {
+      cardRef.current.scrollIntoView({
+        behavior: reduced ? 'auto' : 'smooth',
+        block: 'center',
+      });
+    }
+  }, [isHighlighted, reduced]);
+
   const [endTime, setEndTime] = useState(() => new Date(Date.now() + round.closesInSeconds * 1000));
   // Live ticking countdown so the urgency state (secondsLeft < 30) updates
   // between server round refreshes, matching the displayed countdown timer.
@@ -95,7 +118,7 @@ const RoundCard = forwardRef<HTMLElement, RoundCardProps>(function RoundCard(
   return (
     <GlassCard
       as="article"
-      ref={ref}
+      ref={setCardRef}
       className={`flex min-w-0 flex-col gap-4 rounded-2xl p-4 transition-all duration-300 sm:p-5 ${TRANSITION} ${
         isHighlighted ? 'accent-border-teal' : ''
       } ${isHighlighted && !reduced ? 'accent-pulse' : ''}`}
