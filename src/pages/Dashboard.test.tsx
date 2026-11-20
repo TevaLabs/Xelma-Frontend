@@ -814,6 +814,10 @@ describe('Dashboard', () => {
       expect(screen.getByText('5 rounds')).toBeInTheDocument();
       expect(screen.getByText('8')).toBeInTheDocument();
       expect(screen.getByText('2')).toBeInTheDocument();
+      // No placeholder stats from data/mockData.ts may leak into a real response.
+      expect(screen.queryByText('1000.00 vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+      expect(screen.queryByText('410 XP')).not.toBeInTheDocument();
     });
 
     it('renders empty state without mock numbers when connected and API returns null', async () => {
@@ -833,6 +837,59 @@ describe('Dashboard', () => {
 
       expect(await screen.findByText('Network failure')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+      expect(screen.getByText('Could not load your stats.')).toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+      expect(screen.queryByText('1000.00 vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('3 rounds')).not.toBeInTheDocument();
+      expect(screen.queryByText('410 XP')).not.toBeInTheDocument();
+    });
+
+    it('refetches stats when Retry is clicked after an API failure', async () => {
+      vi.mocked(statsApi.getUserStats)
+        .mockRejectedValueOnce(new Error('Network failure'))
+        .mockResolvedValueOnce({
+          balance: 321.5,
+          pendingWinnings: 0,
+          totalWins: 7,
+          totalLosses: 3,
+          currentStreak: 2,
+          xp: 990,
+          rank: 'Trader',
+        });
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('Network failure')).toBeInTheDocument();
+      expect(statsApi.getUserStats).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+      expect(await screen.findByText('321.50 vXLM')).toBeInTheDocument();
+      expect(statsApi.getUserStats).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText('Network failure')).not.toBeInTheDocument();
+      expect(screen.queryByText('1000.00 vXLM')).not.toBeInTheDocument();
+    });
+
+    it('keeps the loading state until the stats request settles, without mock numbers', async () => {
+      let resolveStats!: (value: null) => void;
+      vi.mocked(statsApi.getUserStats).mockImplementation(
+        () => new Promise<null>((resolve) => {
+          resolveStats = resolve;
+        }),
+      );
+
+      render(<Dashboard />);
+
+      expect(await screen.findByText('Loading user statistics...')).toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+      expect(screen.queryByText('1000.00 vXLM')).not.toBeInTheDocument();
+
+      await act(async () => {
+        resolveStats(null);
+      });
+
+      expect(await screen.findByText('User stats unavailable')).toBeInTheDocument();
+      expect(screen.queryByText('Loading user statistics...')).not.toBeInTheDocument();
     });
 
     it('does not render stats panel when wallet is disconnected', () => {

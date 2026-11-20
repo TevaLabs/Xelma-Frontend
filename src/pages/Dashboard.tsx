@@ -352,7 +352,14 @@ const Dashboard = () => {
       setStats(data);
     } catch (err) {
       console.error("Failed to fetch user stats:", err);
-      setStatsError(err instanceof Error ? err.message : "Failed to load stats");
+      // Never keep previously loaded (or mocked) numbers on screen after a
+      // failed refetch: show the honest error/retry state instead.
+      setStats(null);
+      setStatsError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not load your stats. Please try again.",
+      );
     } finally {
       setIsStatsLoading(false);
     }
