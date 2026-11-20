@@ -309,6 +309,65 @@ describe('Leaderboard data states', () => {
   });
 });
 
+describe('Leaderboard avatars', () => {
+  const VALID_G_ADDRESS = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
+
+  beforeEach(() => {
+    setWalletState();
+    useVirtualizerMock.mockReset();
+  });
+
+  async function renderSingleEntry(entry: LeaderboardEntry) {
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue([entry]);
+    renderLeaderboard();
+    await screen.findByText('Alice');
+  }
+
+  it('keeps a supplied avatar image and its podium alt text', async () => {
+    await renderSingleEntry({
+      id: 'user-1',
+      username: 'Alice',
+      xlm: 100,
+      avatar: 'https://example.com/alice.png',
+      walletAddress: VALID_G_ADDRESS,
+    });
+
+    const avatar = screen.getByRole('img', { name: 'Gold medal: Alice' });
+    expect(avatar.tagName.toLowerCase()).toBe('img');
+    expect(avatar).toHaveAttribute('src', 'https://example.com/alice.png');
+    expect(screen.queryByRole('img', { name: `Identicon for address ${VALID_G_ADDRESS}` })).not.toBeInTheDocument();
+  });
+
+  it('seeds IdenticonAvatar with the entry G-address when no avatar is supplied', async () => {
+    await renderSingleEntry({
+      id: 'user-1',
+      username: 'Alice',
+      xlm: 100,
+      walletAddress: VALID_G_ADDRESS,
+    });
+
+    const identicon = screen.getByRole('img', { name: `Identicon for address ${VALID_G_ADDRESS}` });
+    expect(identicon.tagName.toLowerCase()).toBe('svg');
+    expect(identicon).toHaveClass('object-cover');
+    expect(identicon.parentElement).toHaveClass('w-32');
+    expect(screen.queryByRole('img', { name: 'Gold medal: Alice' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the generic SVG avatar when there is no valid G-address', async () => {
+    await renderSingleEntry({
+      id: 'user-1',
+      username: 'Alice',
+      xlm: 100,
+      publicKey: 'NOT_A_VALID_G_ADDRESS',
+    });
+
+    const fallback = screen.getByRole('img', { name: 'Gold medal: Alice' });
+    expect(fallback.tagName.toLowerCase()).toBe('img');
+    expect(fallback.getAttribute('src')).toContain('avatar.svg');
+    expect(screen.queryByRole('img', { name: /^Identicon for address/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('Leaderboard URL filter synchronization', () => {
   beforeEach(() => {
     setWalletState();
