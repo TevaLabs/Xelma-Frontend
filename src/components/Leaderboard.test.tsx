@@ -109,8 +109,13 @@ describe('Leaderboard filter tabs — keyboard roving', () => {
 
   it('exposes a tablist with one tab per filter, matching the ARIA tabs pattern', async () => {
     const tabs = await renderAndWait();
+    expect(screen.getByRole('tablist', { name: 'Time range filter' })).toBeInTheDocument();
     expect(tabs).toHaveLength(4);
     expect(tabs.map((t) => t.textContent)).toEqual(['all', 'daily', 'weekly', 'monthly']);
+    for (const tab of tabs) {
+      expect(tab).toHaveAttribute('role', 'tab');
+      expect(tab).toHaveAttribute('aria-selected');
+    }
   });
 
   it('only the active tab is tabbable; the rest are removed from the tab order', async () => {
@@ -169,6 +174,44 @@ describe('Leaderboard filter tabs — keyboard roving', () => {
     fireEvent.keyDown(tabs[3], { key: 'Home' });
     expect(tabs[0]).toHaveFocus();
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('ArrowLeft moves to the previous tab and roves the tabindex with it', async () => {
+    const tabs = await renderAndWait();
+    fireEvent.click(tabs[2]); // weekly is now the active tab
+
+    fireEvent.keyDown(tabs[2], { key: 'ArrowLeft' });
+
+    expect(tabs[1]).toHaveFocus();
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[1]).toHaveAttribute('tabindex', '0');
+    expect(tabs[2]).toHaveAttribute('aria-selected', 'false');
+    expect(tabs[2]).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('Home and End leave exactly one tab in the tab order', async () => {
+    const tabs = await renderAndWait();
+    fireEvent.click(tabs[2]); // weekly
+
+    fireEvent.keyDown(tabs[2], { key: 'End' });
+    expect(tabs[3]).toHaveFocus();
+    expect(tabs.map((tab) => tab.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1', '0']);
+
+    fireEvent.keyDown(tabs[3], { key: 'Home' });
+    expect(tabs[0]).toHaveFocus();
+    expect(tabs.map((tab) => tab.getAttribute('tabindex'))).toEqual(['0', '-1', '-1', '-1']);
+  });
+
+  it('ArrowRight wrapping from the last tab keeps the roving tabindex on the first', async () => {
+    const tabs = await renderAndWait();
+    fireEvent.click(tabs[3]); // monthly
+
+    fireEvent.keyDown(tabs[3], { key: 'ArrowRight' });
+
+    expect(tabs[0]).toHaveFocus();
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(tabs[0]).toHaveAttribute('tabindex', '0');
+    expect(tabs[3]).toHaveAttribute('tabindex', '-1');
   });
 
   it('ignores unrelated keys and leaves selection unchanged', async () => {
@@ -263,6 +306,65 @@ describe('Leaderboard data states', () => {
     renderLeaderboard();
 
     expect(await screen.findByText('No leaderboard data yet')).toBeInTheDocument();
+  });
+});
+
+describe('Leaderboard avatars', () => {
+  const VALID_G_ADDRESS = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
+
+  beforeEach(() => {
+    setWalletState();
+    useVirtualizerMock.mockReset();
+  });
+
+  async function renderSingleEntry(entry: LeaderboardEntry) {
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue([entry]);
+    renderLeaderboard();
+    await screen.findByText('Alice');
+  }
+
+  it('keeps a supplied avatar image and its podium alt text', async () => {
+    await renderSingleEntry({
+      id: 'user-1',
+      username: 'Alice',
+      xlm: 100,
+      avatar: 'https://example.com/alice.png',
+      walletAddress: VALID_G_ADDRESS,
+    });
+
+    const avatar = screen.getByRole('img', { name: 'Gold medal: Alice' });
+    expect(avatar.tagName.toLowerCase()).toBe('img');
+    expect(avatar).toHaveAttribute('src', 'https://example.com/alice.png');
+    expect(screen.queryByRole('img', { name: `Identicon for address ${VALID_G_ADDRESS}` })).not.toBeInTheDocument();
+  });
+
+  it('seeds IdenticonAvatar with the entry G-address when no avatar is supplied', async () => {
+    await renderSingleEntry({
+      id: 'user-1',
+      username: 'Alice',
+      xlm: 100,
+      walletAddress: VALID_G_ADDRESS,
+    });
+
+    const identicon = screen.getByRole('img', { name: `Identicon for address ${VALID_G_ADDRESS}` });
+    expect(identicon.tagName.toLowerCase()).toBe('svg');
+    expect(identicon).toHaveClass('object-cover');
+    expect(identicon.parentElement).toHaveClass('w-32');
+    expect(screen.queryByRole('img', { name: 'Gold medal: Alice' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the generic SVG avatar when there is no valid G-address', async () => {
+    await renderSingleEntry({
+      id: 'user-1',
+      username: 'Alice',
+      xlm: 100,
+      publicKey: 'NOT_A_VALID_G_ADDRESS',
+    });
+
+    const fallback = screen.getByRole('img', { name: 'Gold medal: Alice' });
+    expect(fallback.tagName.toLowerCase()).toBe('img');
+    expect(fallback.getAttribute('src')).toContain('avatar.svg');
+    expect(screen.queryByRole('img', { name: /^Identicon for address/ })).not.toBeInTheDocument();
   });
 });
 

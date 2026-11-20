@@ -1,4 +1,3 @@
-import type { MockUserStats } from '../types';
 import type { UserStats } from '../lib/api-client';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
@@ -10,7 +9,7 @@ import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 
 interface StatsCardProps {
-  stats: UserStats | MockUserStats | null;
+  stats: UserStats | null;
   isLoading?: boolean;
   error?: string;
   onRetry?: () => void;
@@ -79,7 +78,8 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   if (error) {
     return (
       <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
-        <p className="text-red-500 mb-2">{error}</p>
+        <p className="text-sm font-semibold text-white">Could not load your stats.</p>
+        <p className="text-red-500 mb-2" role="alert">{error}</p>
         {onRetry && (
           <button
             type="button"
