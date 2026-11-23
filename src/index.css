@@ -37,8 +37,35 @@ body {
   background-size: 48px 48px;
 }
 
-/* Compact dashboard density (Settings → Dashboard density). Only densifies on
-   narrow screens, where padding and gaps cost the most usable space. */
+/* Compact dashboard density (Settings → Dashboard density).
+   Applies at every breakpoint so the toggle has a visible effect on desktop
+   as well as mobile. Narrow screens get a stronger reduction because padding
+   and gaps cost the most usable space there. */
+[data-density="compact"] {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+[data-density="compact"] .gap-6 {
+  gap: 0.75rem;
+}
+
+[data-density="compact"] .gap-4 {
+  gap: 0.5rem;
+}
+
+[data-density="compact"] .mb-6 {
+  margin-bottom: 0.75rem;
+}
+
+[data-density="compact"] .mb-4 {
+  margin-bottom: 0.5rem;
+}
+
+[data-density="compact"] .glass-card {
+  padding: 1rem;
+}
+
 @media (max-width: 640px) {
   [data-density="compact"] {
     padding-top: 0.75rem;
