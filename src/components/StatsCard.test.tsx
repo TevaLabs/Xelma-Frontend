@@ -63,6 +63,14 @@ function renderCard(stats: Partial<MockUserStats> = {}, props: Partial<Parameter
   return render(<StatsCard stats={{ ...baseStats, ...stats }} {...props} />);
 }
 
+const CLAIM_DESCRIPTION_ID = 'claim-rewards-description';
+
+function expectClaimDescription(expected: string) {
+  const button = screen.getByRole('button', { name: /claim rewards/i });
+  expect(button).toHaveAttribute('aria-describedby', CLAIM_DESCRIPTION_ID);
+  expect(document.getElementById(CLAIM_DESCRIPTION_ID)).toHaveTextContent(expected);
+}
+
 describe('StatsCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -129,6 +137,7 @@ describe('StatsCard', () => {
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
       expect(button).toHaveAttribute('title', 'Connect wallet to claim');
+      expectClaimDescription('Connect wallet to claim');
     });
 
     it('is disabled when connected but there are no pending winnings', () => {
@@ -138,6 +147,7 @@ describe('StatsCard', () => {
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeDisabled();
       expect(button).toHaveAttribute('title', 'No pending rewards');
+      expectClaimDescription('No pending rewards');
     });
 
     it('is enabled when connected and there are pending winnings', () => {
@@ -147,6 +157,7 @@ describe('StatsCard', () => {
       const button = screen.getByRole('button', { name: /claim rewards/i });
       expect(button).toBeEnabled();
       expect(button).toHaveAttribute('title', 'Claim your rewards');
+      expectClaimDescription('Ready to claim');
     });
   });
 
@@ -203,6 +214,33 @@ describe('StatsCard', () => {
         'href',
         expect.stringContaining('0123456789abcdef'),
       );
+    });
+
+    it('marks the card as busy while a claim is in-flight', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      let resolveClaim!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(claim_winnings).mockImplementation(
+        () =>
+          new Promise<{ txHash: string; ledger: number }>((resolve) => {
+            resolveClaim = resolve;
+          }),
+      );
+      const { container } = renderCard({ pendingWinnings: 1000 });
+
+      const card = container.querySelector('section')!;
+      expect(card).toHaveAttribute('aria-busy', 'false');
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Claim...')).toBeInTheDocument();
+      });
+      expect(card).toHaveAttribute('aria-busy', 'true');
+
+      resolveClaim({ txHash: 'abc', ledger: 1 });
+      await waitFor(() => {
+        expect(screen.getByText('Rewards Claimed!')).toBeInTheDocument();
+      });
+      expect(card).toHaveAttribute('aria-busy', 'false');
     });
 
     it('prevents double-submit while a claim is in-flight', async () => {
