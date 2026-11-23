@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Horizon } from '@stellar/stellar-sdk';
+import { Horizon, StrKey } from '@stellar/stellar-sdk';
 import {
   validateStellarAddressFormat,
   checkNetworkPrefix,
@@ -14,19 +14,25 @@ vi.mock('@stellar/stellar-sdk', async () => {
     ...actual,
     Horizon: {
       ...((actual as any).Horizon || {}),
-      Server: vi.fn(),
+      Server: vi.fn(function() {
+        return {
+          loadAccount: mockLoadAccount,
+        };
+      }),
     },
   };
 });
 
 const mockLoadAccount = vi.fn();
 
+// Generate a valid 56-character Stellar Ed25519 public key using StrKey or a known valid test key
+// G... 56 chars encoded properly in base32
+const validAddress = StrKey.encodeEd25519PublicKey(Buffer.alloc(32, 0));
+const testnetAddress = StrKey.encodeEd25519PublicKey(Buffer.alloc(32, 1));
+
 describe('validateStellarAddress utils', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(Horizon.Server).mockImplementation(() => ({
-      loadAccount: mockLoadAccount,
-    } as unknown as InstanceType<typeof Horizon.Server>));
   });
 
   afterEach(() => {
@@ -48,18 +54,14 @@ describe('validateStellarAddress utils', () => {
     });
 
     it('returns true for a valid 56-character Ed25519 public key format', () => {
-      // A valid Stellar mainnet public key format (G... 56 chars)
-      const validKey = 'GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-      expect(validateStellarAddressFormat(validKey)).toBe(true);
+      expect(validateStellarAddressFormat(validAddress)).toBe(true);
     });
 
     it('handles trimming and casing correctly', () => {
-      const validKey = 'gabdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz234567';
-      expect(validateStellarAddressFormat(`   ${validKey}   `)).toBe(true);
+      expect(validateStellarAddressFormat(`   ${validAddress.toLowerCase()}   `)).toBe(true);
     });
 
     it('returns false for invalid Base32 or checksum/version byte', () => {
-      // Invalid base32 character or invalid Ed25519 strkey prefix/format
       const invalidKey = 'XABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
       expect(validateStellarAddressFormat(invalidKey)).toBe(false);
     });
@@ -72,18 +74,18 @@ describe('validateStellarAddress utils', () => {
     });
 
     it('checks MAINNET prefix (must start with G)', () => {
-      expect(checkNetworkPrefix('GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'MAINNET')).toBe(true);
-      expect(checkNetworkPrefix('TABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'MAINNET')).toBe(false);
+      expect(checkNetworkPrefix(validAddress, 'MAINNET')).toBe(true);
+      expect(checkNetworkPrefix('TBV6735Y257V7Z576675757657575675576757567567575675756757', 'MAINNET')).toBe(false);
     });
 
     it('checks TESTNET prefix (allows G or T)', () => {
-      expect(checkNetworkPrefix('GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'TESTNET')).toBe(true);
-      expect(checkNetworkPrefix('TABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'TESTNET')).toBe(true);
+      expect(checkNetworkPrefix(validAddress, 'TESTNET')).toBe(true);
+      expect(checkNetworkPrefix('TBV6735Y257V7Z576675757657575675576757567567575675756757', 'TESTNET')).toBe(true);
       expect(checkNetworkPrefix('XABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'TESTNET')).toBe(false);
     });
 
     it('returns false for unknown networks', () => {
-      expect(checkNetworkPrefix('GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'UNKNOWN' as any)).toBe(false);
+      expect(checkNetworkPrefix(validAddress, 'UNKNOWN' as any)).toBe(false);
     });
   });
 
@@ -94,15 +96,15 @@ describe('validateStellarAddress utils', () => {
     });
 
     it('returns true when account exists on Horizon', async () => {
-      mockLoadAccount.mockResolvedValueOnce({ id: 'GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567' });
-      const result = await checkAccountExists('GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'TESTNET');
+      mockLoadAccount.mockResolvedValueOnce({ id: validAddress });
+      const result = await checkAccountExists(validAddress, 'TESTNET');
       expect(result).toBe(true);
       expect(Horizon.Server).toHaveBeenCalledWith('https://horizon-testnet.stellar.org');
     });
 
     it('returns true for MAINNET when account exists', async () => {
-      mockLoadAccount.mockResolvedValueOnce({ id: 'GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567' });
-      const result = await checkAccountExists('GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'MAINNET');
+      mockLoadAccount.mockResolvedValueOnce({ id: validAddress });
+      const result = await checkAccountExists(validAddress, 'MAINNET');
       expect(result).toBe(true);
       expect(Horizon.Server).toHaveBeenCalledWith('https://horizon.stellar.org');
     });
@@ -110,7 +112,7 @@ describe('validateStellarAddress utils', () => {
     it('returns false when Horizon returns 404 Not Found', async () => {
       const notFoundError = { response: { status: 404 } };
       mockLoadAccount.mockRejectedValueOnce(notFoundError);
-      const result = await checkAccountExists('GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'TESTNET');
+      const result = await checkAccountExists(validAddress, 'TESTNET');
       expect(result).toBe(false);
     });
 
@@ -118,23 +120,19 @@ describe('validateStellarAddress utils', () => {
       const networkError = new Error('Network failure');
       mockLoadAccount.mockRejectedValueOnce(networkError);
       await expect(
-        checkAccountExists('GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 'TESTNET')
+        checkAccountExists(validAddress, 'TESTNET')
       ).rejects.toThrow('Network failure');
     });
   });
 
   describe('validateStellarAddress', () => {
-    const validAddress = 'GABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-
     it('returns invalid-format if address format is invalid', async () => {
       const res = await validateStellarAddress('invalid-addr', 'TESTNET');
       expect(res).toEqual({ valid: false, error: 'invalid-format' });
     });
 
     it('returns wrong-network if MAINNET expected but address does not start with G', async () => {
-      // Construct valid format but starting with T
-      const testnetAddr = 'TABDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-      const res = await validateStellarAddress(testnetAddr, 'MAINNET');
+      const res = await validateStellarAddress(testnetAddress, 'MAINNET');
       expect(res).toEqual({ valid: false, error: 'wrong-network' });
     });
 
