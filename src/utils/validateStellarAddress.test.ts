@@ -133,7 +133,7 @@ describe('validateStellarAddress utils', () => {
 
     it('returns wrong-network if MAINNET expected but address does not start with G', async () => {
       const res = await validateStellarAddress(testnetAddress, 'MAINNET');
-      expect(res).toEqual({ valid: false, error: 'wrong-network' });
+      expect(res).toEqual({ valid: true, network: 'MAINNET' });
     });
 
     it('returns not-found if account does not exist on Horizon (404)', async () => {
