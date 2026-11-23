@@ -37,6 +37,29 @@ describe('HowItWorks Component', () => {
     expect(screen.getByText('03')).toBeInTheDocument();
   });
 
+  it('renders the steps as an ordered glass-card grid', () => {
+    const { container } = render(<HowItWorks />);
+
+    const list = screen.getByRole('list', { name: /how it works/i });
+    expect(list).toHaveClass('md:grid-cols-3');
+    expect(list.querySelectorAll('li')).toHaveLength(3);
+
+    const cards = container.querySelectorAll('.glass-card');
+    expect(cards).toHaveLength(3);
+    cards.forEach((card) => expect(card.tagName).toBe('ARTICLE'));
+  });
+
+  it('uses lucide icons for each step and hides them from assistive tech', () => {
+    const { container } = render(<HowItWorks />);
+
+    const icons = container.querySelectorAll('svg.lucide');
+    expect(icons).toHaveLength(3);
+    expect(container.querySelector('svg.lucide-wallet')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-coins')).toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-trending-up')).toBeInTheDocument();
+    icons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
+  });
+
   it('does not contain any contributor task placeholder', () => {
     const { container } = render(<HowItWorks />);
 
