@@ -185,6 +185,15 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           <p id="claim-rewards-description" className="mt-2 text-center text-xs text-gray-400">
             {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
           </p>
+          {isWalletConnected && pendingWinnings === 0 && (
+            <div className="mt-4 flex flex-col items-center gap-1 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-4 text-center">
+              <p className="text-sm font-semibold text-amber-200">No rewards to claim yet</p>
+              <p className="text-xs text-gray-400">
+                Win a prediction round to earn vXLM — your winnings will appear here when
+                they&apos;re ready to claim.
+              </p>
+            </div>
+          )}
         </>
       ) : (
         <div className="mt-6">

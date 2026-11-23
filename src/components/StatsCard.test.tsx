@@ -161,6 +161,38 @@ describe('StatsCard', () => {
     });
   });
 
+  describe('empty state when there are no pending rewards', () => {
+    it('shows helpful empty copy when connected with no pending winnings', () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      renderCard({ pendingWinnings: 0 });
+
+      // The claim action stays disabled, but now explains how to earn.
+      const button = screen.getByRole('button', { name: /claim rewards/i });
+      expect(button).toBeDisabled();
+
+      expect(screen.getByText('No rewards to claim yet')).toBeInTheDocument();
+      expect(
+        screen.getByText(/win a prediction round to earn vXLM/i),
+      ).toBeInTheDocument();
+    });
+
+    it('does not show the empty state when there are pending winnings', () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      renderCard({ pendingWinnings: 1000 });
+
+      expect(screen.queryByText('No rewards to claim yet')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /claim rewards/i })).toBeEnabled();
+    });
+
+    it('does not show the empty state when the wallet is disconnected', () => {
+      setWalletState({ status: 'idle', publicKey: null });
+      renderCard({ pendingWinnings: 0 });
+
+      expect(screen.queryByText('No rewards to claim yet')).not.toBeInTheDocument();
+      expectClaimDescription('Connect wallet to claim');
+    });
+  });
+
   describe('loading and error states', () => {
     it('renders a loading state without the stat rows', () => {
       renderCard({}, { isLoading: true });
