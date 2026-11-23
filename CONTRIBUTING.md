@@ -42,6 +42,23 @@ All routed pages are composed under the dark terminal shell in `src/App.tsx`: `<
 
 **Canonical shared UI:** Import `PanelHeader` only from `src/components/ui/PanelHeader.tsx`. Do not recreate a root-level `src/components/PanelHeader.tsx` — the duplicate was removed to prevent API drift.
 
+### Dashboard HUD surfaces
+
+- **Round lifecycle stepper** — `src/components/RoundTimeline.tsx` renders the
+  `open → betting → locked → settled` progression, marks the current step with
+  `aria-current="step"`, and announces transitions through an `aria-live`
+  region. Round/connection state stays exposed as `data-current-state`; the
+  lifecycle step is available as `data-current-step`.
+- **Soroban Inspector** — `src/components/SorobanInspectorPanel.tsx` renders the
+  inspector snapshot as labeled HUD rows (position side, stake, round id, pool
+  split, data source, contract status, last inspected) and keeps the raw
+  payload behind a "View raw JSON" disclosure. `Dashboard.tsx` only owns the
+  fetch/refresh wiring.
+- **End-round modal** — `src/components/EndRoundModal.tsx` uses a dark terminal
+  presentation with distinct win/loss readouts, a share action (Web Share API
+  with a clipboard fallback), a Radix Dialog focus trap, and no motion when the
+  user prefers reduced motion.
+
 ## ContributorTaskPlaceholder rebuild workflow
 
 Several UI surfaces are intentionally left as contributor rebuild tasks for the
@@ -120,8 +137,6 @@ These are the main contributor targets called out for Stellar Wave rebuilds:
 | `OfflineBanner` | `src/components/OfflineBanner.tsx` | Global connection-lost alert mounted in `App.tsx`. Functional baseline without a placeholder wrapper; use its assertive `aria-live` alert pattern when rebuilding related connection UX. |
 | `ProfileSummaryCard` | `src/components/ProfileSummaryCard.tsx` | Store hydrate + `ProfileSettingsModal` wiring kept; rebuild glass-card profile summary. |
 | `Pools` | `src/pages/Pools.tsx` | Mock pool data + loading spinner kept; rebuild pools transparency cards. |
-| `RoundTimeline` | `src/components/RoundTimeline.tsx` | Round state machine + sr-only aria-live kept; rebuild Upcoming → Live → Resolving → Finished stepper. |
-| `EndRoundModal` | `src/components/EndRoundModal.tsx` | Radix dialog wiring, win/loss copy, focus restore, and tests kept; rebuild celebration UI for dark terminal theme. |
 
 #### Additional active stubs (earlier stubs still present)
 
@@ -139,6 +154,8 @@ The following were earlier Stellar Wave stubs but no longer import
 | Component | Location |
 | --- | --- |
 | `RoundTimer` | `src/components/RoundTimer.tsx` |
+| `RoundTimeline` | `src/components/RoundTimeline.tsx` |
+| `EndRoundModal` | `src/components/EndRoundModal.tsx` |
 | `RankProgressBar` | `src/components/RankProgressBar.tsx` |
 | `ModeCards` | `src/components/ModeCards.tsx` |
 | `NewsRibbon` | `src/components/NewsRibbon.tsx` |
