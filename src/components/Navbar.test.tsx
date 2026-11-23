@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Navbar from './Navbar';
@@ -136,6 +136,43 @@ describe('Navbar', () => {
       renderNavbar();
       const buttons = screen.getAllByRole('button', { name: /connected/i });
       expect(buttons.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('network badge (shared component)', () => {
+    beforeEach(() => {
+      vi.mocked(useWalletStore).mockImplementation(makeStoreMock({ status: 'idle' }) as Parameters<typeof vi.mocked>[0]);
+    });
+
+    it('renders the shared badge with translated label and accessible name in the desktop bar', () => {
+      renderNavbar();
+      const badge = screen.getByTestId('network-badge');
+      expect(badge).toHaveTextContent('Testnet');
+      expect(badge).toHaveAttribute('aria-label', 'Stellar network: TESTNET');
+    });
+
+    it('renders the shared badge with translated label and accessible name in the mobile drawer', () => {
+      renderNavbar();
+      fireEvent.click(screen.getByRole('button', { name: /open mobile menu/i }));
+
+      const badges = screen.getAllByTestId('network-badge');
+      expect(badges.length).toBeGreaterThanOrEqual(2);
+      badges.forEach((badge) => {
+        expect(badge).toHaveTextContent('Testnet');
+        expect(badge).toHaveAttribute('aria-label', 'Stellar network: TESTNET');
+      });
+    });
+
+    it('keeps the translated label and accessible name after a language change', async () => {
+      renderNavbar();
+      fireEvent.change(screen.getByRole('combobox', { name: /language/i }), {
+        target: { value: 'es' },
+      });
+
+      await waitFor(() =>
+        expect(screen.getByTestId('network-badge')).toHaveTextContent('Red de prueba'),
+      );
+      expect(screen.getByTestId('network-badge')).toHaveAttribute('aria-label', 'Red Stellar: TESTNET');
     });
   });
 
