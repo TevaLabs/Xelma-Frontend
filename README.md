@@ -332,7 +332,8 @@ pnpm test
 
 Fixtures and handlers for the education, stats and pools endpoints live in
 `src/test/msw/` (`fixtures.ts`, `handlers.ts`). Each endpoint has a happy-path handler
-(`handlers`) and an error handler (`errorHandlers`).
+(`handlers`) and an error handler (`errorHandlers`). Education and stats handlers are
+covered by tests in `src/lib/api-client.msw.test.ts` (pools by `src/pages/Pools.test.tsx`).
 
 **In unit tests** — opt in per file:
 
@@ -351,10 +352,13 @@ server.use(...errorHandlers.pools);
 **In the browser** — run Learn, Dashboard and Pools with no backend:
 
 ```bash
-npx msw init public/ --save   # one-time: generates public/mockServiceWorker.js
 echo "VITE_ENABLE_MSW=true" >> .env.local
 pnpm dev
 ```
+
+The service worker file (`public/mockServiceWorker.js`) is committed to the repo, so
+no setup step is needed. Only regenerate it after an `msw` upgrade, with
+`npx msw init public/ --save`.
 
 Set `VITE_MSW_SCENARIO=error` alongside it to make every mocked endpoint return a 500.
 The worker only starts in dev builds and is off unless `VITE_ENABLE_MSW=true`.
