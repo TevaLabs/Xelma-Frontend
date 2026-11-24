@@ -113,6 +113,7 @@ export function normalizeApiError(error: unknown, fallbackMessage = 'Something w
 /** Stable toast id so concurrent 401/403 responses update a single toast. */
 const SESSION_EXPIRED_TOAST_ID = 'session-expired';
 
+/** The 'Reconnect' action deep-links to /connect (issue #1032) — not to home. */
 function notifySessionExpired(): void {
   toast.error('Session expired', {
     id: SESSION_EXPIRED_TOAST_ID,
