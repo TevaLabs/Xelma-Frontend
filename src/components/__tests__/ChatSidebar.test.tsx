@@ -21,6 +21,10 @@ vi.mock('../../lib/socket', () => ({
 vi.mock('../../hooks/useConnectionStatus', () => ({
   useConnectionStatus: vi.fn(() => ({
     status: 'connected',
+    error: null,
+    lastConnected: null,
+    reconnectAttempts: 0,
+    reconnect: vi.fn(),
     isConnected: true,
     isConnecting: false,
     isReconnecting: false,
@@ -120,6 +124,10 @@ describe('ChatSidebar — offline guard and character limit', () => {
   afterEach(() => {
     vi.mocked(useConnectionStatus).mockReturnValue({
       status: 'connected',
+      error: null,
+      lastConnected: null,
+      reconnectAttempts: 0,
+      reconnect: vi.fn(),
       isConnected: true,
       isConnecting: false,
       isReconnecting: false,
@@ -127,9 +135,14 @@ describe('ChatSidebar — offline guard and character limit', () => {
     });
   });
 
-  it('shows a clear offline indicator and disables input/send when disconnected', () => {
+  it('shows a clear offline indicator, reconnect CTA, and disables input/send when disconnected', () => {
+    const reconnect = vi.fn();
     vi.mocked(useConnectionStatus).mockReturnValue({
       status: 'disconnected',
+      error: null,
+      lastConnected: null,
+      reconnectAttempts: 0,
+      reconnect,
       isConnected: false,
       isConnecting: false,
       isReconnecting: false,
@@ -141,11 +154,37 @@ describe('ChatSidebar — offline guard and character limit', () => {
     expect(screen.getByText(/chat is offline/i)).toBeInTheDocument();
     expect(screen.getByLabelText('Message input')).toBeDisabled();
     expect(screen.getByLabelText('Send message')).toBeDisabled();
+
+    const reconnectButton = screen.getByRole('button', { name: /reconnect/i });
+    expect(reconnectButton).toBeEnabled();
+    fireEvent.click(reconnectButton);
+    expect(reconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('does not show the offline indicator while connected', () => {
+  it('disables the reconnect CTA while reconnecting', () => {
+    vi.mocked(useConnectionStatus).mockReturnValue({
+      status: 'reconnecting',
+      error: null,
+      lastConnected: null,
+      reconnectAttempts: 1,
+      reconnect: vi.fn(),
+      isConnected: false,
+      isConnecting: false,
+      isReconnecting: true,
+      isDisconnected: false,
+    });
+
+    render(<ChatSidebar />);
+
+    expect(screen.getByText(/reconnecting to chat/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reconnecting/i })).toBeDisabled();
+    expect(screen.getByLabelText('Send message')).toBeDisabled();
+  });
+
+  it('does not show the offline indicator or reconnect CTA while connected', () => {
     render(<ChatSidebar />);
     expect(screen.queryByText(/chat is offline/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reconnect/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Message input')).not.toBeDisabled();
   });
 

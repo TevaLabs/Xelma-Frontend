@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, WifiOff } from "lucide-react";
+import { MessageCircle, RefreshCw, WifiOff } from "lucide-react";
 import { socketService } from "../lib/socket";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useFocusTrap } from "../hooks/useFocusTrap";
@@ -115,7 +115,8 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
-  const { isConnected } = useConnectionStatus();
+  const { isConnected, isConnecting, isReconnecting, reconnect } = useConnectionStatus();
+  const isReconnectingState = isConnecting || isReconnecting;
   // Round-scoped chat channel: derived from the active round so users in
   // round #42 only see round #42 messages. Falls back to CHAT_CHANNEL_FALLBACK
   // when there is no active round (issue #185).
@@ -366,11 +367,27 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] glass-card border-t border-x-0 border-b-0 rounded-none shrink-0">
           {!isConnected && (
             <div
-              className="mb-2 flex items-center justify-center gap-1.5 text-xs text-red-400"
+              className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-red-400/20 bg-red-500/10 px-2.5 py-1.5 text-xs text-red-400"
               role="status"
             >
-              <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
-              Chat is offline - messages cannot be sent
+              <span className="flex items-center gap-1.5">
+                <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {isReconnectingState
+                  ? "Reconnecting to chat..."
+                  : "Chat is offline - messages cannot be sent"}
+              </span>
+              <button
+                type="button"
+                onClick={reconnect}
+                disabled={isReconnectingState}
+                className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-1 text-xs font-medium text-white hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 cursor-pointer"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 ${isReconnectingState ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                {isReconnectingState ? "Reconnecting..." : "Reconnect"}
+              </button>
             </div>
           )}
           <div className="flex items-end gap-2 p-2 bg-white/5 border border-white/10 rounded-xl">
