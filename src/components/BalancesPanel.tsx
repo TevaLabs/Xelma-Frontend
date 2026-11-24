@@ -165,8 +165,11 @@ export default function BalancesPanel({ className }: { className?: string }) {
       {viewState === 'loaded' && balances?.isUnfunded && (
         <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] p-4 text-center">
           <p className="text-sm font-semibold text-gray-300">Account not funded</p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-400">
             This address does not exist on the network yet. Fund it to see balances.
+          </p>
+          <p className="mt-2 text-xs text-gray-500">
+            To activate this account on the Stellar ledger, fund it with at least 1 XLM (or use the Stellar Testnet Friendbot).
           </p>
         </div>
       )}

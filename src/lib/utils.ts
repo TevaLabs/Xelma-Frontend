@@ -25,8 +25,8 @@ export function formatVXLM(value: number, decimals = 2): string {
 }
 
 /**
- * Format a ratio (0–1) as a percentage string with a fixed number of decimal
- * places. Pass a plain fraction, e.g. formatPercent(0.4567) → "45.67%".
+ * Format a ratio (0-1) as a percentage string with a fixed number of decimal
+ * places. Pass a plain fraction, e.g. formatPercent(0.4567) -> "45.67%".
  */
 export function formatPercent(ratio: number, decimals = 2): string {
   if (!Number.isFinite(ratio)) return "0.00%";
