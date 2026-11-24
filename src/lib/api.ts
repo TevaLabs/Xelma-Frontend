@@ -120,7 +120,7 @@ function notifySessionExpired(): void {
     action: {
       label: 'Reconnect',
       onClick: () => {
-        window.location.href = '/';
+        window.location.href = '/connect';
       },
     },
     duration: Infinity,

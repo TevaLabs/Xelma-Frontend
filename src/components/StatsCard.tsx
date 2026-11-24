@@ -115,7 +115,12 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
   }
 
   return (
-    <GlassCard as="section" className="rounded-2xl p-5" aria-labelledby="your-stats-title">
+    <GlassCard
+      as="section"
+      className="rounded-2xl p-5"
+      aria-labelledby="your-stats-title"
+      aria-busy={tx.isInFlight}
+    >
       <PanelHeader title="Your Record" />
 
       <dl className="mt-5 space-y-4">
@@ -169,6 +174,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
             disabled={!canClaim}
             onClick={handleClaim}
             title={!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Claim your rewards"}
+            aria-describedby="claim-rewards-description"
             className={`mt-6 w-full rounded-xl border py-3 text-sm font-semibold transition-colors
               ${canClaim 
                 ? 'border-amber-400/50 bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' 
@@ -176,7 +182,7 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
           >
             Claim Rewards
           </button>
-          <p className="mt-2 text-center text-xs text-gray-400">
+          <p id="claim-rewards-description" className="mt-2 text-center text-xs text-gray-400">
             {!isWalletConnected ? "Connect wallet to claim" : pendingWinnings === 0 ? "No pending rewards" : "Ready to claim"}
           </p>
         </>

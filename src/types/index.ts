@@ -36,6 +36,8 @@ export interface RecentActivityItem {
   result: 'Won' | 'Lost' | 'Pending' | 'Failed';
   amount: number;
   mode: RoundMode;
+  timestamp?: Date | number | string;
+  createdAt?: Date | number | string;
 }
 
 export interface PricePoint {

@@ -51,10 +51,32 @@ export function formatCompactNumber(value: number, decimals = 2): string {
 }
 
 /**
- * Format a date as a relative time string (e.g. "just now", "5m ago", "3h ago", "2d ago").
+ * Format a date, timestamp (ms/sec), or ISO date string as a relative time string
+ * (e.g. "just now", "5m ago", "3h ago", "2d ago").
  * Falls back to toLocaleDateString for dates older than 30 days.
  */
-export function formatRelativeTime(date: Date): string {
+export function formatRelativeTime(
+  dateInput: Date | number | string | null | undefined,
+): string {
+  if (dateInput === null || dateInput === undefined || dateInput === "") {
+    return "just now";
+  }
+
+  let date: Date;
+  if (dateInput instanceof Date) {
+    date = dateInput;
+  } else if (typeof dateInput === "number") {
+    // Timestamps in seconds (10 digits) are converted to milliseconds
+    const ms = dateInput < 1e11 ? dateInput * 1000 : dateInput;
+    date = new Date(ms);
+  } else {
+    date = new Date(dateInput);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return "just now";
+  }
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
 

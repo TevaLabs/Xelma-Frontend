@@ -7,6 +7,7 @@ import XdrPreviewDrawer from './XdrPreviewDrawer';
 import { MODAL_OVERLAY, MODAL_CONTENT } from '../utils/motion';
 import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
 import PredictionHelpTooltip from './PredictionHelpTooltip';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export interface PredictionData {
   direction: 'UP' | 'DOWN';
@@ -89,6 +90,18 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
 
   // Shared transaction status machine (preparing → signing → submitting → syncing)
   const tx = useTxStatusMachine();
+
+  // Single guarded dismiss path for the backdrop, the X button and Escape.
+  // While a transaction is in flight the user must not be able to abandon it.
+  const requestClose = useCallback(() => {
+    if (!tx.isInFlight) onClose();
+  }, [onClose, tx.isInFlight]);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, {
+    active: isOpen,
+    onEscape: requestClose,
+  });
 
   const initialView = (!isConnected || !isAuthenticated || isWatchOnly) ? 'wallet_required' : 'confirm';
   const [view, setView] = useState<ModalView>(initialView);
@@ -407,10 +420,18 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           {outcomeAnnouncement}
         </div>
       )}
-      <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={onClose} />
-      <div className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}>
+      <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${MODAL_OVERLAY}`} onClick={requestClose} />
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Place prediction"
+        aria-labelledby="prediction-modal-title"
+        tabIndex={-1}
+        className={`glass-card relative z-10 w-full max-w-md rounded-2xl bg-gray-900 border border-gray-800 p-6 text-white shadow-2xl ${MODAL_CONTENT}`}
+      >
         <button
-          onClick={onClose}
+          onClick={requestClose}
           className="absolute right-4 top-4 text-gray-400 hover:text-white"
           aria-label="Close"
         >
@@ -421,7 +442,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
           <div className="text-center py-4">
             {isWatchOnly ? (
               <>
-                <h3 className="text-lg font-bold text-purple-400 mb-2">Watch-Only Mode</h3>
+                <h3 className="text-lg font-bold text-purple-400 mb-2" id="prediction-modal-title">Watch-Only Mode</h3>
                 <p className="text-gray-400 text-sm mb-6">
                   You are viewing this address in watch-only mode. Connect a wallet with signing capability to submit predictions.
                 </p>
@@ -435,7 +456,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               </>
             ) : (
               <>
-                <h3 className="text-lg font-bold text-red-400 mb-2">Wallet & Auth Required</h3>
+                <h3 className="text-lg font-bold text-red-400 mb-2" id="prediction-modal-title">Wallet & Auth Required</h3>
                 <p className="text-gray-400 text-sm mb-6">
                   You need to connect and authenticate your Stellar wallet to submit predictions.
                 </p>
@@ -527,7 +548,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               <button
                 type="button"
                 role="tab"
+                id="bet-modal-tab-direction"
+                aria-controls="bet-modal-panel-direction"
                 aria-selected={mode === 'direction'}
+                tabIndex={mode === 'direction' ? 0 : -1}
                 onClick={() => { setMode('direction'); setFormError(''); }}
                 className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'direction' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
               >
@@ -536,7 +560,10 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               <button
                 type="button"
                 role="tab"
+                id="bet-modal-tab-precision"
+                aria-controls="bet-modal-panel-precision"
                 aria-selected={mode === 'precision'}
+                tabIndex={mode === 'precision' ? 0 : -1}
                 onClick={() => { setMode('precision'); setFormError(''); }}
                 className={`rounded-lg py-2 text-sm font-semibold transition ${mode === 'precision' ? 'bg-[#2C4BFD] text-white' : 'text-gray-400 hover:text-white'}`}
               >
@@ -544,7 +571,15 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
               </button>
             </div>
 
-            <div className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6">
+            {/* The form card serves as the active tabpanel.
+                Its id and aria-labelledby swap with the selected mode so each
+                tab button's aria-controls always resolves to the visible panel. */}
+            <div
+              id={mode === 'direction' ? 'bet-modal-panel-direction' : 'bet-modal-panel-precision'}
+              role="tabpanel"
+              aria-labelledby={mode === 'direction' ? 'bet-modal-tab-direction' : 'bet-modal-tab-precision'}
+              className="space-y-4 bg-gray-850 p-4 rounded-xl border border-gray-800 mb-6"
+            >
               <div className="flex justify-between">
                 <span className="text-gray-400">Mode</span>
                 <span className="font-semibold">
@@ -752,7 +787,7 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
             successTitle="Prediction Submitted!"
             successMessage="Your prediction has been successfully written on-chain and registered."
             onRetry={handleConfirm}
-            onDone={onClose}
+            onDone={requestClose}
           />
         )}
       </div>

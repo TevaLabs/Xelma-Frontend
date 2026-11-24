@@ -137,6 +137,17 @@ describe('apiFetch', () => {
       'Session expired',
       expect.objectContaining({ id: 'session-expired', duration: Infinity }),
     );
+    const options = toastErrorMock.mock.calls[0][1];
+    expect(options.action.label).toBe('Reconnect');
+    
+    // Test the onClick behavior
+    const originalLocation = window.location;
+    // @ts-expect-error - overriding window.location for test
+    delete window.location;
+    window.location = { href: '' } as Location;
+    options.action.onClick();
+    expect(window.location.href).toBe('/connect');
+    window.location = originalLocation;
   });
 
   it('uses actionable fallback message on 500', async () => {

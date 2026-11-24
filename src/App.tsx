@@ -58,7 +58,9 @@ function App() {
                 <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
-                <Route path="*" element={<NotFound />} />                </Routes>
+                {/* Single catch-all: any unmatched path renders NotFound. */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
             </RouteTransition>
           </Suspense>
         </LazyBoundary>

@@ -184,12 +184,12 @@ export const mockUserStats: MockUserStats = {
 };
 
 export const mockRecentActivity: RecentActivityItem[] = [
-  { id: '1', asset: 'BTC', result: 'Won', amount: 150, mode: 'updown' },
-  { id: '2', asset: 'ETH', result: 'Lost', amount: 50, mode: 'precision' },
-  { id: '3', asset: 'XLM', result: 'Won', amount: 80, mode: 'updown' },
-  { id: '4', asset: 'BTC', result: 'Won', amount: 120, mode: 'updown' },
-  { id: '5', asset: 'ETH', result: 'Won', amount: 200, mode: 'updown' },
-  { id: '6', asset: 'XLM', result: 'Lost', amount: 30, mode: 'precision' },
+  { id: '1', asset: 'BTC', result: 'Won', amount: 150, mode: 'updown', timestamp: '2026-07-28T11:55:00Z' },
+  { id: '2', asset: 'ETH', result: 'Lost', amount: 50, mode: 'precision', timestamp: '2026-07-28T11:45:00Z' },
+  { id: '3', asset: 'XLM', result: 'Won', amount: 80, mode: 'updown', timestamp: '2026-07-28T11:30:00Z' },
+  { id: '4', asset: 'BTC', result: 'Won', amount: 120, mode: 'updown', timestamp: '2026-07-28T10:00:00Z' },
+  { id: '5', asset: 'ETH', result: 'Won', amount: 200, mode: 'updown', timestamp: '2026-07-28T09:00:00Z' },
+  { id: '6', asset: 'XLM', result: 'Lost', amount: 30, mode: 'precision', timestamp: '2026-07-27T12:00:00Z' },
 ];
 
 export const mockLandingStats = {
