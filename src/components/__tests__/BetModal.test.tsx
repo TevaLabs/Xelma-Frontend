@@ -248,6 +248,72 @@ describe('BetModal Component', () => {
       }
     });
 
+    it('exposes dialog semantics with a labelled heading', () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('aria-modal', 'true');
+      expect(dialog).toHaveAttribute('aria-label', 'Place prediction');
+      expect(dialog).toHaveAttribute('tabindex', '-1');
+
+      const labelledBy = dialog.getAttribute('aria-labelledby');
+      expect(labelledBy).toBeTruthy();
+      expect(document.getElementById(labelledBy!)).toHaveTextContent('Confirm Prediction');
+    });
+
+    it('moves focus into the dialog when it opens', async () => {
+      render(
+        <BetModal isOpen={true} onClose={vi.fn()} predictionData={defaultPrediction} />
+      );
+
+      const dialog = screen.getByRole('dialog');
+      await waitFor(() => {
+        expect(dialog.contains(document.activeElement)).toBe(true);
+      });
+    });
+
+    it('closes on Escape when no transaction is in flight', () => {
+      const onClose = vi.fn();
+      render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks every dismiss path while a transaction is in flight', async () => {
+      let resolveBet!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(place_bet).mockImplementation(
+        () => new Promise((resolve) => { resolveBet = resolve; })
+      );
+      vi.mocked(predictionsApi.submit).mockResolvedValue({ id: 1 } as any);
+
+      const onClose = vi.fn();
+      const { container } = render(
+        <BetModal isOpen={true} onClose={onClose} predictionData={defaultPrediction} />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Transaction...')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText('Close'));
+      const backdrop = container.querySelector('.bg-black\\/60');
+      if (backdrop) fireEvent.click(backdrop);
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(onClose).not.toHaveBeenCalled();
+
+      resolveBet({ txHash: 'tx_hash_guarded', ledger: 457 });
+      await waitFor(() => {
+        expect(screen.getByText('Prediction Submitted!')).toBeInTheDocument();
+      });
+    });
+
     it('does not render when predictionData is null', () => {
       const { container } = render(
         <BetModal isOpen={true} onClose={vi.fn()} predictionData={null} />
