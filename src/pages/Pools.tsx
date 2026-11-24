@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowUp, ArrowDown, Target, TrendingUp, RefreshCw } from 'lucide-react';
+import AssetTabs from '../components/AssetTabs';
 import { AssetIcon } from '../components/icons';
 import EmptyState from '../components/EmptyState';
 import { Spinner } from '../components/ui/Spinner';
 import Sparkline from '../components/Sparkline';
 import { getTrendLabel } from '../components/Sparkline.helpers';
+import { ASSETS } from '../constants/assets';
 import { formatCompactNumber } from '../lib/utils';
 import { poolsApi, type PoolAsset, type PoolStats } from '../lib/api-client';
 
@@ -48,8 +51,8 @@ function VolumeStat({
 
 function UpDownSplit({ up, down }: { up: number; down: number }) {
   const total = up + down;
-  const upPct = total > 0 ? Math.round((up / total) * 100) : 50;
-  const downPct = 100 - upPct;
+  const upPct = total > 0 ? Math.round((up / total) * 100) : 0;
+  const downPct = total > 0 ? 100 - upPct : 0;
 
   return (
     <div>
@@ -130,10 +133,14 @@ function PoolCard({ pool }: { pool: PoolStats }) {
 }
 
 export default function Pools() {
+  const [searchParams] = useSearchParams();
+  const assetParam = searchParams.get('asset');
+  const selectedAsset = ASSETS.find((asset) => asset === assetParam) ?? 'XLM';
   const [data, setData] = useState<PoolStats[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const selectedPools = data?.filter((pool) => pool.asset === selectedAsset);
 
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
@@ -166,45 +173,60 @@ export default function Pools() {
         Transparency and historical stats for all active round pools.
       </p>
 
-      {isLoading && (
-        <div className="flex min-h-[40vh] items-center justify-center">
-          <Spinner label="Loading pools" size="lg" />
-        </div>
-      )}
+      <AssetTabs className="mt-6" />
 
-      {!isLoading && error && (
-        <EmptyState
-          className="mt-10"
-          title="Couldn't load pools"
-          description={error}
-          action={
-            <button
-              type="button"
-              onClick={reload}
-              className="btn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-            >
-              <RefreshCw className="h-4 w-4" aria-hidden />
-              Retry
-            </button>
-          }
-        />
-      )}
+      <section
+        id={`asset-panel-${selectedAsset}`}
+        role="tabpanel"
+        aria-labelledby={`asset-tab-${selectedAsset}`}
+        aria-busy={isLoading}
+      >
+        {isLoading && (
+          <div className="flex min-h-[40vh] items-center justify-center">
+            <Spinner label="Loading pools" size="lg" />
+          </div>
+        )}
 
-      {!isLoading && !error && data && data.length === 0 && (
-        <EmptyState
-          className="mt-10"
-          title="No pools available"
-          description="There are no active round pools right now. Check back once a round opens."
-        />
-      )}
+        {!isLoading && error && (
+          <div role="alert">
+            <EmptyState
+              className="mt-10"
+              title="Couldn't load pools"
+              description={error}
+              action={
+                <button
+                  type="button"
+                  onClick={reload}
+                  className="btn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden />
+                  Retry
+                </button>
+              }
+            />
+          </div>
+        )}
 
-      {!isLoading && !error && data && data.length > 0 && (
-        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {data.map((pool) => (
-            <PoolCard key={pool.asset} pool={pool} />
-          ))}
-        </div>
-      )}
+        {!isLoading && !error && selectedPools && selectedPools.length === 0 && (
+          <EmptyState
+            className="mt-10"
+            title={data?.length === 0 ? 'No pools available' : `No ${selectedAsset} pool available`}
+            description={
+              data?.length === 0
+                ? 'There are no active round pools right now. Check back once a round opens.'
+                : `There is no active ${selectedAsset} pool right now. Check back once a round opens.`
+            }
+          />
+        )}
+
+        {!isLoading && !error && selectedPools && selectedPools.length > 0 && (
+          <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {selectedPools.map((pool) => (
+              <PoolCard key={pool.asset} pool={pool} />
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
