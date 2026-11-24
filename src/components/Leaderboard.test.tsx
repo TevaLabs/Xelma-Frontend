@@ -350,3 +350,69 @@ describe('Leaderboard wallet sticky row', () => {
     expect(screen.queryByText('Current wallet summary')).not.toBeInTheDocument();
   });
 });
+
+describe('Leaderboard delta to #1', () => {
+  beforeEach(() => {
+    setWalletState();
+    useVirtualizerMock.mockReset();
+  });
+
+  it('shows accessible gap text for non-first podium and ranked list entries, and omits it for #1', async () => {
+    mockVirtualizerWithAllRows();
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(LEADERBOARD_FIXTURE);
+
+    renderLeaderboard();
+
+    expect(await screen.findByText('Alice')).toBeInTheDocument();
+
+    // #1 (Alice: 12000) has no gap text.
+    const podium = screen.getByLabelText('Top three leaderboard podium');
+    expect(within(podium).queryByText(/Tied with #1/i)).not.toBeInTheDocument();
+
+    // #2 (Bob: 8500 -> 3500 behind) and #3 (Carol: 5000 -> 7000 behind).
+    expect(within(podium).getByText('3.50K vXLM behind #1')).toBeInTheDocument();
+    expect(within(podium).getByText('7.00K vXLM behind #1')).toBeInTheDocument();
+
+    // Ranked list entries (#4 Dave: 2400 -> 9600 behind, #5 Eve: 900 -> 11100 behind, #6 Frank: 300 -> 11700 behind).
+    const list = screen.getByLabelText('Leaderboard ranked list');
+    expect(within(list).getByText('9.60K vXLM behind #1')).toBeInTheDocument();
+    expect(within(list).getByText('11.10K vXLM behind #1')).toBeInTheDocument();
+    expect(within(list).getByText('11.70K vXLM behind #1')).toBeInTheDocument();
+  });
+
+  it('shows "Tied with #1" when a non-first entry has the same score as #1', async () => {
+    mockVirtualizerWithAllRows();
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue([
+      { id: 'user-1', username: 'Alice', xlm: 5000 },
+      { id: 'user-2', username: 'Bob', xlm: 5000 },
+    ]);
+
+    renderLeaderboard();
+
+    expect(await screen.findByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('Tied with #1')).toBeInTheDocument();
+  });
+
+  it('shows gap text in the current wallet summary when not first, and omits it when #1', async () => {
+    mockVirtualizerWithAllRows();
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(LEADERBOARD_FIXTURE);
+
+    // Connected as #4 (Dave: 2400 -> 9.60K vXLM behind #1)
+    setWalletState({ publicKey: 'user-4', status: 'connected' });
+    const { unmount } = renderLeaderboard();
+
+    expect(await screen.findByText('Current wallet summary')).toBeInTheDocument();
+    const summaryNotFirst = screen.getByText('Current wallet summary').closest('.lg\\:sticky')!;
+    expect(within(summaryNotFirst).getByText('9.60K vXLM behind #1')).toBeInTheDocument();
+
+    unmount();
+
+    // Connected as #1 (Alice: 12000 -> no gap text in summary)
+    setWalletState({ publicKey: 'user-1', status: 'connected' });
+    renderLeaderboard();
+
+    expect(await screen.findByText('Current wallet summary')).toBeInTheDocument();
+    const summaryFirst = screen.getByText('Current wallet summary').closest('.lg\\:sticky')!;
+    expect(within(summaryFirst).queryByText(/behind #1|Tied with #1/i)).not.toBeInTheDocument();
+  });
+});
