@@ -11,6 +11,7 @@ const landmarkPages = [
   'src/pages/Connect.tsx',
   'src/pages/Learn.tsx',
   'src/pages/Settings.tsx',
+  'src/pages/ComingSoonPage.tsx',
   'src/components/Leaderboard.tsx',
 ];
 

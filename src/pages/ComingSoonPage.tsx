@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, type LucideIcon } from 'lucide-react';
 
 interface ComingSoonPageProps {
@@ -11,7 +11,10 @@ export default function ComingSoonPage({ icon: Icon, title, description }: Comin
   const navigate = useNavigate();
 
   return (
-    <main className="xelma-grid-bg flex min-h-screen items-center justify-center px-4">
+    <main
+      id="main-content"
+      className="xelma-grid-bg flex min-h-screen items-center justify-center px-4"
+    >
       <div className="glass-card mx-auto max-w-md rounded-2xl p-10 text-center">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#2C4BFD]/15">
           <Icon className="h-8 w-8 text-[#BEC7FE]" aria-hidden />
@@ -29,6 +32,15 @@ export default function ComingSoonPage({ icon: Icon, title, description }: Comin
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Go back
         </button>
+
+        <nav aria-label="Alternative navigation" className="mt-5 flex justify-center gap-5 text-sm">
+          <Link to="/" className="font-semibold text-[#BEC7FE] hover:text-white">
+            Home
+          </Link>
+          <Link to="/dashboard" className="font-semibold text-[#BEC7FE] hover:text-white">
+            Dashboard
+          </Link>
+        </nav>
       </div>
     </main>
   );
