@@ -42,6 +42,22 @@ All routed pages are composed under the dark terminal shell in `src/App.tsx`: `<
 
 **Canonical shared UI:** Import `PanelHeader` only from `src/components/ui/PanelHeader.tsx`. Do not recreate a root-level `src/components/PanelHeader.tsx` — the duplicate was removed to prevent API drift.
 
+`PanelHeader` API (single source of truth, see JSDoc in the component):
+
+| Prop | Type | Notes |
+| --- | --- | --- |
+| `title` | `string` | Required. |
+| `subtitle` | `string` | Optional secondary line. |
+| `icon` | `ReactNode` | Leading visual (`default` variant only). |
+| `action` | `ReactNode` | Trailing slot for buttons/filters. |
+| `actions` | `ReactNode` | **Deprecated** alias of `action` (legacy root API); `action` wins. |
+| `status` | `{ label; variant? }` | Status pill (`success` \| `warning` \| `error` \| `info` \| `default`). |
+| `variant` | `"default" \| "hero"` | `hero` renders a centered page headline. |
+| `headingLevel` | `1–6` | Defaults to `3` (`default`) / `1` (`hero`). |
+| `className` | `string` | Merged onto the root. |
+
+`src/components/ui/PanelHeader.test.tsx` fails if a root-level duplicate is reintroduced.
+
 ## ContributorTaskPlaceholder rebuild workflow
 
 Several UI surfaces are intentionally left as contributor rebuild tasks for the

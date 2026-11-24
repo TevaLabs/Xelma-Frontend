@@ -32,3 +32,16 @@ export const LongTitle = () => (
     subtitle="Your last 30 days of activity"
   />
 );
+
+export const WithIconAndStatus = () => (
+  <PanelHeader
+    title="Soroban Inspector"
+    subtitle="Read-only wallet position and round state."
+    icon={<span style={{ color: 'white', fontWeight: 700 }}>XLM</span>}
+    status={{ label: 'Live', variant: 'success' }}
+  />
+);
+
+export const Hero = () => (
+  <PanelHeader variant="hero" title="Leaderboard" subtitle="Top traders this week" />
+);
