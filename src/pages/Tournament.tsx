@@ -234,7 +234,7 @@ export default function Tournament() {
   const { t } = useTranslation();
 
   return (
-    <main id="main-content" className="xelma-grid-bg min-h-screen">
+    <main id="main-content" tabIndex={-1} className="xelma-grid-bg min-h-screen">
       {/* Hero */}
       <section className="px-4 pt-16 pb-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">

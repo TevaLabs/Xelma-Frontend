@@ -39,3 +39,19 @@ test.describe('E2E accessibility scan', () => {
     });
   }
 });
+
+test.describe('Skip link keyboard navigation', () => {
+  test('Tab to skip link and activate moves focus to #main-content', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.keyboard.press('Tab');
+
+    const skipLink = page.getByRole('link', { name: /skip to main content/i });
+    await expect(skipLink).toBeFocused();
+
+    await page.keyboard.press('Enter');
+
+    await expect(page.locator('#main-content')).toBeFocused();
+  });
+});
