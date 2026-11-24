@@ -15,6 +15,7 @@ const Connect = () => {
   const [address, setAddress] = useState('');
   const [selectedNetwork, setSelectedNetwork] = useState<Network>('TESTNET');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -66,8 +67,14 @@ const Connect = () => {
       return;
     }
 
-    // Use watch-only mode for manual address connection
-    await setWatchOnly(address);
+    // Use watch-only mode for manual address connection. Guard the in-flight
+    // request so the button can't be double-fired while setWatchOnly validates.
+    setIsSubmitting(true);
+    try {
+      await setWatchOnly(address);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Get the feedback icon based on validation state
@@ -151,6 +158,13 @@ const Connect = () => {
                   </button>
                 </div>
               </>
+            ) : isSubmitting ? (
+              <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-4">
+                <div className="flex items-center gap-2 text-cyan-400">
+                  <Spinner size="sm" />
+                  <span className="text-sm font-semibold">Activating watch-only mode…</span>
+                </div>
+              </div>
             ) : (
               <>
                 <WalletConnect />
@@ -282,11 +296,11 @@ const Connect = () => {
           <button
             type="button"
             onClick={handleConnect}
-            disabled={!isValid || isValidating}
+            disabled={!isValid || isValidating || isSubmitting}
             className={clsx(
               'w-full px-4 py-3 rounded-lg font-semibold transition-all duration-200',
               'flex items-center justify-center gap-2',
-              isValid && !isValidating
+              isValid && !isValidating && !isSubmitting
                 ? 'bg-[#2C4BFD] hover:bg-[#1a3bf0] text-white cursor-pointer'
                 : 'bg-white/10 text-gray-500 cursor-not-allowed'
             )}
@@ -295,6 +309,11 @@ const Connect = () => {
               <>
                 <Spinner size="sm" />
                 <span>Validating...</span>
+              </>
+            ) : isSubmitting ? (
+              <>
+                <Spinner size="sm" />
+                <span>Connecting...</span>
               </>
             ) : (
               <>

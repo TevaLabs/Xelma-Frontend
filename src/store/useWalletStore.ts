@@ -4,13 +4,14 @@ import { toast } from 'sonner';
 import { freighterAdapter } from '../lib/wallets';
 import { useAuthStore } from './useAuthStore';
 import { getApiBaseUrl } from '../lib/apiConfig';
-import { HORIZON_URL } from '../lib/horizon';
+import { HORIZON_URL, fetchAccountBalances } from '../lib/horizon';
 import { FRIENDBOT_ENABLED, LOW_BALANCE_THRESHOLD_XLM } from '../lib/friendbot';
 import {
   EXPECTED_NETWORK_LABEL,
   isExpectedNetwork,
   networkPassphraseFor,
 } from '../lib/stellarNetwork';
+import { validateStellarAddressFormat } from '../utils/validateStellarAddress';
 
 const API_BASE = getApiBaseUrl();
 
@@ -240,21 +241,28 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     });
 
     try {
-      // Validate Stellar G-address format
-      if (!address.startsWith('G') || address.length !== 56) {
-        throw new Error('Invalid Stellar address. Must be a G-address (56 characters starting with G).');
+      // Reject malformed addresses up front so a manual entry can never fake a
+      // Connected state. StrKey verifies the Base32 checksum, not just length.
+      if (!validateStellarAddressFormat(address)) {
+        throw new Error('Invalid Stellar address. Enter a valid 56-character G-address.');
       }
 
-      let formattedBalance: string | null = null;
-      try {
-        formattedBalance = await fetchFormattedBalance(address);
-      } catch {
-        formattedBalance = null;
-        toast.error('Could not load balance. The address may not exist on the network.');
+      const normalized = address.trim().toUpperCase();
+
+      // Confirm the account exists on the configured network before claiming a
+      // connection. A 404 means the address is not funded there, so we refuse to
+      // set status 'connected' — that would let a manual address fake Connected.
+      const account = await fetchAccountBalances(normalized);
+      if (account.isUnfunded) {
+        throw new Error(`Account not found on ${EXPECTED_NETWORK_LABEL}.`);
       }
+
+      const formattedBalance = account.native
+        ? `${parseFloat(account.native.balance).toFixed(2)} XLM`
+        : '0.00 XLM';
 
       set({
-        publicKey: address,
+        publicKey: normalized,
         network: EXPECTED_NETWORK_LABEL.toLowerCase(),
         balance: formattedBalance,
         status: 'connected',
