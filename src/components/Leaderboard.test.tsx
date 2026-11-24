@@ -316,6 +316,97 @@ describe('Leaderboard URL filter synchronization', () => {
   });
 });
 
+describe('Leaderboard filter request wiring', () => {
+  beforeEach(() => {
+    setWalletState();
+    useVirtualizerMock.mockReset();
+  });
+
+  it('sends the default filter with the initial leaderboard request', async () => {
+    mockVirtualizerWithAllRows();
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(LEADERBOARD_FIXTURE);
+
+    renderLeaderboard();
+
+    await screen.findByText('Alice');
+    expect(leaderboardApi.getLeaderboard).toHaveBeenCalledWith('UP_DOWN', 'all');
+  });
+
+  it('sends the selected filter and refetches when a filter tab is chosen', async () => {
+    mockVirtualizerWithAllRows();
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(LEADERBOARD_FIXTURE);
+
+    renderLeaderboard();
+    const tabs = await screen.findAllByRole('tab');
+
+    fireEvent.click(tabs[1]); // daily
+
+    expect(await screen.findByText('Alice')).toBeInTheDocument();
+    expect(leaderboardApi.getLeaderboard).toHaveBeenCalledTimes(2);
+    expect(leaderboardApi.getLeaderboard).toHaveBeenLastCalledWith('UP_DOWN', 'daily');
+  });
+
+  it('sends a filter read from the URL on first load', async () => {
+    mockVirtualizerWithAllRows();
+    vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(LEADERBOARD_FIXTURE);
+
+    render(
+      <MemoryRouter initialEntries={['/leaderboard?filter=monthly']}>
+        <Leaderboard />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Alice');
+    expect(leaderboardApi.getLeaderboard).toHaveBeenCalledWith('UP_DOWN', 'monthly');
+  });
+
+  it('discards a stale response that resolves after a newer filter request', async () => {
+    const resolutions = new Map<string, (value: LeaderboardEntry[]) => void>();
+    vi.mocked(leaderboardApi.getLeaderboard).mockImplementation(
+      (_mode, filter) =>
+        new Promise<LeaderboardEntry[]>((resolve) => {
+          resolutions.set(filter ?? 'all', resolve);
+        }),
+    );
+
+    function FilterSetter() {
+      const [, setSearchParams] = useSearchParams();
+      return (
+        <button type="button" onClick={() => setSearchParams({ filter: 'daily' })}>
+          set-daily
+        </button>
+      );
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/leaderboard']}>
+        <FilterSetter />
+        <Leaderboard />
+      </MemoryRouter>,
+    );
+
+    // The initial "all" request is still pending; switch to "daily" so both are
+    // in flight at once (as if the user changed the filter via the URL).
+    fireEvent.click(screen.getByRole('button', { name: 'set-daily' }));
+
+    // Resolve the newer "daily" request first, then the stale "all" request.
+    const dailyResolve = resolutions.get('daily');
+    expect(dailyResolve).toBeDefined();
+    await act(async () => {
+      dailyResolve?.([{ id: 'u-daily', username: 'DailyTop', xlm: 999 }]);
+    });
+    expect(await screen.findByText('DailyTop')).toBeInTheDocument();
+
+    await act(async () => {
+      resolutions.get('all')?.([{ id: 'u-all', username: 'StaleTop', xlm: 1 }]);
+    });
+
+    // The stale "all" response must not overwrite the newer "daily" results.
+    expect(screen.queryByText('StaleTop')).not.toBeInTheDocument();
+    expect(screen.getByText('DailyTop')).toBeInTheDocument();
+  });
+});
+
 describe('Leaderboard wallet sticky row', () => {
   beforeEach(() => {
     useVirtualizerMock.mockReset();

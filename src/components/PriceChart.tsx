@@ -11,7 +11,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { priceApi, type PricePoint } from "../lib/api-client";
-import { mergePricePoints, toCandlestickData } from "./PriceChart.helpers";
+import { mergePricePoints, toCandlestickData, toLinePoints } from "./PriceChart.helpers";
 import { mockPriceData } from "../data/mockData";
 import type { Asset } from "../types/asset";
 import { socketService } from "../lib/socket";
@@ -116,6 +116,38 @@ function persistChartMode(mode: ChartMode): void {
   }
 }
 
+type ChartTimeframe = 60 | 300 | 900;
+
+const TIMEFRAME_OPTIONS: Array<{ label: string; value: ChartTimeframe }> = [
+  { label: "1m", value: 60 },
+  { label: "5m", value: 300 },
+  { label: "15m", value: 900 },
+];
+
+const DEFAULT_TIMEFRAME: ChartTimeframe = 60;
+
+const TIMEFRAME_STORAGE_KEY = "xelma-price-chart-timeframe";
+
+function getStoredTimeframe(): ChartTimeframe {
+  try {
+    const stored = Number(localStorage.getItem(TIMEFRAME_STORAGE_KEY));
+    if (TIMEFRAME_OPTIONS.some((option) => option.value === stored)) {
+      return stored as ChartTimeframe;
+    }
+  } catch {
+    // localStorage unavailable
+  }
+  return DEFAULT_TIMEFRAME;
+}
+
+function persistTimeframe(timeframe: ChartTimeframe): void {
+  try {
+    localStorage.setItem(TIMEFRAME_STORAGE_KEY, String(timeframe));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
 const ASSET_COLORS: Record<string, string> = {
   BTC: "#F7931A",
   ETH: "#627EEA",
@@ -137,6 +169,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [chartMode, setChartMode] = useState<ChartMode>(getStoredChartMode);
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>(getStoredTimeframe);
   const { reduced: prefersReducedMotion } = useReducedMotion();
 
   // y-coordinate of the last data point for the badge
@@ -295,6 +328,12 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
     chartModeRef.current = chartMode;
   }, [chartMode]);
 
+  // Ref for timeframe so the mode-switch effect always reads the current value
+  const timeframeRef = useRef(timeframe);
+  useEffect(() => {
+    timeframeRef.current = timeframe;
+  }, [timeframe]);
+
   // Handle chart mode switching — replace series without recreating the chart
   useEffect(() => {
     if (!chartRef.current) return;
@@ -327,7 +366,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       seriesRef.current = lineSeries;
 
       if (currentData.length > 0) {
-        const chartData = currentData.map((point) => ({
+        const chartData = toLinePoints(currentData, timeframeRef.current).map((point) => ({
           time: point.time as UTCTimestamp,
           value: point.value,
         }));
@@ -346,7 +385,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       seriesRef.current = candlestickSeries;
 
       if (currentData.length > 0) {
-        const candlestickData = toCandlestickData(currentData);
+        const candlestickData = toCandlestickData(currentData, timeframeRef.current);
         candlestickSeries.setData(candlestickData);
       }
     }
@@ -408,11 +447,11 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
 
       const currentMode = chartModeRef.current;
       const chartData = currentMode === "line"
-        ? data.map((point) => ({
+        ? toLinePoints(data, timeframe).map((point) => ({
             time: point.time as UTCTimestamp,
             value: point.value,
           }))
-        : toCandlestickData(data);
+        : toCandlestickData(data, timeframe);
 
       seriesRef.current.setData(chartData);
       chartRef.current?.timeScale().fitContent();
@@ -435,7 +474,7 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
         cancelAnimationFrame(rafIdRef.current);
       }
     };
-  }, [data]);
+  }, [data, timeframe]);
 
   // Draw / redraw the entry-price marker line whenever the entryPrice prop changes.
   useEffect(() => {
@@ -607,6 +646,11 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
     });
   }, []);
 
+  const selectTimeframe = useCallback((next: ChartTimeframe) => {
+    setTimeframe(next);
+    persistTimeframe(next);
+  }, []);
+
   const { isConnected } = useConnectionStatus();
 
   const bgGradient = ASSET_BG[asset] ?? ASSET_BG.XLM;
@@ -680,6 +724,22 @@ const PriceChart = ({ height = 300, asset = "XLM", entryPrice, onPriceUpdate }: 
       <div className="relative w-full flex-1 rounded-2xl border-[3px]" style={{ minHeight: height, borderColor, background: bgGradient }}>
 
         <div className="relative w-full h-full rounded-xl overflow-hidden shadow-inner">
+          {/* Timeframe selector chips */}
+          <div className="absolute top-2 left-2 z-10 flex items-center gap-0.5 rounded-full bg-[#0a1929]/70 p-0.5 text-xs font-medium backdrop-blur-sm">
+            {TIMEFRAME_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => selectTimeframe(option.value)}
+                aria-pressed={timeframe === option.value}
+                className={`rounded-full px-2.5 py-1 ${
+                  prefersReducedMotion ? "transition-none" : "transition-all duration-200"
+                } ${timeframe === option.value ? "bg-white text-[#0a1929] shadow-sm" : "text-white/70 hover:text-white"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           {/* Montañas (imagen de fondo) */}
           <div
             className="absolute inset-0 bg-cover bg-center"
