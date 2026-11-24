@@ -22,6 +22,50 @@ describe('PredictionControls', () => {
     expect(screen.getByRole('button', { name: /DOWN/i })).toBeInTheDocument();
   });
 
+  it('uses distinct shapes, not only color, for UP and DOWN', () => {
+    render(<PredictionControls isWalletConnected={true} walletBalance="100.00 XLM" />);
+
+    const up = screen.getByRole('button', { name: /UP/i });
+    const down = screen.getByRole('button', { name: /DOWN/i });
+    const upShape = up.querySelector('svg[data-shape="up"]');
+    const downShape = down.querySelector('svg[data-shape="down"]');
+
+    expect(upShape).toBeInTheDocument();
+    expect(downShape).toBeInTheDocument();
+    expect(upShape).toHaveAttribute('aria-hidden', 'true');
+    expect(downShape).toHaveAttribute('aria-hidden', 'true');
+    expect(upShape?.querySelector('polygon')?.getAttribute('points')).not.toBe(
+      downShape?.querySelector('polygon')?.getAttribute('points'),
+    );
+    expect(up).toHaveTextContent('UP');
+    expect(down).toHaveTextContent('DOWN');
+  });
+
+  it('marks the chosen direction with a check and aria-pressed', () => {
+    render(
+      <PredictionControls
+        isWalletConnected={true}
+        walletBalance="100.00 XLM"
+        onPrediction={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+      target: { value: '10' },
+    });
+
+    const up = screen.getByRole('button', { name: /UP/i });
+    const down = screen.getByRole('button', { name: /DOWN/i });
+    expect(up).toHaveAttribute('aria-pressed', 'false');
+    expect(up).not.toHaveTextContent('✓');
+
+    fireEvent.click(up);
+
+    expect(up).toHaveAttribute('aria-pressed', 'true');
+    expect(up).toHaveTextContent('✓');
+    expect(down).toHaveAttribute('aria-pressed', 'false');
+    expect(down).not.toHaveTextContent('✓');
+  });
+
   it('selects bullish/up direction and updates active selection', () => {
     const onPrediction = vi.fn();
 
