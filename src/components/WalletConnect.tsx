@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useWalletStore } from '../store/useWalletStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, LogOut, Wallet, ShieldCheck, RefreshCw, QrCode } from 'lucide-react';
 import clsx from 'clsx';
 
 import WalletPicker from './WalletPicker';
+import ReceivePanel from './ReceivePanel';
 import type { WalletId } from '../lib/wallets';
 import MaskedBalance from './MaskedBalance';
 import NetworkMismatchCard from './NetworkMismatchCard';
@@ -31,6 +32,7 @@ const WalletConnect = () => {
   } = useWalletStore();
   const { isAuthenticated } = useAuthStore();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const [pickedWallet, setPickedWallet] = useState<WalletId | null>(null);
 
   useEffect(() => {
@@ -109,6 +111,18 @@ const WalletConnect = () => {
             )}
             <button
               type="button"
+              onClick={() => setIsReceiveOpen(true)}
+              title="Receive"
+              className={clsx(
+                'shrink-0 p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700',
+                focusRing
+              )}
+              aria-label="Receive — show QR code and copy address"
+            >
+              <QrCode className="w-4 h-4" aria-hidden />
+            </button>
+            <button
+              type="button"
               onClick={disconnect}
               className={clsx(
                 'shrink-0 p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20',
@@ -163,6 +177,12 @@ const WalletConnect = () => {
             </div>
           </div>
         )}
+
+        <ReceivePanel
+          isOpen={isReceiveOpen}
+          onClose={() => setIsReceiveOpen(false)}
+          publicKey={publicKey}
+        />
       </div>
     );
   }

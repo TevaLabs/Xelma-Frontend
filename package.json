@@ -30,6 +30,7 @@
     "i18next": "^23.0.0",
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.563.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^14.0.0",
