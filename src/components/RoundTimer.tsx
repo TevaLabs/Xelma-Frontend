@@ -1,25 +1,18 @@
-import { useState } from 'react';
 import { useRoundCountdown } from '../hooks/useRoundCountdown';
+import {
+  CIRCUMFERENCE,
+  RADIUS,
+  VIEWBOX_SIZE,
+  getArcColour,
+  getArcState,
+} from './RoundTimer.helpers';
 
-interface RoundTimerProps {
+export interface RoundTimerProps {
   /** Target end time for the countdown. */
   endTime: string | number | Date;
-  /** Label shown below the timer. */
-  playersOnline?: number;
+  /** Label shown below the timer. When null, the players online count is hidden. */
+  playersOnline?: number | null;
   className?: string;
-}
-
-// SVG circle constants — circumference = 2 * π * r
-const RADIUS = 44;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS; // ≈ 276.46
-const VIEWBOX_SIZE = 120;
-
-/** Returns a hex colour keyed to how much time is left. */
-function getArcColour(timeLeftMs: number, isExpired: boolean): string {
-  if (isExpired) return '#6B7280';
-  if (timeLeftMs < 30_000) return '#EF4444'; // red — < 30 s
-  if (timeLeftMs < 120_000) return '#FBBF24'; // amber — < 2 min
-  return '#06B6D4'; // teal — > 2 min
 }
 
 /**
@@ -34,29 +27,18 @@ export default function RoundTimer({
   playersOnline = 128,
   className = '',
 }: RoundTimerProps) {
-  const { formattedTime, isExpired, timeLeftMs } = useRoundCountdown(endTime);
+  const { formattedTime, isExpired, timeLeftMs, initialTimeLeftMs } = useRoundCountdown(endTime);
 
-  // Store the initial duration (in ms) once so we can compute the arc
-  // percentage. Computed synchronously so the arc is correct from the
-  // first paint — no flicker. Re‑computed only when `endTime` changes.
-  const resolveTimestamp = (t: string | number | Date): number => {
-    if (t instanceof Date) return t.getTime();
-    if (typeof t === 'string') return new Date(t).getTime();
-    return Number(t);
-  };
+  const arcState = getArcState(timeLeftMs, isExpired);
+  const arcColour = getArcColour(timeLeftMs, isExpired);
 
-  const [initialDurationMs] = useState(() => {
-    const diff = resolveTimestamp(endTime) - Date.now();
-    return diff > 0 ? diff : 1;
-  });
-
-  const progress =
-    initialDurationMs > 0
-      ? Math.min(timeLeftMs / initialDurationMs, 1)
+  const progress = isExpired
+    ? 0
+    : initialTimeLeftMs > 0
+      ? Math.min(Math.max(timeLeftMs / initialTimeLeftMs, 0), 1)
       : 1;
 
   const offset = CIRCUMFERENCE * (1 - progress);
-  const arcColour = getArcColour(timeLeftMs, isExpired);
 
   return (
     <div
@@ -67,6 +49,8 @@ export default function RoundTimer({
           ? 'Round has ended'
           : `Time remaining: ${formattedTime}`
       }
+      data-testid="round-timer"
+      data-arc-state={arcState}
     >
       {/* Circular countdown */}
       <svg
@@ -99,6 +83,8 @@ export default function RoundTimer({
           style={{
             transition: 'stroke-dashoffset 0.5s ease, stroke 0.3s ease',
           }}
+          data-testid="round-timer-arc"
+          data-arc-state={arcState}
         />
 
         {/* Centre text */}
@@ -108,15 +94,21 @@ export default function RoundTimer({
           textAnchor="middle"
           dominantBaseline="central"
           className="fill-white font-mono text-sm font-bold tabular-nums sm:text-base"
+          data-testid="round-timer-text"
         >
           {isExpired ? 'ENDED' : formattedTime}
         </text>
       </svg>
 
       {/* Players-online label */}
-      <p className="mt-2 text-xs font-medium text-gray-400 sm:text-sm">
-        Playing now: {playersOnline.toLocaleString()}
-      </p>
+      {playersOnline !== null && (
+        <p
+          className="mt-2 text-xs font-medium text-gray-400 sm:text-sm"
+          data-testid="round-timer-players"
+        >
+          Playing now: {playersOnline.toLocaleString()}
+        </p>
+      )}
     </div>
   );
 }

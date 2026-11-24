@@ -2,6 +2,11 @@ import '@testing-library/jest-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import RoundTimer from '../RoundTimer';
+import {
+  ARC_COLORS,
+  getArcColour,
+  getArcState,
+} from '../RoundTimer.helpers';
 
 describe('RoundTimer', () => {
   beforeEach(() => {
@@ -74,6 +79,12 @@ describe('RoundTimer', () => {
     expect(screen.getByText(/playing now: 1[,]?500/i)).toBeInTheDocument();
   });
 
+  it('hides the players-online label when playersOnline is null', () => {
+    render(<RoundTimer endTime={inSeconds(120)} playersOnline={null} />);
+    expect(screen.queryByText(/playing now/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('round-timer-players')).not.toBeInTheDocument();
+  });
+
   it('updates aria-label as time passes', () => {
     render(<RoundTimer endTime={inSeconds(120)} />);
     const timer = screen.getByRole('timer');
@@ -119,5 +130,104 @@ describe('RoundTimer', () => {
         vi.advanceTimersByTime(5000);
       });
     }).not.toThrow();
+  });
+
+  describe('SVG arc color thresholds and states', () => {
+    it('applies teal open state when time > 2 minutes', () => {
+      render(<RoundTimer endTime={inSeconds(150)} />);
+      const timer = screen.getByTestId('round-timer');
+      const arc = screen.getByTestId('round-timer-arc');
+
+      expect(timer).toHaveAttribute('data-arc-state', 'open');
+      expect(arc).toHaveAttribute('stroke', ARC_COLORS.OPEN);
+      expect(arc).toHaveAttribute('data-arc-state', 'open');
+    });
+
+    it('transitions to amber closing state when time < 2 minutes', () => {
+      render(<RoundTimer endTime={inSeconds(125)} />);
+      const timer = screen.getByTestId('round-timer');
+      const arc = screen.getByTestId('round-timer-arc');
+
+      expect(timer).toHaveAttribute('data-arc-state', 'open');
+      expect(arc).toHaveAttribute('stroke', ARC_COLORS.OPEN);
+
+      // Advance 10s -> 115s remaining (< 2 min)
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(timer).toHaveAttribute('data-arc-state', 'closing');
+      expect(arc).toHaveAttribute('stroke', ARC_COLORS.CLOSING);
+    });
+
+    it('transitions to red urgent state when time < 30 seconds', () => {
+      render(<RoundTimer endTime={inSeconds(40)} />);
+      const timer = screen.getByTestId('round-timer');
+      const arc = screen.getByTestId('round-timer-arc');
+
+      expect(timer).toHaveAttribute('data-arc-state', 'closing');
+
+      // Advance 15s -> 25s remaining (< 30s)
+      act(() => {
+        vi.advanceTimersByTime(15_000);
+      });
+
+      expect(timer).toHaveAttribute('data-arc-state', 'urgent');
+      expect(arc).toHaveAttribute('stroke', ARC_COLORS.URGENT);
+    });
+
+    it('transitions to grey ended state and depletes arc when round ends', () => {
+      render(<RoundTimer endTime={inSeconds(10)} />);
+      const timer = screen.getByTestId('round-timer');
+      const arc = screen.getByTestId('round-timer-arc');
+
+      act(() => {
+        vi.advanceTimersByTime(11_000);
+      });
+
+      expect(timer).toHaveAttribute('data-arc-state', 'ended');
+      expect(arc).toHaveAttribute('stroke', ARC_COLORS.ENDED);
+      expect(arc).toHaveAttribute('stroke-dashoffset', expect.stringMatching(/^276/));
+    });
+
+    it('re-baselines correctly when endTime updates across rounds', () => {
+      const { rerender } = render(<RoundTimer endTime={inSeconds(30)} />);
+      const timer = screen.getByTestId('round-timer');
+      const arc = screen.getByTestId('round-timer-arc');
+
+      expect(timer).toHaveAttribute('data-arc-state', 'closing');
+
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(timer).toHaveAttribute('data-arc-state', 'urgent');
+
+      // New round with 3 minutes
+      rerender(<RoundTimer endTime={inSeconds(180)} />);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(timer).toHaveAttribute('data-arc-state', 'open');
+      expect(arc).toHaveAttribute('stroke', ARC_COLORS.OPEN);
+      expect(screen.getByText('02:59')).toBeInTheDocument();
+    });
+  });
+
+  describe('helper functions', () => {
+    it('computes arc states accurately', () => {
+      expect(getArcState(150_000, false)).toBe('open');
+      expect(getArcState(119_999, false)).toBe('closing');
+      expect(getArcState(29_999, false)).toBe('urgent');
+      expect(getArcState(0, false)).toBe('ended');
+      expect(getArcState(100_000, true)).toBe('ended');
+    });
+
+    it('computes arc colours accurately', () => {
+      expect(getArcColour(150_000, false)).toBe(ARC_COLORS.OPEN);
+      expect(getArcColour(90_000, false)).toBe(ARC_COLORS.CLOSING);
+      expect(getArcColour(20_000, false)).toBe(ARC_COLORS.URGENT);
+      expect(getArcColour(0, false)).toBe(ARC_COLORS.ENDED);
+      expect(getArcColour(100_000, true)).toBe(ARC_COLORS.ENDED);
+    });
   });
 });
