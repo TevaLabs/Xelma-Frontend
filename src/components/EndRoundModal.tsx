@@ -1,6 +1,12 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ContributorTaskPlaceholder from './ContributorTaskPlaceholder';
+import {
+  renderRoundResultCardPng,
+  roundResultCardFilename,
+  roundResultCardText,
+  shareRoundResultCard,
+} from '../lib/round-result-card';
 
 interface EndRoundModalProps {
   isOpen: boolean;
@@ -29,12 +35,44 @@ export default function EndRoundModal({
     tip = 'Stay tuned for the next round.',
   } = result ?? {};
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [shareStatus, setShareStatus] = useState('');
   const formattedAmount = Math.abs(amount).toFixed(2);
   const resultAnnouncement = isOpen
     ? isWin
       ? `Round result: win. Net gain plus $${formattedAmount}. ${tip}`
       : `Round result: loss. Net loss minus $${formattedAmount}. ${tip}`
     : '';
+
+  useEffect(() => {
+    if (!isOpen) {
+      setShareStatus('');
+      setSharing(false);
+    }
+  }, [isOpen]);
+
+  const handleShare = async () => {
+    if (sharing) return;
+    const card = { isWin, amount, tip };
+    setSharing(true);
+    setShareStatus('');
+    try {
+      const blob = await renderRoundResultCardPng(card);
+      const outcome = await shareRoundResultCard(
+        blob,
+        roundResultCardFilename(card),
+        roundResultCardText(card),
+      );
+      setShareStatus(outcome === 'shared' ? 'Result card shared.' : 'Result card saved as a PNG.');
+    } catch (err) {
+      // Dismissing the share sheet is not an error.
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        setShareStatus('Could not create the result card. Please try again.');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen || !playResolveSound) return;
@@ -102,6 +140,17 @@ export default function EndRoundModal({
                 Continue to Next Round
               </button>
             </Dialog.Close>
+            <button
+              type="button"
+              onClick={() => void handleShare()}
+              disabled={sharing}
+              className="mt-3 w-full rounded-xl border border-white/15 py-3 text-base font-bold text-white hover:bg-white/5 disabled:opacity-60"
+            >
+              {sharing ? 'Creating result card…' : 'Share result card'}
+            </button>
+            <p role="status" aria-live="polite" className="mt-2 min-h-5 text-center text-sm text-gray-400">
+              {shareStatus}
+            </p>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
