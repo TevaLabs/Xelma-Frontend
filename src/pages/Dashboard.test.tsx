@@ -418,6 +418,7 @@ describe('Dashboard', () => {
 
       expect(screen.getByRole('main')).toHaveAttribute('data-density', 'comfortable');
       expect(screen.getByTestId('density-toggle')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: 'Switch dashboard to compact density' })).toBeInTheDocument();
     });
 
     it('switches to compact and updates the shared settings store', () => {
@@ -427,6 +428,7 @@ describe('Dashboard', () => {
 
       expect(screen.getByRole('main')).toHaveAttribute('data-density', 'compact');
       expect(useSettingsStore.getState().compactMode).toBe(true);
+      expect(screen.getByRole('button', { name: 'Switch dashboard to comfortable density' })).toBeInTheDocument();
     });
 
     it('reflects a compact preference set from Settings', () => {

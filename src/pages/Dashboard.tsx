@@ -574,9 +574,12 @@ const Dashboard = () => {
             <div className="mb-3 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setCompactMode(!compactMode)}
-                aria-pressed={compactMode}
-                data-testid="density-toggle"
+              onClick={() => setCompactMode(!compactMode)}
+              aria-pressed={compactMode}
+              aria-label={compactMode
+                ? "Switch dashboard to comfortable density"
+                : "Switch dashboard to compact density"}
+              data-testid="density-toggle"
                 className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-[#2C4BFD]/40 hover:text-white aria-pressed:border-[#2C4BFD]/40 aria-pressed:text-white"
               >
                 <Rows3 className="h-4 w-4" aria-hidden />
