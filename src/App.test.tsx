@@ -24,6 +24,13 @@ vi.mock('./components/LazyBoundary', () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 vi.mock('./pages/Landing', () => ({ default: () => <div data-testid="landing" /> }));
+vi.mock('./pages/PublicProfile', () => ({
+  default: () => (
+    <div data-testid="public-profile-card">
+      <span data-testid="profile-handle">@alice</span>
+    </div>
+  ),
+}));
 
 import App from './App';
 
@@ -49,6 +56,13 @@ describe('App catch-all routing', () => {
 
     expect(await screen.findByTestId('landing')).toBeInTheDocument();
     expect(screen.queryByText("This path doesn't exist")).not.toBeInTheDocument();
+  });
+
+  it('renders PublicProfile for /u/:handle', async () => {
+    renderAt('/u/alice');
+
+    expect(await screen.findByTestId('public-profile-card')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-handle')).toHaveTextContent('@alice');
   });
 
   it('keeps the skip link pointed at the main landmark', () => {
