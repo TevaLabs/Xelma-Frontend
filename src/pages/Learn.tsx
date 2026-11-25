@@ -1,17 +1,21 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { educationApi } from "../lib/api-client";
 import { normalizeApiError } from "../lib/api";
 import type { Guide, Tip } from "../types/education";
 import { GuideCard } from "../components/education/GuideCard";
 import { TipCard } from "../components/education/TipCard";
 import { LoadingState, ErrorState, EmptyState } from "../components/ui/StatusStates";
-import { BookMarked, GraduationCap, Telescope } from "lucide-react";
+import { BookMarked, GraduationCap, Search, Telescope, X } from "lucide-react";
+
+const ALL_CATEGORIES = "All";
 
 const LearnPage = () => {
     const [guides, setGuides] = useState<Guide[]>([]);
     const [tip, setTip] = useState<Tip | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState<string>(ALL_CATEGORIES);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -59,6 +63,37 @@ const LearnPage = () => {
         }, 0);
         return () => clearTimeout(timer);
     }, [fetchData]);
+
+    const categories = useMemo(() => {
+        const unique = Array.from(
+            new Set(guides.map((guide) => guide.category).filter(Boolean))
+        );
+        return [ALL_CATEGORIES, ...unique];
+    }, [guides]);
+
+    const filteredGuides = useMemo(() => {
+        const normalizedQuery = searchQuery.trim().toLowerCase();
+        return guides.filter((guide) => {
+            const matchesCategory =
+                selectedCategory === ALL_CATEGORIES || guide.category === selectedCategory;
+            if (!matchesCategory) return false;
+            if (!normalizedQuery) return true;
+
+            return (
+                guide.title.toLowerCase().includes(normalizedQuery) ||
+                guide.description.toLowerCase().includes(normalizedQuery) ||
+                guide.category.toLowerCase().includes(normalizedQuery)
+            );
+        });
+    }, [guides, searchQuery, selectedCategory]);
+
+    const hasActiveFilters =
+        searchQuery.trim().length > 0 || selectedCategory !== ALL_CATEGORIES;
+
+    const handleResetFilters = () => {
+        setSearchQuery("");
+        setSelectedCategory(ALL_CATEGORIES);
+    };
 
     if (loading) {
         return (
@@ -110,11 +145,94 @@ const LearnPage = () => {
                             </div>
 
                             {guides.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {guides.map((guide) => (
-                                        <GuideCard key={guide.id} guide={guide} />
-                                    ))}
-                                </div>
+                                <>
+                                    <div className="mb-6 space-y-4">
+                                        {/* Search input */}
+                                        <div className="relative">
+                                            <label htmlFor="learn-guide-search" className="sr-only">
+                                                Search guides
+                                            </label>
+                                            <Search
+                                                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                                                size={18}
+                                                aria-hidden="true"
+                                            />
+                                            <input
+                                                id="learn-guide-search"
+                                                type="search"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="Search guides by title, topic, or description..."
+                                                className="w-full rounded-xl border border-white/10 bg-[#111827]/70 py-2.5 pl-10 pr-10 text-sm text-white placeholder-gray-400 transition-colors focus:border-xelma-teal focus:outline-none focus:ring-2 focus:ring-xelma-teal/30"
+                                            />
+                                            {searchQuery && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSearchQuery("")}
+                                                    aria-label="Clear search"
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal"
+                                                >
+                                                    <X size={16} aria-hidden="true" />
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Category filter chips */}
+                                        {categories.length > 1 && (
+                                            <div
+                                                role="group"
+                                                aria-label="Filter guides by category"
+                                                className="flex flex-wrap items-center gap-2"
+                                            >
+                                                {categories.map((category) => {
+                                                    const isSelected = selectedCategory === category;
+                                                    return (
+                                                        <button
+                                                            key={category}
+                                                            type="button"
+                                                            aria-pressed={isSelected}
+                                                            onClick={() => setSelectedCategory(category)}
+                                                            className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A] ${
+                                                                isSelected
+                                                                    ? "border-xelma-teal bg-xelma-teal/20 text-xelma-teal"
+                                                                    : "border-white/10 bg-white/5 text-gray-300 hover:border-white/20 hover:bg-white/10 hover:text-white"
+                                                            }`}
+                                                        >
+                                                            {category}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {filteredGuides.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {filteredGuides.map((guide) => (
+                                                <GuideCard key={guide.id} guide={guide} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <EmptyState
+                                                title="No matching guides"
+                                                message="Try adjusting your search query or selecting a different category."
+                                                icon={<Search className="h-12 w-12 text-gray-600 mb-4" />}
+                                            />
+                                            {hasActiveFilters && (
+                                                <div className="flex justify-center">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleResetFilters}
+                                                        className="btn-ghost rounded-xl px-4 py-2 text-sm font-semibold text-xelma-teal hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xelma-teal"
+                                                    >
+                                                        Clear filters
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
                             ) : (
                                 <EmptyState
                                     title="No guides available"
