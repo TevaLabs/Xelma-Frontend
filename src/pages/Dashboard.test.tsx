@@ -846,5 +846,32 @@ describe('Dashboard', () => {
       expect(screen.queryByText('Your Record')).not.toBeInTheDocument();
     });
   });
+
+  describe('offline demo mode (VITE_USE_MOCKS)', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('seeds mockData and skips live API calls when VITE_USE_MOCKS=true', async () => {
+      vi.stubEnv('VITE_USE_MOCKS', 'true');
+      vi.mocked(useRoundStore).mockImplementation(((selector: unknown) => {
+        const store = { ...mockRoundStore, isRoundActive: false };
+        return selectFromStore(selector, store);
+      }) as never);
+
+      render(<Dashboard />);
+
+      // Seeds mockUserStats (currentStreak: 3, totalWins: 3, totalLosses: 1)
+      expect(await screen.findByText('3 rounds')).toBeInTheDocument();
+      expect(screen.getByText('Your Record')).toBeInTheDocument();
+
+      // Skips all live API and SSE calls
+      expect(statsApi.getUserStats).not.toHaveBeenCalled();
+      expect(predictionsApi.getUserHistory).not.toHaveBeenCalled();
+      expect(educationApi.getTip).not.toHaveBeenCalled();
+      expect(mockRoundStore.fetchActiveRound).not.toHaveBeenCalled();
+      expect(mockRoundStore.subscribeToRoundEvents).not.toHaveBeenCalled();
+    });
+  });
 });
 

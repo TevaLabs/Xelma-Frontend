@@ -47,7 +47,11 @@ import { useReducedMotion } from '../hooks/useReducedMotion';
 import ModeToggle, { type DashboardMode } from "../components/ModeToggle";
 
 import { inspectSorobanState, type SorobanInspectorSnapshot } from "../lib/xelma-contract";
-import { mockRounds } from "../data/mockData";
+import { mockRounds, mockUserStats, mockRecentActivity } from "../data/mockData";
+
+function isUseMocksEnabled(): boolean {
+  return String(import.meta.env.VITE_USE_MOCKS).toLowerCase() === "true";
+}
 
 import type { RecentActivityItem } from "../types";
 import { toast } from "sonner";
@@ -124,6 +128,7 @@ function mapPredictionToActivityItem(pred: UserPrediction): RecentActivityItem {
 const DAILY_TIP_CACHE_KEY = "xelma_daily_tip";
 
 const DailyTip = () => {
+  const useMocks = isUseMocksEnabled();
   const [tip, setTip] = useState<Tip | null>(() => {
     const today = new Date().toISOString().slice(0, 10);
     const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
@@ -140,6 +145,7 @@ const DailyTip = () => {
     return null;
   });
   const [loading, setLoading] = useState(() => {
+    if (useMocks) return false;
     const today = new Date().toISOString().slice(0, 10);
     const cached = localStorage.getItem(DAILY_TIP_CACHE_KEY);
     if (cached) {
@@ -156,7 +162,7 @@ const DailyTip = () => {
   });
 
   useEffect(() => {
-    if (tip !== null) return;
+    if (useMocks || tip !== null) return;
 
     const today = new Date().toISOString().slice(0, 10);
     void educationApi.getTip().then((fetched) => {
@@ -171,7 +177,7 @@ const DailyTip = () => {
     }).catch(() => {
       setLoading(false);
     });
-  }, [tip]);
+  }, [tip, useMocks]);
 
   if (loading) {
     return (
@@ -210,8 +216,13 @@ const DailyTip = () => {
 
 const Dashboard = () => {
   const { t } = useTranslation();
-  const isRoundActive = useRoundStore((state) => state.isRoundActive);
-  const isLoading = useRoundStore((state) => state.isLoading);
+  const useMocks = isUseMocksEnabled();
+  const storeIsRoundActive = useRoundStore((state) => state.isRoundActive);
+  const storeIsLoading = useRoundStore((state) => state.isLoading);
+  const isRoundActive = useMocks
+    ? mockRounds.some((round) => round.status === "live")
+    : storeIsRoundActive;
+  const isLoading = useMocks ? false : storeIsLoading;
   const sseConnection = useRoundStore((state) => state.sseConnection);
   const isWalletConnected = useWalletStore(selectIsWalletConnected);
   const isWalletConnecting = useWalletStore(
@@ -341,6 +352,12 @@ const Dashboard = () => {
   }, [deepLinkedRoundId, filteredRounds, prefersReducedMotion]);
 
   const fetchStats = useCallback(async () => {
+    if (useMocks) {
+      setStats(mockUserStats);
+      setStatsError(null);
+      setIsStatsLoading(false);
+      return;
+    }
     if (!isWalletConnected) {
       setStats(null);
       return;
@@ -356,9 +373,16 @@ const Dashboard = () => {
     } finally {
       setIsStatsLoading(false);
     }
-  }, [isWalletConnected]);
+  }, [isWalletConnected, useMocks]);
 
   const fetchActivities = useCallback(async () => {
+    if (useMocks) {
+      setActivities(mockRecentActivity);
+      setOpenPositions([]);
+      setActivitiesError(null);
+      setIsActivitiesLoading(false);
+      return;
+    }
     if (!isWalletConnected || !publicKey) {
       setActivities([]);
       setOpenPositions([]);
@@ -381,7 +405,7 @@ const Dashboard = () => {
     } finally {
       setIsActivitiesLoading(false);
     }
-  }, [activeRoundId, isWalletConnected, publicKey]);
+  }, [activeRoundId, isWalletConnected, publicKey, useMocks]);
 
   useEffect(() => {
     // Deferred through a promise chain so the effect performs no synchronous
@@ -396,6 +420,11 @@ const Dashboard = () => {
   }, [fetchStats, fetchActivities]);
 
   const refreshInspector = useCallback(async () => {
+    if (useMocks) {
+      setInspector(null);
+      setIsInspectorLoading(false);
+      return;
+    }
     if (!isWalletConnected || !publicKey) {
       setInspector(null);
       return;
@@ -414,7 +443,7 @@ const Dashboard = () => {
     } finally {
       setIsInspectorLoading(false);
     }
-  }, [isWalletConnected, publicKey]);
+  }, [isWalletConnected, publicKey, useMocks]);
 
   useEffect(() => {
     // Deferred through a promise chain so the effect performs no synchronous
@@ -435,13 +464,16 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    if (useMocks) {
+      return;
+    }
     const { fetchActiveRound, subscribeToRoundEvents } = useRoundStore.getState();
     void fetchActiveRound();
     const unsubscribe = subscribeToRoundEvents();
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [useMocks]);
 
   useEffect(() => {
     return () => {
@@ -552,6 +584,7 @@ const Dashboard = () => {
 
         {/* Round-update connectivity, ported from /play so users see SSE/socket health. */}
         {!isLoading &&
+          !useMocks &&
           (!isSocketConnected ||
             (sseConnection && sseConnection.status !== "connected")) && (
             <div className="mb-4">
