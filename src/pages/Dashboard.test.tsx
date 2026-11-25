@@ -320,7 +320,15 @@ describe('Dashboard', () => {
 
       expect(screen.getByTestId('prediction-card')).toBeInTheDocument();
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('live-game-stats-panel')).toBeInTheDocument();
       expect(screen.getByTestId('prediction-history')).toBeInTheDocument();
+    });
+
+    it('shows the live game stats panel on dashboard', () => {
+      render(<Dashboard />);
+
+      expect(screen.getByTestId('live-game-stats-panel')).toBeInTheDocument();
+      expect(screen.getByText('Platform Pulse')).toBeInTheDocument();
     });
 
     it('passes correct props to PredictionCard', () => {
