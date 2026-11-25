@@ -136,7 +136,7 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
     ...(options.headers as Record<string, string>),
   };
 
-  if (jwt) {
+  if (jwt && !headers['Authorization']) {
     headers['Authorization'] = `Bearer ${jwt}`;
   }
 
