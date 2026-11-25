@@ -288,9 +288,10 @@ src/
 
 `/dashboard` is the single primary prediction terminal. It now includes the
 high-value panels that previously lived only on the legacy `/play` view: the
-price chart, the round lifecycle timeline, round-update connection status, the
-end-round modal, and opt-in community chat (toggled from the dashboard header so
-the default terminal stays uncluttered).
+price chart, live game stats panel (telemetry over the round store and socket feed),
+the round lifecycle timeline, round-update connection status, the end-round modal,
+and opt-in community chat (toggled from the dashboard header so the default terminal
+stays uncluttered).
 
 `/play` is **deprecated** and permanently redirects to `/dashboard`. The former
 `LegacyDashboard` page has been removed — `/dashboard` is the single dashboard

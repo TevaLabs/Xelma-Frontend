@@ -314,5 +314,39 @@ describe('RoundCard Component', () => {
       expect(ref.current?.tagName).toBe('ARTICLE');
       expect(ref.current).toBe(screen.getByTestId('round-card'));
     });
+
+    it('scrolls into view when isHighlighted is true', () => {
+      const scrollSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollSpy;
+
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} isHighlighted />);
+
+      expect(scrollSpy).toHaveBeenCalledWith({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    });
+
+    it('scrolls into view with auto behavior when reduced motion is preferred', () => {
+      useSettingsStore.getState().setMotionPreference('reduce');
+      const scrollSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollSpy;
+
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} isHighlighted />);
+
+      expect(scrollSpy).toHaveBeenCalledWith({
+        behavior: 'auto',
+        block: 'center',
+      });
+    });
+
+    it('does not scroll into view when isHighlighted is false', () => {
+      const scrollSpy = vi.fn();
+      Element.prototype.scrollIntoView = scrollSpy;
+
+      render(<RoundCard round={defaultRound} onSubmitPrediction={vi.fn()} isHighlighted={false} />);
+
+      expect(scrollSpy).not.toHaveBeenCalled();
+    });
   });
 });
