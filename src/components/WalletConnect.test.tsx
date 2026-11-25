@@ -20,6 +20,9 @@ vi.mock('../store/useWalletStore', () => ({
 }));
 vi.mock('../store/useAuthStore');
 
+// Sonner toast is used by WalletPicker for coming-soon wallet feedback.
+vi.mock('sonner', () => ({ toast: { info: vi.fn() } }));
+
 // Report Freighter as installed so the picker offers it in jsdom.
 vi.mock('../lib/wallets', async () => {
   const actual = await vi.importActual<typeof import('../lib/wallets')>('../lib/wallets');
@@ -129,6 +132,53 @@ describe('WalletConnect', () => {
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
       expect(connectButton).toHaveClass('bg-[#2C4BFD]', 'hover:bg-[#1a3bf0]', 'text-white');
+    });
+  });
+
+  // The coming-soon UX itself shipped in #484; these cross-component tests lock
+  // in that stub wallets never reach the connect flow and never throw.
+  describe('coming-soon wallet stubs (#1009)', () => {
+    it('shows an info toast and never starts a connection for a stub wallet', async () => {
+      const { toast } = await import('sonner');
+      mockWalletStore.connect.mockResolvedValue(undefined);
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
+      const albedo = await screen.findByRole('button', { name: /albedo/i });
+
+      // Selecting a stub must not throw and must not enter the connect flow.
+      expect(() => fireEvent.click(albedo)).not.toThrow();
+
+      expect(toast.info).toHaveBeenCalledWith(
+        'Albedo is coming soon',
+        expect.objectContaining({
+          description: expect.stringMatching(/planned but not wired up yet/i),
+        }),
+      );
+      expect(mockWalletStore.connect).not.toHaveBeenCalled();
+      // The picker stays open because the stub is blocked before onSelect.
+      expect(screen.getByRole('dialog', { name: /connect a wallet/i })).toBeInTheDocument();
+    });
+
+    it('never calls the stub adapter methods when its row is selected', async () => {
+      const { albedoAdapter } = await import('../lib/wallets');
+      const connectSpy = vi.spyOn(albedoAdapter, 'connect');
+      const signMessageSpy = vi.spyOn(albedoAdapter, 'signMessage');
+      const signTransactionSpy = vi.spyOn(albedoAdapter, 'signTransaction');
+
+      try {
+        render(<WalletConnect />);
+        fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /albedo/i }));
+
+        expect(connectSpy).not.toHaveBeenCalled();
+        expect(signMessageSpy).not.toHaveBeenCalled();
+        expect(signTransactionSpy).not.toHaveBeenCalled();
+      } finally {
+        connectSpy.mockRestore();
+        signMessageSpy.mockRestore();
+        signTransactionSpy.mockRestore();
+      }
     });
   });
 
