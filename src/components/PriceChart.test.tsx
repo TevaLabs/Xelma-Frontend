@@ -215,6 +215,25 @@ describe('PriceChart', () => {
       );
     });
 
+    it('does not remove or recreate series on initial mount (no remount flicker)', () => {
+      render(<PriceChart height={300} />);
+
+      expect(createChart).toHaveBeenCalledTimes(1);
+      expect(mockChartApi.addSeries).toHaveBeenCalledTimes(1);
+      expect(mockChartApi.removeSeries).not.toHaveBeenCalled();
+    });
+
+    it('does not remove or recreate series on remount with persisted preference', () => {
+      localStorage.setItem('xelma-price-chart-mode', 'candlestick');
+
+      render(<PriceChart height={300} />);
+
+      expect(createChart).toHaveBeenCalledTimes(1);
+      expect(mockChartApi.addSeries).toHaveBeenCalledTimes(1);
+      expect(mockChartApi.addSeries).toHaveBeenCalledWith('Candlestick', expect.any(Object));
+      expect(mockChartApi.removeSeries).not.toHaveBeenCalled();
+    });
+
     it('removes toggle animations when reduced motion is preferred', () => {
       (useReducedMotion as any).mockReturnValue({
         reduced: true,
