@@ -86,6 +86,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const closeMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
@@ -99,6 +100,7 @@ export default function Navbar() {
 
   useFocusTrap(drawerRef, {
     active: isMobileMenuOpen,
+    initialFocusRef: closeButtonRef,
     onEscape: closeMenu,
     restoreFocusRef: menuButtonRef,
   });
@@ -270,11 +272,13 @@ export default function Navbar() {
             role="dialog"
             aria-modal="true"
             aria-label={t('navbar.mobileNavigationMenu')}
+            tabIndex={-1}
           >
             <div className="mb-8 flex items-center justify-between">
               <span className="text-xl font-bold tracking-tight text-white">{t('navbar.menu')}</span>
               <button
                 type="button"
+                ref={closeButtonRef}
                 onClick={closeMenu}
                 className="rounded-lg p-2 text-gray-400 hover:bg-white/5 hover:text-white transition-colors"
                 aria-label={t('navbar.closeMenu')}

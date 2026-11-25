@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Navbar from './Navbar';
@@ -199,6 +199,69 @@ describe('Navbar', () => {
       const closeButton = screen.getByRole('button', { name: /close menu/i });
       fireEvent.click(closeButton);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('moves initial focus to the close button when the drawer opens', async () => {
+      renderNavbar();
+      fireEvent.click(screen.getByRole('button', { name: /open mobile menu/i }));
+      const closeButton = screen.getByRole('button', { name: /close menu/i });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+    });
+
+    it('traps Tab focus inside the drawer', async () => {
+      renderNavbar();
+      fireEvent.click(screen.getByRole('button', { name: /open mobile menu/i }));
+      const dialog = screen.getByRole('dialog', { name: /mobile navigation menu/i });
+      const closeButton = screen.getByRole('button', { name: /close menu/i });
+      const connectButton = within(dialog).getByRole('button', { name: /connect wallet/i });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+
+      // Tab from the last focusable wraps back to the first (close button).
+      connectButton.focus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+
+      // Shift+Tab from the first focusable wraps to the last.
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(connectButton).toHaveFocus();
+    });
+
+    it('pulls focus back into the drawer when Tab is pressed while focus is outside', async () => {
+      renderNavbar();
+      fireEvent.click(screen.getByRole('button', { name: /open mobile menu/i }));
+      const dialog = screen.getByRole('dialog', { name: /mobile navigation menu/i });
+      const closeButton = screen.getByRole('button', { name: /close menu/i });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+
+      // Simulate focus leaking to a background element behind the drawer.
+      const brandLink = screen.getByRole('link', { name: /xelma/i });
+      brandLink.focus();
+      expect(dialog.contains(document.activeElement)).toBe(false);
+
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+    });
+
+    it('keeps Tab trapped when the dialog container itself has focus', async () => {
+      renderNavbar();
+      fireEvent.click(screen.getByRole('button', { name: /open mobile menu/i }));
+      const dialog = screen.getByRole('dialog', { name: /mobile navigation menu/i });
+      const closeButton = screen.getByRole('button', { name: /close menu/i });
+      const connectButton = within(dialog).getByRole('button', { name: /connect wallet/i });
+
+      await waitFor(() => expect(closeButton).toHaveFocus());
+
+      dialog.focus();
+      expect(dialog).toHaveFocus();
+      fireEvent.keyDown(document, { key: 'Tab' });
+      expect(closeButton).toHaveFocus();
+
+      dialog.focus();
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(connectButton).toHaveFocus();
     });
 
     it('closes the drawer when Escape is pressed', () => {

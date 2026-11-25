@@ -47,11 +47,15 @@ export function useFocusTrap(
 
     const focusable = getFocusable(container);
     const initialTarget = initialFocusRef?.current ?? focusable[0] ?? container;
-    window.setTimeout(() => initialTarget.focus(), 0);
+    const focusTimeout = window.setTimeout(() => {
+      // Guard against focusing a node that was unmounted before the timer ran.
+      if (initialTarget.isConnected) initialTarget.focus();
+    }, 0);
 
     const restoreTarget = restoreFocusRef?.current;
 
     return () => {
+      window.clearTimeout(focusTimeout);
       if (!restoreFocus) return;
       const previouslyFocused = restoreTarget ?? previouslyFocusedRef.current;
       if (previouslyFocused?.isConnected) previouslyFocused.focus();
@@ -83,6 +87,14 @@ export function useFocusTrap(
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       const activeElement = document.activeElement;
+
+      // The dialog container is itself focusable (tabIndex={-1}). If it holds
+      // focus, move to an edge focusable so Tab cannot escape to the page.
+      if (activeElement === container) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
 
       if (!container.contains(activeElement)) {
         event.preventDefault();
