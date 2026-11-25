@@ -55,6 +55,30 @@ const en = {
         description: 'Choose Directional or Precision mode and lock in your price forecast on-chain.'
       }
     },
+    modeCards: {
+      title: 'Two Prediction Modes',
+      subtitle:
+        'Choose the trading style that fits your strategy. Both modes use practice vXLM — no deposit required.',
+      cta: 'Start Predicting',
+      directional: {
+        title: 'Directional Trading',
+        subtitle: 'UP / DOWN',
+        description:
+          'Predict whether an asset price will go up or down within a fixed time window.',
+        bullet1: 'Binary price prediction',
+        bullet2: 'Real-time market data',
+        bullet3: 'Instant settlement',
+      },
+      precision: {
+        title: 'Precision Trading',
+        subtitle: 'Narrow Range',
+        description:
+          'Lock in tighter price windows for higher potential multipliers on each prediction.',
+        bullet1: 'Tighter price windows',
+        bullet2: 'Higher payout multipliers',
+        bullet3: 'Advanced strategy mode',
+      },
+    },
   },
   footer: {
     description: 'Collective market intelligence on Stellar',
