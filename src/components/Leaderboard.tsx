@@ -41,6 +41,14 @@ function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser
   return { id, name, avatar, xlm };
 }
 
+function formatLeaderGap(leaderXlm: number, userXlm: number): string {
+  const delta = Math.max(0, leaderXlm - userXlm);
+  if (delta === 0) {
+    return 'Tied with #1';
+  }
+  return `${formatVXLM(delta)} behind #1`;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -267,6 +275,11 @@ const Leaderboard = () => {
                     ? formatVXLM(currentUser.xlm)
                     : 'Predictions will place you on the leaderboard.'}
                 </p>
+                {currentUser && currentUserRank !== null && currentUserRank > 1 && rank1 && (
+                  <p className="text-xs text-gray-400 tabular-nums mt-0.5">
+                    {formatLeaderGap(rank1.xlm, currentUser.xlm)}
+                  </p>
+                )}
               </div>
             </div>
             <div className="mt-4 text-xs text-gray-400 border-t border-white/5 pt-3">
@@ -307,6 +320,11 @@ const Leaderboard = () => {
               <p className="text-cyan-300 font-bold text-sm bg-cyan-500/10 border border-cyan-500/25 px-3.5 py-1 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.08)]">
                 {formatVXLM(user.xlm)}
               </p>
+              {rank > 1 && rank1 && (
+                <p className="text-xs text-gray-400 tabular-nums mt-1.5">
+                  {formatLeaderGap(rank1.xlm, user.xlm)}
+                </p>
+              )}
               <div className={`w-full ${barHeight} glass-card bg-gradient-to-t from-cyan-500/20 via-cyan-500/5 to-slate-900/40 rounded-t-2xl border-b-0 border-cyan-500/20 mt-4 hidden md:block shadow-[0_-4px_20px_rgba(6,182,212,0.08)]`} />
             </div>
           ))}
@@ -367,10 +385,15 @@ const Leaderboard = () => {
                           {user.name}
                         </span>
                       </div>
-                      <div className="text-center md:text-right w-full md:w-auto mt-2 md:mt-0 bg-cyan-950/30 border border-cyan-500/20 px-4 py-2 rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.05)] shrink-0">
-                        <span className="font-bold text-cyan-300 text-lg tabular-nums">
+                      <div className="text-center md:text-right w-full md:w-auto mt-2 md:mt-0 bg-cyan-950/30 border border-cyan-500/20 px-4 py-1.5 rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.05)] shrink-0">
+                        <span className="block font-bold text-cyan-300 text-lg tabular-nums leading-tight">
                           {formatVXLM(user.xlm)}
                         </span>
+                        {rank1 && (
+                          <span className="block text-xs text-gray-400 tabular-nums leading-tight mt-0.5">
+                            {formatLeaderGap(rank1.xlm, user.xlm)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </li>
