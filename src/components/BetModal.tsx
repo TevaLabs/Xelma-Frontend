@@ -386,8 +386,17 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
     if (!isOpen || view !== 'confirm') return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      const target = e.target as HTMLElement | null;
+      const isEditable = (element: HTMLElement | null) =>
+        Boolean(
+          element &&
+          (element.tagName === 'INPUT' ||
+            element.tagName === 'TEXTAREA' ||
+            element.tagName === 'SELECT' ||
+            element.isContentEditable)
+        );
+      if (isEditable(target) || isEditable(document.activeElement as HTMLElement | null)) return;
 
       const key = e.key;
       if (key === 'u' || key === 'U' || key === 'ArrowUp') {
@@ -402,8 +411,8 @@ export default function BetModal({ isOpen, onClose, predictionData, onSuccess, o
       }
     };
 
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, view]);
 
   if (!isOpen || !predictionData) return null;
