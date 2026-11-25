@@ -217,6 +217,7 @@ const Dashboard = () => {
   const isWalletConnecting = useWalletStore(
     (s) => s.status === "connecting" || s.status === "checking"
   );
+  const isSpectating = !isWalletConnected;
   const resolvedRound = useRoundStore((state) => state.resolvedRound);
   const dismissResolvedRound = useRoundStore((state) => state.dismissResolvedRound);
   const publicKey = useWalletStore((s) => s.publicKey);
@@ -455,7 +456,7 @@ const Dashboard = () => {
 
   const handlePrediction = (data: PredictionData) => {
     // Spectators can't predict; the Connect CTAs route them to /connect.
-    if (!isWalletConnected) return;
+    if (isSpectating) return;
     // Attach the round's UP/DOWN pool split so the BetModal can surface the
     // soft pool-imbalance warning for UP/DOWN rounds.
     setPendingPrediction({ ...data, ...(assetPoolSplit ?? {}) });
@@ -651,7 +652,7 @@ const Dashboard = () => {
                     isWalletConnected={isWalletConnected}
                     isHighlighted={deepLinkedRoundId === round.id}
                     onSubmitPrediction={(round) => {
-                      if (!isWalletConnected) return;
+                      if (isSpectating) return;
                       setPendingPrediction({
                         direction: "UP",
                         stake: "0",
@@ -686,7 +687,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {!isLoading && !isWalletConnected && (
+        {!isLoading && isSpectating && (
           <section
             aria-labelledby="spectate-heading"
             data-testid="spectate-card"
@@ -741,7 +742,7 @@ const Dashboard = () => {
         )}
 
         {/* Spectators still get the live chart when no round is open. */}
-        {!isLoading && !isRoundActive && !isWalletConnected && (
+        {!isLoading && !isRoundActive && isSpectating && (
           <div
             className="mt-6 min-h-[350px] rounded-xl border border-gray-700/30 bg-white/5 p-4 shadow-sm backdrop-blur-sm"
             data-testid="spectate-chart"
@@ -782,7 +783,10 @@ const Dashboard = () => {
             </div>
 
             <div className="lg:col-span-2 flex flex-col gap-6">
-<div className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm">
+              <div
+                className="min-h-[350px] bg-white/5 dark:bg-gray-800/50 p-4 shadow-sm rounded-xl border border-gray-700/30 backdrop-blur-sm"
+                data-testid={isSpectating ? "spectate-chart" : undefined}
+              >
                 <PriceChart height={280} asset={normalizedAsset} entryPrice={entryPrice} onPriceUpdate={handlePriceUpdate} />
               </div>
               {isWalletConnected && (

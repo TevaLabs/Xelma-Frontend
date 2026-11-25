@@ -369,6 +369,8 @@ describe('Dashboard', () => {
       render(<Dashboard />);
 
       expect(screen.getByTestId('price-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('spectate-chart')).toBeInTheDocument();
+      expect(screen.getByTestId('round-timeline')).toBeInTheDocument();
       expect(screen.getAllByTestId('round-card').length).toBeGreaterThan(0);
     });
 
