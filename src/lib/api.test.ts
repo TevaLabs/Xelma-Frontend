@@ -108,6 +108,35 @@ describe('apiFetch', () => {
     expect(toastErrorMock).toHaveBeenCalled();
   });
 
+  it('session-expired toast on 403 deep-links to /connect (issue #1032)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ message: 'Forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+    const { apiFetch } = await import('./api');
+    await expect(apiFetch('/api/test')).rejects.toMatchObject({ status: 403 });
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Session expired',
+      expect.objectContaining({ id: 'session-expired', duration: Infinity }),
+    );
+    const options = toastErrorMock.mock.calls[0][1];
+    expect(options.action.label).toBe('Reconnect');
+
+    // Regression test for #1032: the CTA must navigate to /connect, not home.
+    const originalLocation = window.location;
+    // @ts-expect-error - overriding window.location for test
+    delete window.location;
+    window.location = { href: '' } as Location;
+    options.action.onClick();
+    expect(window.location.href).toBe('/connect');
+    window.location = originalLocation;
+  });
+
   it('does not retry on 401 — only one fetch call is made', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ message: 'Unauthorized' }), {

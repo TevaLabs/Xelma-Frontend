@@ -18,6 +18,12 @@ vi.mock('../store/useProfileStore', () => ({
   useProfileStore: vi.fn(),
 }));
 
+// Mock useWalletStore so the Identicon fallback path has a stable publicKey
+// and the test never touches the real Freighter-backed store.
+vi.mock('../store/useWalletStore', () => ({
+  useWalletStore: vi.fn((selector: any) => selector({ publicKey: 'GBHEXAMPLEADDRESSFORTESTINGPURPOSESONLY1234567890ABCDE' })),
+}));
+
 // Mock ProfileSettingsModal
 vi.mock('../components/ProfileSettingsModal', () => ({
   default: ({ onClose, initialValues }: { onClose: () => void; initialValues: any }) => (
@@ -201,6 +207,59 @@ describe('Profile Page', () => {
 
       fireEvent.click(screen.getByTestId('close-settings-modal'));
       expect(screen.queryByTestId('profile-settings-modal')).toBeNull();
+    });
+  });
+
+  describe('avatar alt text (issue #666)', () => {
+    it('gives an uploaded avatar a meaningful, non-empty alt with the display name', () => {
+      mockStoreState({
+        profile: {
+          avatarUrl: 'https://example.com/avatar.png',
+          name: 'TestUser',
+          bio: '',
+          twitterLink: '',
+          streamerMode: false,
+        },
+        isLoading: false,
+      });
+      renderWithRouter(<Profile />);
+
+      const avatar = screen.getByRole('img');
+      expect(avatar).toHaveAttribute('src', 'https://example.com/avatar.png');
+      const alt = avatar.getAttribute('alt');
+      expect(alt).not.toBe('');
+      expect(alt).toContain('TestUser');
+    });
+
+    it('uses the fallback display name in the alt when no name is set', () => {
+      mockStoreState({
+        profile: {
+          avatarUrl: 'https://example.com/avatar.png',
+          name: '',
+          bio: '',
+          twitterLink: '',
+          streamerMode: false,
+        },
+        isLoading: false,
+      });
+      renderWithRouter(<Profile />);
+
+      const alt = screen.getByRole('img').getAttribute('alt');
+      expect(alt).toContain('Player');
+    });
+
+    it('keeps the Identicon fallback accessible when no avatar is uploaded', () => {
+      mockStoreState({
+        profile: { avatarUrl: null, name: 'TestUser', bio: '', twitterLink: '', streamerMode: false },
+        isLoading: false,
+      });
+      renderWithRouter(<Profile />);
+
+      // No <img> is rendered; the Identicon SVG is exposed as an image role.
+      expect(screen.queryByRole('img', { name: /profile photo/i })).toBeNull();
+      expect(
+        screen.getByRole('img', { name: /identicon for address/i }),
+      ).toBeInTheDocument();
     });
   });
 
