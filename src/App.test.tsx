@@ -24,6 +24,14 @@ vi.mock('./components/LazyBoundary', () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 vi.mock('./pages/Landing', () => ({ default: () => <div data-testid="landing" /> }));
+vi.mock('./pages/Tournament', () => ({
+  default: () => (
+    <main>
+      <h1>Tournament mode is on the way</h1>
+      <h2>Development Roadmap</h2>
+    </main>
+  ),
+}));
 
 import App from './App';
 
@@ -49,6 +57,15 @@ describe('App catch-all routing', () => {
 
     expect(await screen.findByTestId('landing')).toBeInTheDocument();
     expect(screen.queryByText("This path doesn't exist")).not.toBeInTheDocument();
+  });
+
+  it('renders the tournament coming-soon roadmap at its route', async () => {
+    renderAt('/tournament');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Tournament mode is on the way' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Development Roadmap' })).toBeInTheDocument();
   });
 
   it('keeps the skip link pointed at the main landmark', () => {
