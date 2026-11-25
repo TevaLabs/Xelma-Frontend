@@ -619,18 +619,18 @@ const Dashboard = () => {
                       const url = new URL(window.location.href);
                       try {
                         await navigator.clipboard.writeText(url.toString());
-                        toast.success("Link copied to clipboard", {
+                        toast.success(t('dashboard.share.copied'), {
                           id: "share-round-url",
                         });
                       } catch {
-                        toast.error("Could not copy link", {
+                        toast.error(t('dashboard.share.copyError'), {
                           id: "share-round-url",
                         });
                       }
                     }}
                     data-testid="share-rounds-btn"
                     className="btn-ghost inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
-                    aria-label="Copy share link"
+                    aria-label={t('dashboard.share.copyAriaLabel')}
                   >
                     <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
                     {t('dashboard.share.button')}
@@ -668,8 +668,10 @@ const Dashboard = () => {
               </>
             ) : (
               <EmptyState
-                title={`No ${normalizedAsset} Rounds Available`}
-                description={`There are currently no active rounds for ${normalizedAsset === 'BTC' ? 'Bitcoin' : normalizedAsset === 'ETH' ? 'Ethereum' : 'Stellar'}. Try selecting a different asset or check back later.`}
+                title={t('dashboard.emptyState.noAssetRounds.title', { asset: normalizedAsset })}
+                description={t('dashboard.emptyState.noAssetRounds.description', {
+                  assetName: t(`dashboard.assetNames.${normalizedAsset}`),
+                })}
                 action={
                   <button
                     type="button"
@@ -678,7 +680,7 @@ const Dashboard = () => {
                       void useRoundStore.getState().fetchActiveRound();
                     }}
                   >
-                    Refresh
+                    {t('dashboard.refresh')}
                   </button>
                 }
               />
@@ -734,7 +736,7 @@ const Dashboard = () => {
                   void useRoundStore.getState().fetchActiveRound();
                 }}
               >
-                Refresh
+                {t('dashboard.refresh')}
               </button>
             }
           />
@@ -841,7 +843,7 @@ const Dashboard = () => {
               }}
               className="w-full py-3.5 bg-[#2C4BFD] hover:bg-[#2C4BFD]/90 rounded-xl font-bold text-sm transition active:scale-[0.98] min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22d3ee] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
             >
-              Make Prediction
+              {t('dashboard.walletPrompt.makePrediction')}
             </button>
           ) : (
             <Link

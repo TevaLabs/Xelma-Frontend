@@ -74,6 +74,7 @@ const es = {
     walletPrompt: {
       message: 'Conecta tu cartera para enviar predicciones.',
       connectNow: 'Conectar ahora',
+      makePrediction: 'Hacer predicción',
     },
     spectate: {
       title: 'Modo espectador',

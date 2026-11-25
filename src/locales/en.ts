@@ -64,6 +64,7 @@ const en = {
     walletPrompt: {
       message: 'Connect your wallet to make predictions.',
       connectNow: 'Connect Now',
+      makePrediction: 'Make Prediction',
     },
     spectate: {
       title: 'Spectate mode',
