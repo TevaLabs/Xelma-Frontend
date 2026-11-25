@@ -65,8 +65,15 @@ function selectFromStore<TStore extends object>(selector: unknown, store: TStore
 const mockRoundStore = {
   isRoundActive: true,
   resolvedRound: null,
+  sseConnection: {
+    status: 'connected',
+    error: null,
+    reconnectAttempts: 0,
+    lastConnected: null,
+  },
   fetchActiveRound: vi.fn(),
   subscribeToRoundEvents: vi.fn(() => vi.fn()),
+  reconnectSSE: vi.fn(),
   dismissResolvedRound: vi.fn(),
 };
 
@@ -278,8 +285,15 @@ describe('Dashboard', () => {
     Object.assign(mockRoundStore, {
       isRoundActive: true,
       resolvedRound: null,
+      sseConnection: {
+        status: 'connected',
+        error: null,
+        reconnectAttempts: 0,
+        lastConnected: null,
+      },
       fetchActiveRound: vi.fn(),
       subscribeToRoundEvents: vi.fn(() => vi.fn()),
+      reconnectSSE: vi.fn(),
       dismissResolvedRound: vi.fn(),
     });
     Object.assign(mockWalletStore, {
@@ -345,6 +359,14 @@ describe('Dashboard', () => {
 
       expect(screen.getByTestId('share-rounds-btn')).toBeInTheDocument();
       expect(screen.getByTestId('share-rounds-btn')).toHaveTextContent(/Share|dashboard\.share\.button/i);
+    });
+
+    it('shows the round SSE status chip in the header', () => {
+      render(<Dashboard />);
+
+      const chip = screen.getByTestId('round-sse-status-chip');
+      expect(chip).toBeInTheDocument();
+      expect(chip).toHaveTextContent(/Live/i);
     });
   });
 

@@ -19,6 +19,7 @@ import EventLogDrawer from "../components/EventLogDrawer";
 import { Eye, Radio, Rows3 } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
+import { RoundSseStatusChip } from "../components/RoundSseStatusChip";
 import { useConnectionStatus } from "../hooks/useConnectionStatus";
 import { useRoundStore } from "../store/useRoundStore";
 import type { Round, UserPrediction, UserStats } from "../lib/api-client";
@@ -539,14 +540,20 @@ const Dashboard = () => {
               isWalletConnected={isWalletConnected}
               onPromptConnect={() => void useWalletStore.getState().connect()}
             />
-            <button
-              type="button"
-              onClick={() => setIsChatOpen((open) => !open)}
-              aria-pressed={isChatOpen}
-              className="btn-ghost inline-flex min-h-[40px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
-            >
-              {isChatOpen ? "Hide community chat" : "Community chat"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Round SSE health: always-visible compact chip, distinct from
+                  the fixed OfflineBanner (socket) and the ConnectionStatus
+                  block below (shown only while disconnected). */}
+              <RoundSseStatusChip />
+              <button
+                type="button"
+                onClick={() => setIsChatOpen((open) => !open)}
+                aria-pressed={isChatOpen}
+                className="btn-ghost inline-flex min-h-[40px] items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold"
+              >
+                {isChatOpen ? "Hide community chat" : "Community chat"}
+              </button>
+            </div>
           </div>
         )}
 
