@@ -20,6 +20,14 @@ vi.mock('../store/useWalletStore', () => ({
 }));
 vi.mock('../store/useAuthStore');
 
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
 // Report Freighter as installed so the picker offers it in jsdom.
 vi.mock('../lib/wallets', async () => {
   const actual = await vi.importActual<typeof import('../lib/wallets')>('../lib/wallets');
@@ -41,6 +49,9 @@ vi.mock('lucide-react', () => ({
   Wallet: ({ className, ...props }: any) => <div data-testid="wallet-icon" className={className} {...props} />,
   ShieldCheck: ({ className, ...props }: any) => <div data-testid="shield-icon" className={className} {...props} />,
   RefreshCw: ({ className, ...props }: any) => <div data-testid="refresh-icon" className={className} {...props} />,
+  QrCode: ({ className, ...props }: any) => <div data-testid="qrcode-icon" className={className} {...props} />,
+  Copy: ({ className, ...props }: any) => <div data-testid="copy-icon" className={className} {...props} />,
+  Check: ({ className, ...props }: any) => <div data-testid="check-icon" className={className} {...props} />,
   AlertTriangle: ({ className, ...props }: any) => <div data-testid="alert-triangle-icon" className={className} {...props} />,
   Download: ({ className, ...props }: any) => <div data-testid="download-icon" className={className} {...props} />,
   ExternalLink: ({ className, ...props }: any) => <div data-testid="external-link-icon" className={className} {...props} />,
@@ -63,6 +74,9 @@ const mockWalletStore = {
 const mockAuthStore = {
   isAuthenticated: false,
 };
+
+// Clipboard is undefined in jsdom by default; tests set it per block.
+const writeTextMock = vi.fn();
 
 describe('WalletConnect', () => {
   beforeEach(() => {
@@ -268,6 +282,107 @@ describe('WalletConnect', () => {
       // WalletConnect's own banner and the <NetworkMismatchCard /> both render an
       // <AlertCircle />, so expect at least one.
       expect(screen.getAllByTestId('alert-icon').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('receive panel', () => {
+    const connectedKey = 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    beforeEach(() => {
+      vi.mocked(useWalletStore).mockImplementation((selector: any) => {
+        const store = {
+          ...mockWalletStore,
+          status: 'connected',
+          publicKey: connectedKey,
+          balance: '100.50 XLM',
+        };
+        return typeof selector === 'function' ? selector(store) : store;
+      });
+      writeTextMock.mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: writeTextMock },
+        configurable: true,
+      });
+    });
+
+    it('shows a Receive button in the connected state', () => {
+      render(<WalletConnect />);
+
+      const receiveButton = screen.getByRole('button', { name: /receive/i });
+      expect(receiveButton).toBeInTheDocument();
+      expect(screen.getByTestId('qrcode-icon')).toBeInTheDocument();
+    });
+
+    it('opens the receive panel with the full address and a QR code', () => {
+      render(<WalletConnect />);
+
+      expect(screen.queryByRole('dialog', { name: /receive/i })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /receive/i }));
+
+      const dialog = screen.getByRole('dialog', { name: /receive/i });
+      expect(dialog).toBeInTheDocument();
+      // The full address is shown — the pill only ever shows the short form.
+      expect(screen.getByText(connectedKey)).toBeInTheDocument();
+      const qr = screen.getByTestId('receive-qr');
+      expect(qr).toBeInTheDocument();
+      expect(qr.querySelector('svg')).toBeInTheDocument();
+    });
+
+    it('copies the full address and shows copied feedback', async () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /receive/i }));
+      fireEvent.click(screen.getByRole('button', { name: /copy wallet address/i }));
+
+      await waitFor(() => expect(writeTextMock).toHaveBeenCalledWith(connectedKey));
+      expect(screen.getByText('Copied')).toBeInTheDocument();
+      expect(screen.getByTestId('check-icon')).toBeInTheDocument();
+
+      const { toast } = await import('sonner');
+      expect(toast.success).toHaveBeenCalledWith('Address copied');
+    });
+
+    it('falls back to the legacy copy path when the Clipboard API is unavailable', async () => {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: undefined,
+        configurable: true,
+      });
+      const execCommandMock = vi.fn().mockReturnValue(true);
+      Object.defineProperty(document, 'execCommand', {
+        value: execCommandMock,
+        configurable: true,
+      });
+
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /receive/i }));
+      fireEvent.click(screen.getByRole('button', { name: /copy wallet address/i }));
+
+      await waitFor(() => expect(execCommandMock).toHaveBeenCalledWith('copy'));
+      expect(screen.getByText('Copied')).toBeInTheDocument();
+    });
+
+    it('closes the receive panel from the close button', () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /receive/i }));
+      expect(screen.getByRole('dialog', { name: /receive/i })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /close receive panel/i }));
+
+      expect(screen.queryByRole('dialog', { name: /receive/i })).not.toBeInTheDocument();
+    });
+
+    it('closes the receive panel on Escape', () => {
+      render(<WalletConnect />);
+
+      fireEvent.click(screen.getByRole('button', { name: /receive/i }));
+      expect(screen.getByRole('dialog', { name: /receive/i })).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByRole('dialog', { name: /receive/i })).not.toBeInTheDocument();
     });
   });
 
