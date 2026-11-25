@@ -42,6 +42,14 @@ describe('OnboardingChecklist dismiss persistence', () => {
     expect(screen.queryByRole('heading', { name: /welcome to xelma/i })).not.toBeInTheDocument();
   });
 
+  it('does not show the checklist when dismissal is already persisted on mount', () => {
+    localStorage.setItem(ONBOARDING_KEY, 'true');
+
+    renderChecklist();
+
+    expect(screen.queryByRole('heading', { name: /welcome to xelma/i })).not.toBeInTheDocument();
+  });
+
   it("dismisses via the Let's Go button", () => {
     renderChecklist();
 

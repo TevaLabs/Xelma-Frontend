@@ -3,6 +3,14 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+const SOCKET_VENDOR_MODULES = [
+  "/node_modules/socket.io-client/",
+  "/node_modules/engine.io-client/",
+  "/node_modules/engine.io-parser/",
+  "/node_modules/socket.io-parser/",
+  "/node_modules/@socket.io/component-emitter/",
+];
+
 export default defineConfig({
   plugins: [
     react(),
@@ -79,14 +87,14 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id: string) {
+          if (SOCKET_VENDOR_MODULES.some((modulePath) => id.includes(modulePath))) {
+            return "socket-vendor";
+          }
           if (id.includes("@stellar/stellar-sdk") || id.includes("@stellar/freighter-api")) {
             return "stellar-vendor";
           }
           if (id.includes("lightweight-charts")) {
             return "lightweight-charts";
-          }
-          if (id.includes("socket.io-client")) {
-            return "socket";
           }
         },
       },
