@@ -1,4 +1,4 @@
-import type { MockRound, MockUserStats, RankTier, RecentActivityItem, PricePoint } from '../types';
+import type { MockRound, RankTier, RecentActivityItem, PricePoint } from '../types';
 
 export const RANK_TIERS: RankTier[] = [
   { name: 'Rookie', minXp: 0, label: 'Getting Started' },
@@ -171,16 +171,6 @@ export const mockPriceData: Record<string, PricePoint[]> = {
   BTC: generateMockPriceData('BTC'),
   ETH: generateMockPriceData('ETH'),
   XLM: generateMockPriceData('XLM'),
-};
-
-export const mockUserStats: MockUserStats = {
-  balance: 1000,
-  pendingWinnings: 0,
-  totalWins: 3,
-  totalLosses: 1,
-  currentStreak: 3,
-  xp: 410,
-  rank: 'Rookie',
 };
 
 export const mockRecentActivity: RecentActivityItem[] = [

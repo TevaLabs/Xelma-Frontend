@@ -6,7 +6,11 @@ describe('PageSkeleton', () => {
   it('renders a status region with a non-empty accessible name', () => {
     render(<PageSkeleton type="dashboard" />);
 
-    expect(screen.getByRole('status', { name: 'Loading page' })).toBeInTheDocument();
+    const status = screen.getByRole('status', { name: 'Loading page' });
+    expect(status).toBeInTheDocument();
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status).toHaveAttribute('aria-label', 'Loading page');
+    expect(status).toHaveAttribute('aria-busy', 'true');
   });
 
   it('renders the loading text for the supplied page type', () => {

@@ -173,6 +173,9 @@ describe('StatsCard', () => {
       renderCard({}, { error: 'Failed to load stats', onRetry });
 
       expect(screen.getByText('Failed to load stats')).toBeInTheDocument();
+      expect(screen.getByText('Could not load your stats.')).toBeInTheDocument();
+      expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+      expect(screen.queryByText('750.50 vXLM')).not.toBeInTheDocument();
       const retry = screen.getByRole('button', { name: /retry/i });
       retry.click();
       expect(onRetry).toHaveBeenCalledTimes(1);
@@ -187,6 +190,9 @@ describe('StatsCard', () => {
       render(<StatsCard stats={null} />);
       expect(screen.getByText('User stats unavailable')).toBeInTheDocument();
       expect(screen.queryByText('Practice Balance')).not.toBeInTheDocument();
+      expect(screen.queryByText('750.50 vXLM')).not.toBeInTheDocument();
+      expect(screen.queryByText('12 rounds')).not.toBeInTheDocument();
+      expect(screen.queryByText('1500 XP')).not.toBeInTheDocument();
     });
   });
 
