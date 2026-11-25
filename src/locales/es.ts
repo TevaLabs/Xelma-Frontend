@@ -55,6 +55,30 @@ const es = {
         description: 'Elige el modo Direccional o de Precisión y asegura tu pronóstico de precio en la cadena.'
       }
     },
+    modeCards: {
+      title: 'Dos modos de predicción',
+      subtitle:
+        'Elige el estilo de trading que se adapte a tu estrategia. Ambos modos usan vXLM de práctica — sin depósito requerido.',
+      cta: 'Comenzar a predecir',
+      directional: {
+        title: 'Trading direccional',
+        subtitle: 'ARRIBA / ABAJO',
+        description:
+          'Predice si el precio de un activo subirá o bajará dentro de una ventana de tiempo fija.',
+        bullet1: 'Predicción binaria de precio',
+        bullet2: 'Datos de mercado en tiempo real',
+        bullet3: 'Liquidación instantánea',
+      },
+      precision: {
+        title: 'Trading de precisión',
+        subtitle: 'Rango estrecho',
+        description:
+          'Bloquea ventanas de precio más ajustadas para obtener mayores multiplicadores potenciales en cada predicción.',
+        bullet1: 'Ventanas de precio más ajustadas',
+        bullet2: 'Mayores multiplicadores de pago',
+        bullet3: 'Modo de estrategia avanzada',
+      },
+    },
   },
   tournament: {
     title: 'Torneos',
