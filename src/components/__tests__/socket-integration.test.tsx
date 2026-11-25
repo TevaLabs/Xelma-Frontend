@@ -14,6 +14,7 @@ vi.mock('../../lib/socket', () => {
     onNotification: vi.fn(),
     onChatMessage: vi.fn(),
     joinNotifications: vi.fn(),
+    leaveNotifications: vi.fn(),
     joinChat: vi.fn(),
     leaveChat: vi.fn(),
     sendChat: vi.fn(),

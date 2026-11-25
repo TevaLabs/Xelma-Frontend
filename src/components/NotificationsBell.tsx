@@ -35,6 +35,9 @@ const NotificationsBell: React.FC = () => {
 
     return () => {
       unsubscribe();
+      // Leave the channel on logout / wallet change so the socket stops
+      // receiving another account's notifications.
+      socketService.leaveNotifications(publicKey);
       // Note: Don't disconnect socket as other components may be using it
     };
   }, [addNotification, publicKey]);

@@ -18,6 +18,7 @@ vi.mock('../../lib/socket', () => ({
       };
     }),
     joinNotifications: vi.fn(),
+    leaveNotifications: vi.fn(),
   },
 }));
 
