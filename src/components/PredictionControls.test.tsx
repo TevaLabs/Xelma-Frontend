@@ -332,6 +332,85 @@ describe('PredictionControls', () => {
     });
   });
 
+  describe('Keyboard shortcuts (#979)', () => {
+    const fillStake = (amount = '10') => {
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Stake Amount/i }), {
+        target: { value: amount },
+      });
+    };
+
+    it.each([
+      ['u', 'UP'],
+      ['U', 'UP'],
+      ['ArrowUp', 'UP'],
+      ['d', 'DOWN'],
+      ['D', 'DOWN'],
+      ['ArrowDown', 'DOWN'],
+    ] as const)('submits %s as %s', (key, direction) => {
+      const onPrediction = vi.fn();
+      const { container } = render(
+        <PredictionControls
+          isWalletConnected={true}
+          walletBalance="100.00 XLM"
+          onPrediction={onPrediction}
+        />,
+      );
+
+      fillStake();
+      fireEvent.keyDown(container, { key });
+
+      expect(onPrediction).toHaveBeenCalledWith({
+        direction,
+        stake: '10',
+        exactPrice: undefined,
+        isLegend: false,
+      });
+    });
+
+    it('ignores shortcuts while typing in the stake or exact price fields', () => {
+      const onPrediction = vi.fn();
+      render(
+        <PredictionControls
+          isWalletConnected={true}
+          walletBalance="100.00 XLM"
+          onPrediction={onPrediction}
+        />,
+      );
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake Amount/i });
+      fireEvent.change(stakeInput, { target: { value: '10' } });
+      fireEvent.keyDown(stakeInput, { key: 'ArrowUp' });
+      fireEvent.keyDown(stakeInput, { key: 'u' });
+      expect(onPrediction).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('checkbox', { name: /I am a legend/i }));
+      const exactPriceInput = screen.getByRole('spinbutton', { name: /Exact Price Prediction/i });
+      fireEvent.keyDown(exactPriceInput, { key: 'D' });
+      expect(onPrediction).not.toHaveBeenCalled();
+    });
+
+    it('ignores shortcuts while the controls are disabled', () => {
+      const onPrediction = vi.fn();
+      const { container } = render(
+        <PredictionControls
+          isWalletConnected={false}
+          walletBalance="100.00 XLM"
+          onPrediction={onPrediction}
+        />,
+      );
+
+      fireEvent.keyDown(container, { key: 'ArrowUp' });
+      expect(onPrediction).not.toHaveBeenCalled();
+    });
+
+    it('documents the shortcuts visually and for screen readers', () => {
+      const { container } = render(<PredictionControls />);
+
+      expect(container.querySelector('.prediction-card__shortcut-hint')).toHaveTextContent(/U.*UP.*D.*DOWN/);
+      expect(screen.getByText(/Keyboard shortcuts: Press U or Arrow Up to select UP/i)).toBeInTheDocument();
+    });
+  });
+
   describe('Help Tooltip', () => {
     it('renders the help icon button with correct aria attributes', () => {
       render(<PredictionControls />);

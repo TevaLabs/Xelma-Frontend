@@ -314,4 +314,51 @@ describe('BetModal — transaction pending state (#163)', () => {
       expect(screen.queryByRole('button', { name: /Set stake to 25% of balance/i })).not.toBeInTheDocument();
     });
   });
+
+  describe('Keyboard shortcuts (#979)', () => {
+    it.each(['d', 'ArrowDown'])('selects DOWN with %s', (key) => {
+      renderOpen();
+
+      fireEvent.keyDown(document, { key });
+
+      expect(screen.getByRole('button', { name: 'DOWN' })).toHaveClass('border-red-400');
+      expect(screen.getByRole('button', { name: 'UP' })).not.toHaveClass('border-green-400');
+    });
+
+    it.each(['u', 'ArrowUp'])('selects UP with %s', (key) => {
+      renderOpen({ ...defaultPrediction, direction: 'DOWN' });
+
+      fireEvent.keyDown(document, { key });
+
+      expect(screen.getByRole('button', { name: 'UP' })).toHaveClass('border-green-400');
+    });
+
+    it('confirms the prediction with Enter', async () => {
+      const onSuccess = vi.fn();
+      renderOpen(defaultPrediction, onSuccess);
+
+      fireEvent.keyDown(document, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalledWith('TXABC');
+      });
+    });
+
+    it('ignores shortcuts while typing in an input', () => {
+      renderOpen();
+
+      const stakeInput = screen.getByRole('spinbutton', { name: /Stake/i });
+      fireEvent.keyDown(stakeInput, { key: 'ArrowDown' });
+      fireEvent.keyDown(stakeInput, { key: 'Enter' });
+
+      expect(screen.getByRole('button', { name: 'UP' })).toHaveClass('border-green-400');
+      expect(screen.queryByText(/preparing transaction/i)).not.toBeInTheDocument();
+    });
+
+    it('documents the shortcuts visually and for screen readers', () => {
+      renderOpen();
+
+      expect(screen.getByText(/Keyboard shortcuts: Press U or Arrow Up for UP/i)).toBeInTheDocument();
+    });
+  });
 });

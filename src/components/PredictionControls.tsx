@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import PredictionHelpTooltip from "./PredictionHelpTooltip";
 import "./PredictionCard.css";
 
@@ -20,6 +20,16 @@ function computePresetStake(balanceStr: string | null | undefined, percentage: n
   const truncated = Math.floor(raw * factor + 1e-9) / factor;
   const safeAmount = Math.min(truncated, available);
   return Number(safeAmount.toFixed(4)).toString();
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT" ||
+    target.isContentEditable
+  );
 }
 
 function validateStake(value: string, walletBalance: string | null | undefined): string | null {
@@ -180,8 +190,40 @@ export function PredictionControls({
 
   const canSubmit = Boolean(stake) && !stakeError && (!isLegend || (exactPrice && !exactPriceError));
 
+  const handlePredictionRef = useRef<(direction: "UP" | "DOWN") => void>(() => {});
+
+  useEffect(() => {
+    handlePredictionRef.current = handlePrediction;
+  });
+
+  // U/↑ and D/↓ mirror the UP/DOWN buttons. The listener lives on the window
+  // so the shortcuts work regardless of which control has focus, but stays
+  // inert while the caller is busy (e.g. the confirmation dialog is open) or
+  // while the user is typing into a field.
+  useEffect(() => {
+    if (isDisabled) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (isEditableTarget(event.target)) return;
+      if (isEditableTarget(document.activeElement)) return;
+      if (document.querySelector('[role="dialog"]')) return;
+
+      if (event.key === "u" || event.key === "U" || event.key === "ArrowUp") {
+        event.preventDefault();
+        handlePredictionRef.current("UP");
+      } else if (event.key === "d" || event.key === "D" || event.key === "ArrowDown") {
+        event.preventDefault();
+        handlePredictionRef.current("DOWN");
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isDisabled]);
+
   return (
-    <>
+    <div>
       <div className="flex items-center justify-center gap-2 mb-7">
         <h2 className="prediction-card__title" style={{ margin: 0 }}>Guess price prediction</h2>
         <PredictionHelpTooltip />
@@ -225,6 +267,13 @@ export function PredictionControls({
           <span className="prediction-card__button-text">DOWN</span>
         </button>
       </div>
+
+      <p className="prediction-card__shortcut-hint" aria-hidden="true">
+        <kbd>U</kbd> <kbd>↑</kbd> UP · <kbd>D</kbd> <kbd>↓</kbd> DOWN
+      </p>
+      <span className="sr-only">
+        Keyboard shortcuts: Press U or Arrow Up to select UP, press D or Arrow Down to select DOWN. Shortcuts are disabled while typing in text fields.
+      </span>
 
       <div className="prediction-card__stake-section">
         <label htmlFor="stake-input" className="prediction-card__label">
@@ -339,7 +388,7 @@ export function PredictionControls({
           {isWalletConnected && !isRoundActive && <p>This round is not active</p>}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
