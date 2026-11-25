@@ -33,6 +33,12 @@ describe('LoadingState', () => {
     expect(screen.queryByText('Loading content...')).not.toBeInTheDocument();
   });
 
+  it('renders an animated spinner icon for the spinner variant', () => {
+    render(<LoadingState />);
+
+    expect(screen.getByRole('status').querySelector('svg')).toHaveClass('animate-spin');
+  });
+
   it('omits the message paragraph when the message is empty (skeleton variant)', () => {
     render(<LoadingState variant="skeleton" message="" />);
 
@@ -67,6 +73,23 @@ describe('ErrorState', () => {
     fireEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the retry control as a non-submit button', () => {
+    render(<ErrorState message="Failed to load rounds" onRetry={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: /try again/i })).toHaveAttribute(
+      'type',
+      'button',
+    );
+  });
+
+  it('exposes the error region with role="alert" for assistive tech', () => {
+    render(<ErrorState message="Failed to load rounds" />);
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Oops! Something went wrong');
+    expect(alert).toHaveTextContent('Failed to load rounds');
   });
 
   it('fires onRetry for every click', () => {
