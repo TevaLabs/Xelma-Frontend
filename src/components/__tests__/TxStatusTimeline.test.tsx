@@ -1,7 +1,15 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { toast } from 'sonner';
 import TxStatusTimeline, { formatTxHash, useTxStatusMachine } from '../TxStatusTimeline';
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 describe('formatTxHash', () => {
   it('returns the hash unchanged when shorter than the truncation window', () => {
@@ -95,6 +103,10 @@ describe('useTxStatusMachine', () => {
 });
 
 describe('TxStatusTimeline', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders nothing when idle', () => {
     const { container } = render(<TxStatusTimeline step="idle" />);
     expect(container.firstChild).toBeNull();
@@ -142,6 +154,33 @@ describe('TxStatusTimeline', () => {
 
     const link = screen.getByRole('link', { name: /view on stellarexpert/i });
     expect(link).toHaveAttribute('href', 'https://stellarexpert.org/tx/0123456789abcdef');
+  });
+
+  it('copies the full tx hash to the clipboard and shows a sonner toast', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<TxStatusTimeline step="success" txHash="0123456789abcdef" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /copy transaction hash/i }));
+
+    expect(writeText).toHaveBeenCalledWith('0123456789abcdef');
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith('Transaction hash copied');
+    });
+  });
+
+  it('shows an error toast when copying the tx hash fails', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('Clipboard denied'));
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<TxStatusTimeline step="success" txHash="0123456789abcdef" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /copy transaction hash/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Failed to copy transaction hash');
+    });
   });
 
   it('renders the Done button when onDone is provided', () => {

@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- shared status-machine module (component + hook) */
-import { Fragment, useCallback, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
 /**
@@ -154,6 +156,35 @@ export default function TxStatusTimeline({
   onRetry,
   onDone,
 }: TxStatusTimelineProps) {
+  const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyHash = useCallback(async () => {
+    if (!txHash) return;
+    try {
+      await navigator.clipboard.writeText(txHash);
+      setCopied(true);
+      toast.success('Transaction hash copied');
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copiedTimerRef.current = null;
+      }, 2000);
+    } catch {
+      toast.error('Failed to copy transaction hash');
+    }
+  }, [txHash]);
+
   if (step === 'idle') return null;
 
   if (isProgressStep(step)) {
@@ -229,13 +260,25 @@ export default function TxStatusTimeline({
         <p className="mb-4 text-sm text-gray-400">
           {successMessage ?? 'Your transaction has been successfully written on-chain.'}
         </p>
-        {displayHash && (
-          <code
-            className="mx-auto mb-5 block w-fit rounded-lg border border-gray-800 bg-gray-950 px-3 py-2 font-mono text-xs text-cyan-300"
-            title={txHash}
-          >
-            Tx: {displayHash}
-          </code>
+        {displayHash && txHash && (
+          <div className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2">
+            <code className="font-mono text-xs text-cyan-300" title={txHash}>
+              Tx: {displayHash}
+            </code>
+            <button
+              type="button"
+              onClick={handleCopyHash}
+              aria-label={copied ? 'Transaction hash copied' : 'Copy transaction hash'}
+              title={copied ? 'Copied' : 'Copy transaction hash'}
+              className="rounded p-1 text-gray-400 transition hover:bg-gray-800 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-green-400" aria-hidden="true" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+            </button>
+          </div>
         )}
         <div className="space-y-3">
           {txHash && (
