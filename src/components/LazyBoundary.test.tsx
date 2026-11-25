@@ -1,3 +1,4 @@
+import { lazy, Suspense, useState } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import LazyBoundary from './LazyBoundary';
@@ -137,5 +138,90 @@ describe('LazyBoundary', () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByRole('button', { name: /retry/i }));
     });
+  });
+
+  it('catches rejected React.lazy chunk imports and displays retry UI with diagnostic message', async () => {
+    const chunkError = new Error('Failed to fetch dynamically imported module: /assets/Learn.js');
+    const FailingLazyChunk = lazy(() => Promise.reject(chunkError));
+
+    render(
+      <LazyBoundary>
+        <Suspense fallback={<div>Loading chunk...</div>}>
+          <FailingLazyChunk />
+        </Suspense>
+      </LazyBoundary>,
+    );
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /page failed to load/i })).toBeInTheDocument();
+    expect(screen.getByText(chunkError.message)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /go home/i })).toBeInTheDocument();
+  });
+
+  it('invokes onReset and recovers when retrying a rejected React.lazy chunk', async () => {
+    const onReset = vi.fn();
+    const FailingLazyPage = lazy(() => Promise.reject(new Error('Loading chunk 42 failed')));
+    const RecoveredLazyPage = lazy(() =>
+      Promise.resolve({ default: () => <div>Recovered Lazy Chunk</div> }),
+    );
+
+    function LazyHarness() {
+      const [attempt, setAttempt] = useState(0);
+
+      return (
+        <LazyBoundary
+          onReset={() => {
+            onReset();
+            setAttempt((n) => n + 1);
+          }}
+        >
+          <Suspense fallback={<div>Loading chunk...</div>}>
+            {attempt === 0 ? <FailingLazyPage /> : <RecoveredLazyPage />}
+          </Suspense>
+        </LazyBoundary>
+      );
+    }
+
+    render(<LazyHarness />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText('Loading chunk 42 failed')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('Recovered Lazy Chunk')).toBeInTheDocument();
+  });
+
+  it('shows retry attempt count when consecutive lazy chunk loads reject', async () => {
+    const FirstFailingChunk = lazy(() =>
+      Promise.reject(new Error('Chunk load rejected on attempt 0')),
+    );
+    const SecondFailingChunk = lazy(() =>
+      Promise.reject(new Error('Chunk load rejected on attempt 1')),
+    );
+
+    function AlwaysFailingLazyHarness() {
+      const [attempt, setAttempt] = useState(0);
+
+      return (
+        <LazyBoundary onReset={() => setAttempt((n) => n + 1)}>
+          <Suspense fallback={<div>Loading chunk...</div>}>
+            {attempt === 0 ? <FirstFailingChunk /> : <SecondFailingChunk />}
+          </Suspense>
+        </LazyBoundary>
+      );
+    }
+
+    render(<AlwaysFailingLazyHarness />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/retry attempt/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+
+    expect(await screen.findByText(/retry attempt 1 of 3/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 });
