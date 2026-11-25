@@ -59,6 +59,17 @@ const WalletConnect = () => {
   if (publicKey && status === 'connected') {
     return (
       <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2" role="status" aria-label="Wallet connection status">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+            Wallet connected
+          </span>
+          {networkMismatch && (
+            <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+              Network mismatch
+            </span>
+          )}
+        </div>
         {networkMismatch && (
           <div
             className="hidden md:flex items-center text-red-600 dark:text-red-400 text-sm font-medium bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded"

@@ -1,12 +1,17 @@
-import React, { useEffect, useRef } from 'react';
+import React, { type RefObject, useEffect, useRef } from 'react';
 import { useNotificationsStore } from '../store/useNotificationsStore';
 import { Check } from './icons';
 import { LoadingState, ErrorState, EmptyState } from './ui/StatusStates';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
+const NotificationsPanel: React.FC<{
+  id: string;
+  onClose: () => void;
+  restoreFocusRef?: RefObject<HTMLElement | null>;
+}> = ({
   id,
   onClose,
+  restoreFocusRef,
 }) => {
   const titleId = `${id}-title`;
   const descriptionId = `${id}-description`;
@@ -32,7 +37,8 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
     active: true,
     initialFocusRef: closeButtonRef,
     onEscape: onClose,
-    restoreFocus: false,
+    restoreFocus: true,
+    restoreFocusRef,
   });
 
   return (
@@ -44,9 +50,9 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       tabIndex={-1}
-      className="glass-card absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-xl shadow-2xl shadow-black/40 z-50 text-white"
+      className="glass-card absolute right-0 mt-2 w-96 max-w-[calc(100vw-2rem)] rounded-xl border border-[#BEC7FE]/15 bg-[#0A0F1A]/95 shadow-2xl shadow-black/40 backdrop-blur-xl z-50 text-white"
     >
-      <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2 flex-wrap">
+      <div className="p-4 border-b border-[#BEC7FE]/15 bg-[#111827]/60 flex items-center justify-between gap-2 flex-wrap">
         <h2 id={titleId} className="text-lg font-bold text-white">
           Notifications
         </h2>
@@ -102,7 +108,7 @@ const NotificationsPanel: React.FC<{ id: string; onClose: () => void }> = ({
             {list.map((n) => (
               <div
                 key={n.id}
-                className={`p-4 border-b border-white/10 last:border-b-0 flex items-start justify-between gap-3 ${n.read ? 'opacity-60' : ''}`}
+                className={`p-4 border-b border-[#BEC7FE]/10 last:border-b-0 flex items-start justify-between gap-3 hover:bg-[#2C4BFD]/10 transition-colors ${n.read ? 'opacity-60' : ''}`}
               >
                 <div className="min-w-0">
                   <div className="font-semibold text-white">{n.title}</div>
