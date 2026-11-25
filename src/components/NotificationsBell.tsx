@@ -84,9 +84,9 @@ const NotificationsBell: React.FC = () => {
       {open && (
         <NotificationsPanel
           id={panelId}
+          restoreFocusRef={triggerRef}
           onClose={() => {
             setOpen(false);
-            triggerRef.current?.focus();
           }}
         />
       )}
