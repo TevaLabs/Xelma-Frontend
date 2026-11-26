@@ -125,4 +125,23 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toBeVisible();
     await expect(mainHeading).toContainText('Leaderboard');
   });
+
+  test('Unknown route renders 404 NotFound page correctly', async ({ page }) => {
+    await page.goto('/definitely-not-a-valid-route-404');
+    await page.waitForLoadState('networkidle');
+
+    // Verify 404 illustration and heading
+    const notFoundHeading = page.locator('h1');
+    await expect(notFoundHeading).toBeVisible();
+    await expect(notFoundHeading).toContainText("This path doesn't exist");
+
+    // Verify 404 badge and text
+    await expect(page.locator('text=404').first()).toBeVisible();
+    await expect(page.locator('text=Unknown route')).toBeVisible();
+
+    // Verify recovery link to home
+    const backHomeLink = page.locator('a', { hasText: 'Back to Home' });
+    await expect(backHomeLink).toBeVisible();
+    await expect(backHomeLink).toHaveAttribute('href', '/');
+  });
 });

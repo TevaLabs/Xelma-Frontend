@@ -4,7 +4,7 @@ import {
   isClamped,
   presetAmount,
   spendable,
-} from "@/lib/stakePresets";
+} from "../lib/stakePresets";
 
 interface StakePresetsProps {
   /** Wallet balance of the staking token (string or number); null while unknown. */
