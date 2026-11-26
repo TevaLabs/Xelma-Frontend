@@ -1,4 +1,9 @@
 import { useConnectionStatus } from '../hooks/useConnectionStatus';
+import {
+  STATUS_TONES,
+  DEFAULT_STATUS_TONE,
+  STATUS_CTA_CLASSES,
+} from './connectionStatusTones';
 
 interface ConnectionStatusProps {
   className?: string;
@@ -23,15 +28,7 @@ export function ConnectionStatus({
     return null;
   }
 
-  const getStatusColor = () => {
-    switch (status) {
-      case 'connected': return 'text-green-700 bg-green-50 border-green-200';
-      case 'connecting': return 'text-blue-700 bg-blue-50 border-blue-200';
-      case 'reconnecting': return 'text-yellow-800 bg-yellow-50 border-yellow-200';
-      case 'disconnected': return 'text-red-700 bg-red-50 border-red-200';
-      default: return 'text-gray-700 bg-gray-50 border-gray-200';
-    }
-  };
+  const tone = STATUS_TONES[status] ?? DEFAULT_STATUS_TONE;
 
   const getStatusIcon = () => {
     switch (status) {
@@ -76,14 +73,14 @@ export function ConnectionStatus({
   };
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium ${getStatusColor()} ${className}`}>
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium ${tone.chip} ${className}`}>
       {getStatusIcon()}
       <span>{getStatusText()}</span>
-      
+
       {isDisconnected && (
         <button
           onClick={reconnect}
-          className="ml-2 px-2 py-1 text-xs bg-white border border-current rounded hover:bg-opacity-80 transition-colors"
+          className={`ml-2 px-2 py-1 text-xs ${STATUS_CTA_CLASSES}`}
         >
           Retry
         </button>
@@ -98,26 +95,18 @@ export function ConnectionStatus({
 export function ConnectionIndicator({ className = '' }: { className?: string }) {
   const { status, reconnect, isDisconnected } = useConnectionStatus();
 
-  const getIndicatorColor = () => {
-    switch (status) {
-      case 'connected': return 'bg-green-500';
-      case 'connecting': return 'bg-blue-500 animate-pulse';
-      case 'reconnecting': return 'bg-yellow-500 animate-pulse';
-      case 'disconnected': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
+  const tone = STATUS_TONES[status] ?? DEFAULT_STATUS_TONE;
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div 
-        className={`w-2 h-2 rounded-full ${getIndicatorColor()}`}
+      <div
+        className={`w-2 h-2 rounded-full ${tone.dot}`}
         title={`Connection status: ${status}`}
       />
       {isDisconnected && (
         <button
           onClick={reconnect}
-          className="text-xs text-gray-600 hover:text-gray-800 underline"
+          className={`text-xs text-gray-300 hover:text-white underline px-2 py-0.5 ${STATUS_CTA_CLASSES}`}
           title="Reconnect to live updates"
         >
           Reconnect
