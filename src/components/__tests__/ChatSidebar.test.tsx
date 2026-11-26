@@ -200,6 +200,26 @@ describe('ChatSidebar — mobile sheet focus order', () => {
     });
   });
 
+  it('restores focus to the toggle button when closed via overlay click', async () => {
+    const { container } = render(<ChatSidebar />);
+
+    const toggle = screen.getByLabelText('Toggle chat sidebar');
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByLabelText('Message input'));
+    });
+
+    // Mobile overlay has aria-hidden="true"
+    const overlay = container.querySelector('.fixed.inset-0.bg-black\\/60');
+    expect(overlay).toBeInTheDocument();
+    fireEvent.click(overlay!);
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(toggle);
+    });
+  });
+
   it('marks the sheet as a modal dialog only while open on mobile', () => {
     render(<ChatSidebar />);
 

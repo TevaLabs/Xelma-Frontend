@@ -129,6 +129,27 @@ describe('Profile Page', () => {
       expect(screen.getByText('Anonymous Player')).toBeInTheDocument();
     });
 
+    it('uses the display name as alt text for an uploaded avatar', () => {
+      mockStoreState({
+        profile: { ...mockProfile, name: 'Ada Lovelace', avatarUrl: 'data:image/png;base64,abc' },
+      });
+      renderWithRouter(<Profile />);
+
+      expect(screen.getByRole('img', { name: "Ada Lovelace's avatar" })).toHaveAttribute(
+        'src',
+        'data:image/png;base64,abc',
+      );
+    });
+
+    it('falls back to the default display name in avatar alt text when no name is set', () => {
+      mockStoreState({
+        profile: { ...mockProfile, name: '  ', avatarUrl: 'data:image/png;base64,abc' },
+      });
+      renderWithRouter(<Profile />);
+
+      expect(screen.getByRole('img', { name: "Anonymous Player's avatar" })).toBeInTheDocument();
+    });
+
     it('shows Streamer mode badge when streamerMode is enabled', () => {
       mockStoreState({
         profile: { avatarUrl: null, name: 'TestUser', bio: '', twitterLink: '', streamerMode: true },

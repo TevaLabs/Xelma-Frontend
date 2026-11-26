@@ -88,6 +88,29 @@ describe('FriendbotFundCard', () => {
     await waitFor(() => expect(button).not.toBeDisabled());
   });
 
+  it('ignores synchronous double-clicks before React can disable the button (issue #950)', async () => {
+    setLowBalanceConnected();
+    let resolveFund: () => void = () => {};
+    fundWithFriendbot.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveFund = resolve;
+      }),
+    );
+    render(<FriendbotFundCard />);
+
+    const button = screen.getByRole('button', { name: /fund with friendbot/i });
+    await act(async () => {
+      // Both clicks land in the same tick, before setState disables the button.
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+
+    expect(fundWithFriendbot).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolveFund();
+    });
+  });
+
   it('shows a success toast and refreshes the balance after funding succeeds', async () => {
     setLowBalanceConnected();
     const refreshBalance = vi.fn().mockResolvedValue(undefined);
@@ -119,6 +142,20 @@ describe('FriendbotFundCard', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
     expect(toastError.mock.calls[0][0]).toMatch(/rate limiting/i);
     expect(refreshBalance).not.toHaveBeenCalled();
+  });
+
+  it('shows an actionable fallback message when funding fails without an Error message', async () => {
+    setLowBalanceConnected();
+    fundWithFriendbot.mockRejectedValue('unexpected non-error failure');
+    render(<FriendbotFundCard />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /fund with friendbot/i }));
+    });
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
+    expect(toastError.mock.calls[0][0]).toMatch(/check your connection and try again/i);
+    expect(toastError.mock.calls[0][0]).not.toBe('Friendbot funding failed. Try again.');
   });
 
   it('re-enables the button after a failed funding attempt so the user can retry', async () => {

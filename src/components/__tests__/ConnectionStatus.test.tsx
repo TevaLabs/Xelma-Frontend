@@ -7,6 +7,10 @@ vi.mock('../../hooks/useConnectionStatus', () => ({
 }));
 
 import { ConnectionStatus, ConnectionIndicator } from '../ConnectionStatus';
+import {
+  STATUS_TONES,
+  STATUS_CTA_CLASSES,
+} from '../connectionStatusTones';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 
 describe('ConnectionStatus', () => {
@@ -42,8 +46,9 @@ describe('ConnectionStatus', () => {
       isDisconnected: false,
     });
 
-    render(<ConnectionStatus showWhenConnected={true} />);
+    const { container } = render(<ConnectionStatus showWhenConnected={true} />);
     expect(screen.getByText('Live updates active')).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass(...STATUS_TONES.connected.chip.split(' '));
   });
 
   it('should render connecting state', () => {
@@ -127,7 +132,8 @@ describe('ConnectionStatus', () => {
     
     const retryButton = screen.getByText('Retry');
     expect(retryButton).toBeInTheDocument();
-    
+    expect(retryButton).toHaveClass(...STATUS_CTA_CLASSES.split(' '));
+
     fireEvent.click(retryButton);
     expect(mockReconnect).toHaveBeenCalledOnce();
   });
@@ -165,6 +171,31 @@ describe('ConnectionStatus', () => {
   });
 });
 
+describe('ConnectionStatus dark HUD tones (#938)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(['connected', 'connecting', 'reconnecting', 'disconnected'] as const)(
+    'applies the exported dark chip tokens for %s',
+    (status) => {
+      (useConnectionStatus as any).mockReturnValue({
+        status,
+        error: null,
+        reconnectAttempts: 0,
+        reconnect: vi.fn(),
+        isConnected: status === 'connected',
+        isConnecting: status === 'connecting',
+        isReconnecting: status === 'reconnecting',
+        isDisconnected: status === 'disconnected',
+      });
+
+      const { container } = render(<ConnectionStatus showWhenConnected />);
+      expect(container.firstChild).toHaveClass(...STATUS_TONES[status].chip.split(' '));
+    },
+  );
+});
+
 describe('ConnectionIndicator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -178,7 +209,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-green-500');
+    const indicator = container.querySelector(`.${STATUS_TONES.connected.dot.split(' ').join('.')}`);
     expect(indicator).toBeInTheDocument();
   });
 
@@ -190,7 +221,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-blue-500.animate-pulse');
+    const indicator = container.querySelector(`.${STATUS_TONES.connecting.dot.split(' ').join('.')}`);
     expect(indicator).toBeInTheDocument();
   });
 
@@ -202,7 +233,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-yellow-500.animate-pulse');
+    const indicator = container.querySelector(`.${STATUS_TONES.reconnecting.dot.split(' ').join('.')}`);
     expect(indicator).toBeInTheDocument();
   });
 
@@ -214,7 +245,7 @@ describe('ConnectionIndicator', () => {
     });
 
     const { container } = render(<ConnectionIndicator />);
-    const indicator = container.querySelector('.bg-red-500');
+    const indicator = container.querySelector(`.${STATUS_TONES.disconnected.dot.split(' ').join('.')}`);
     expect(indicator).toBeInTheDocument();
   });
 
@@ -230,7 +261,8 @@ describe('ConnectionIndicator', () => {
     
     const reconnectButton = screen.getByText('Reconnect');
     expect(reconnectButton).toBeInTheDocument();
-    
+    expect(reconnectButton).toHaveClass(...STATUS_CTA_CLASSES.split(' '));
+
     fireEvent.click(reconnectButton);
     expect(mockReconnect).toHaveBeenCalledOnce();
   });

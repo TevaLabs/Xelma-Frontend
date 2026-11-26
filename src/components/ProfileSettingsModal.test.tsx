@@ -128,4 +128,88 @@ describe('ProfileSettingsModal accessibility', () => {
 
     expect(toast.error).toHaveBeenCalledWith('File too large', expect.any(Object));
   });
+
+  describe('unsaved changes guard', () => {
+    it('closes immediately when nothing has changed', async () => {
+      const onClose = vi.fn();
+      render(<ProfileSettingsModal onClose={onClose} />);
+      await screen.findByLabelText('NAME');
+
+      fireEvent.click(screen.getByRole('button', { name: /close profile settings/i }));
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('asks for confirmation before closing with unsaved edits', async () => {
+      const onClose = vi.fn();
+      render(<ProfileSettingsModal onClose={onClose} />);
+      const nameInput = await screen.findByLabelText('NAME');
+
+      fireEvent.change(nameInput, { target: { value: 'Grace Hopper' } });
+      fireEvent.click(screen.getByRole('button', { name: /close profile settings/i }));
+
+      expect(onClose).not.toHaveBeenCalled();
+      const confirm = screen.getByRole('alertdialog', { name: /discard unsaved changes/i });
+      expect(confirm).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /keep editing/i })).toHaveFocus(),
+      );
+    });
+
+    it('keeps the edits when the user chooses to keep editing', async () => {
+      const onClose = vi.fn();
+      render(<ProfileSettingsModal onClose={onClose} />);
+      const nameInput = await screen.findByLabelText('NAME');
+
+      fireEvent.change(nameInput, { target: { value: 'Grace Hopper' } });
+      fireEvent.keyDown(document, { key: 'Escape' });
+      fireEvent.click(screen.getByRole('button', { name: /keep editing/i }));
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('NAME')).toHaveValue('Grace Hopper');
+    });
+
+    it('dismisses the confirmation (not the modal) on a second Escape', async () => {
+      const onClose = vi.fn();
+      render(<ProfileSettingsModal onClose={onClose} />);
+      const bioInput = await screen.findByLabelText('BIO');
+
+      fireEvent.change(bioInput, { target: { value: 'Changed bio' } });
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('closes and resets the draft when the user discards changes', async () => {
+      const onClose = vi.fn();
+      render(<ProfileSettingsModal onClose={onClose} />);
+      await screen.findByLabelText('NAME');
+
+      fireEvent.click(screen.getByRole('switch', { name: /streamer mode/i }));
+      fireEvent.mouseDown(document.querySelector('.fixed.inset-0') as Element);
+      fireEvent.click(screen.getByRole('button', { name: /discard changes/i }));
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      const draft = JSON.parse(localStorage.getItem('profile_settings_draft_v1') ?? '{}');
+      expect(draft).toMatchObject({ name: 'Ada Lovelace', streamerMode: false });
+    });
+
+    it('does not prompt again once the user reverts their edits', async () => {
+      const onClose = vi.fn();
+      render(<ProfileSettingsModal onClose={onClose} />);
+      const nameInput = await screen.findByLabelText('NAME');
+
+      fireEvent.change(nameInput, { target: { value: 'Grace Hopper' } });
+      fireEvent.change(nameInput, { target: { value: 'Ada Lovelace' } });
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
 });

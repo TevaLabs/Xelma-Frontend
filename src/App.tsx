@@ -22,6 +22,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Pools = lazy(() => import('./pages/Pools'));
 const Tournament = lazy(() => import(/* webpackChunkName: "tournament" */ './pages/Tournament'));
 const Settings = lazy(() => import('./pages/Settings'));
+const PublicProfile = lazy(() => import('./pages/PublicProfile'));
 
 function App() {
   const { pathname } = useLocation();
@@ -57,8 +58,11 @@ function App() {
                 <Route path="/pools" element={<Pools />} />
                 <Route path="/tournament" element={<Suspense fallback={<PageSkeleton type="tournament" />}><Tournament /></Suspense>} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/u/:handle" element={<PublicProfile />} />
                 <Route path="/settings" element={<Suspense fallback={<PageSkeleton type="settings" />}><Settings /></Suspense>} />
-                <Route path="*" element={<NotFound />} />                </Routes>
+                {/* Single catch-all: any unmatched path renders NotFound. */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
             </RouteTransition>
           </Suspense>
         </LazyBoundary>

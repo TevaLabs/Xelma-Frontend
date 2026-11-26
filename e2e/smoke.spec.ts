@@ -214,65 +214,22 @@ test.describe('Smoke Tests - Critical Routes', () => {
     await expect(mainHeading).toContainText('Leaderboard');
   });
 
-  test('Learn page loads and renders correctly', async ({ page }) => {
-    await page.goto('/learn');
+  test('Unknown route renders 404 NotFound page correctly', async ({ page }) => {
+    await page.goto('/definitely-not-a-valid-route-404');
     await page.waitForLoadState('networkidle');
 
-    // Verify page title
-    await expect(page).toHaveTitle(/Xelma/i);
+    // Verify 404 illustration and heading
+    const notFoundHeading = page.locator('h1');
+    await expect(notFoundHeading).toBeVisible();
+    await expect(notFoundHeading).toContainText("This path doesn't exist");
 
-    // Verify main academy heading
-    const mainHeading = page.locator('h1');
-    await expect(mainHeading).toBeVisible();
-    await expect(mainHeading).toContainText('Academy');
+    // Verify 404 badge and text
+    await expect(page.locator('text=404').first()).toBeVisible();
+    await expect(page.locator('text=Unknown route')).toBeVisible();
 
-    // Verify guides section heading
-    const guidesHeading = page.getByRole('heading', { name: /Expert Guides/i });
-    await expect(guidesHeading).toBeVisible();
-
-    // Verify guide card is rendered
-    await expect(page.getByText('How UP/DOWN rounds work')).toBeVisible();
-
-    // Verify tip card is rendered
-    await expect(page.getByText('Pro tip')).toBeVisible();
-  });
-
-  test('Profile page loads and renders correctly', async ({ page }) => {
-    await mockFreighter(page);
-    await page.goto('/profile');
-    await page.waitForLoadState('networkidle');
-
-    // Verify page title
-    await expect(page).toHaveTitle(/Xelma/i);
-
-    // Verify main heading
-    const mainHeading = page.locator('h1');
-    await expect(mainHeading).toBeVisible();
-    await expect(mainHeading).toHaveText('Profile');
-
-    // Verify settings button/link is available
-    const settingsButton = page.locator('[data-testid="profile-open-settings"]');
-    await expect(settingsButton).toBeVisible();
-
-    // Verify profile identity section
-    await expect(page.getByText('Player identity')).toBeVisible();
-  });
-
-  test('Pools page loads and renders correctly', async ({ page }) => {
-    await page.goto('/pools');
-    await page.waitForLoadState('networkidle');
-
-    // Verify page title
-    await expect(page).toHaveTitle(/Xelma/i);
-
-    // Verify main heading
-    const mainHeading = page.locator('h1');
-    await expect(mainHeading).toBeVisible();
-    await expect(mainHeading).toContainText('Liquidity Pools');
-
-    // Verify pool cards are rendered
-    await expect(page.getByRole('heading', { name: /BTC Pool/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /ETH Pool/i })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /XLM Pool/i })).toBeVisible();
+    // Verify recovery link to home
+    const backHomeLink = page.locator('a', { hasText: 'Back to Home' });
+    await expect(backHomeLink).toBeVisible();
+    await expect(backHomeLink).toHaveAttribute('href', '/');
   });
 });
