@@ -30,6 +30,16 @@ import { io } from 'socket.io-client';
 // Get the mocked socket instance
 const mockSocket = (io as any)();
 
+// Capture the connection lifecycle handlers registered by the socket service at
+// import time. `vi.clearAllMocks()` in beforeEach wipes `mock.calls`, so we keep
+// stable references to drive `connect`/`disconnect` in the tests below.
+const connectionHandlers = new Map<string, (...args: any[]) => void>();
+mockSocket.on.mock.calls.forEach(([event, handler]: [string, unknown]) => {
+  if (typeof handler === 'function') {
+    connectionHandlers.set(event, handler as (...args: any[]) => void);
+  }
+});
+
 describe('Socket Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -308,6 +318,66 @@ describe('Socket Service', () => {
       }
       
       unsubscribe();
+    });
+  });
+
+  describe('Notifications channel identity', () => {
+    it('defers the join until the socket connects, then emits the real user id', () => {
+      mockSocket.connected = false;
+      socketService.joinNotifications('wallet-abc');
+
+      // Not connected yet: the id is remembered instead of being dropped.
+      expect(mockSocket.emit).not.toHaveBeenCalledWith('join:notifications', 'wallet-abc');
+
+      mockSocket.connected = true;
+      connectionHandlers.get('connect')!();
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('join:notifications', 'wallet-abc');
+    });
+
+    it('re-joins the notifications channel after a reconnection', () => {
+      mockSocket.connected = true;
+      socketService.joinNotifications('wallet-abc');
+      mockSocket.emit.mockClear();
+
+      // Server-side room membership is lost on disconnect; a new connect event
+      // must re-establish it with the tracked id.
+      connectionHandlers.get('connect')!();
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('join:notifications', 'wallet-abc');
+    });
+
+    it('leaves the previous channel when the user changes', () => {
+      mockSocket.connected = true;
+      socketService.joinNotifications('user-a');
+      mockSocket.emit.mockClear();
+
+      socketService.joinNotifications('user-b');
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('leave:notifications', 'user-a');
+      expect(mockSocket.emit).toHaveBeenCalledWith('join:notifications', 'user-b');
+    });
+
+    it('leaves the notifications channel on logout', () => {
+      mockSocket.connected = true;
+      socketService.joinNotifications('user-a');
+      mockSocket.emit.mockClear();
+
+      socketService.leaveNotifications('user-a');
+
+      expect(mockSocket.emit).toHaveBeenCalledWith('leave:notifications', 'user-a');
+    });
+
+    it('does not re-join after an explicit disconnect', () => {
+      mockSocket.connected = true;
+      socketService.joinNotifications('user-a');
+
+      socketService.disconnect();
+      mockSocket.emit.mockClear();
+
+      connectionHandlers.get('connect')!();
+
+      expect(mockSocket.emit).not.toHaveBeenCalledWith('join:notifications', 'user-a');
     });
   });
 });

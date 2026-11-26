@@ -73,6 +73,11 @@ class ConnectionStatusStore {
 
 const connectionStore = new ConnectionStatusStore();
 
+// The notifications channel is keyed by the authenticated wallet/auth id.
+// Track it so we can (re)join automatically once the socket is connected and
+// after any reconnection, and leave it when the user logs out or changes.
+let currentNotificationsUserId: string | null = null;
+
 // Enhanced socket with connection management and typed event maps
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(SOCKET_URL, {
   autoConnect: false,
@@ -95,6 +100,13 @@ socket.on('connect', () => {
     lastConnected: new Date(),
     reconnectAttempts: 0,
   });
+
+  // Re-join the notifications channel with the tracked user id. This covers the
+  // initial connection (joins requested before the socket was ready) and every
+  // reconnection, since server-side room membership is lost on disconnect.
+  if (currentNotificationsUserId) {
+    socket.emit('join:notifications', currentNotificationsUserId);
+  }
 });
 
 socket.on('disconnect', (reason) => {
@@ -202,6 +214,7 @@ export const socketService = {
 
   disconnect() {
     subscriptionManager.clear();
+    currentNotificationsUserId = null;
     socket.disconnect();
   },
 
@@ -298,11 +311,35 @@ export const socketService = {
   },
 
   joinNotifications(userId: string) {
+    if (!userId) return;
+
+    // Switching users: leave the previous channel before joining the new one.
+    if (currentNotificationsUserId && currentNotificationsUserId !== userId) {
+      this.leaveNotifications(currentNotificationsUserId);
+    }
+
+    currentNotificationsUserId = userId;
+
+    // If the socket is not connected yet, remember the id. The 'connect'
+    // handler will emit the join as soon as the connection is established.
     if (!socket.connected) {
-      console.warn('Socket not connected, cannot join notifications');
       return;
     }
     socket.emit("join:notifications", userId);
+  },
+
+  leaveNotifications(userId?: string) {
+    const idToLeave = userId ?? currentNotificationsUserId;
+    if (!idToLeave) return;
+
+    if (currentNotificationsUserId === idToLeave) {
+      currentNotificationsUserId = null;
+    }
+
+    if (!socket.connected) {
+      return;
+    }
+    socket.emit("leave:notifications", idToLeave);
   },
 
   // Utility methods

@@ -136,4 +136,5 @@ export interface ClientToServerEvents {
 
   // Notifications category
   'join:notifications': (userId: string) => void;
+  'leave:notifications': (userId: string) => void;
 }
