@@ -224,9 +224,13 @@ function normalizeLeaderboard(response: LeaderboardResponse): LeaderboardEntry[]
 }
 
 export const leaderboardApi = {
-    getLeaderboard: async (mode: string = 'UP_DOWN') => {
+    getLeaderboard: async (mode: string = 'UP_DOWN', filter?: string) => {
         try {
-            const response = await apiFetch<LeaderboardResponse>(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
+            const params = new URLSearchParams({ mode });
+            if (filter) {
+                params.set('filter', filter);
+            }
+            const response = await apiFetch<LeaderboardResponse>(`/api/leaderboard?${params.toString()}`);
             const normalized = normalizeLeaderboard(response);
             // Validate each leaderboard entry
             normalized.forEach(entry => {

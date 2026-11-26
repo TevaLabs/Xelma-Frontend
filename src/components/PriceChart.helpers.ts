@@ -66,6 +66,41 @@ export function toCandlestickData(
   return result.sort((a, b) => a.time - b.time);
 }
 
+/**
+ * Aggregate price points into line-series data by bucketing timestamps into
+ * the requested interval and keeping the last observation in each bucket.
+ *
+ * Mirrors `toCandlestickData` bucketing so line and candlestick views share
+ * the same time axis. When the source data is coarser than the interval, each
+ * bucket contains a single point and the original series is preserved — no
+ * data is fabricated to fake finer granularity.
+ *
+ * @param points  – Sorted or unsorted price points (will be sorted by time)
+ * @param interval – Bucket size in seconds (default 1 minute)
+ */
+export function toLinePoints(
+  points: PricePoint[],
+  interval: CandleInterval = DEFAULT_CANDLE_INTERVAL,
+): PricePoint[] {
+  if (points.length === 0) return [];
+
+  // Sort by time just in case
+  const sorted = points.length > 1
+    ? [...points].sort((a, b) => a.time - b.time)
+    : points;
+
+  const buckets = new Map<number, number>();
+
+  for (const point of sorted) {
+    const bucketStart = Math.floor(point.time / interval) * interval;
+    buckets.set(bucketStart, point.value);
+  }
+
+  return Array.from(buckets, ([time, value]) => ({ time, value })).sort(
+    (a, b) => a.time - b.time,
+  );
+}
+
 export function mergePricePoints(existing: PricePoint[], incoming: PricePoint[]): PricePoint[] {
   if (incoming.length === 0) return existing;
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   mergePricePoints,
   toCandlestickData,
+  toLinePoints,
   type CandlestickData,
   type CandleInterval,
   DEFAULT_CANDLE_INTERVAL,
@@ -262,5 +263,65 @@ describe('toCandlestickData', () => {
 
   it('exposes DEFAULT_CANDLE_INTERVAL', () => {
     expect(DEFAULT_CANDLE_INTERVAL).toBe(60);
+  });
+});
+
+describe('toLinePoints', () => {
+  it('returns an empty array when given an empty array', () => {
+    expect(toLinePoints([])).toEqual([]);
+  });
+
+  it('maps a single point into its aligned bucket start', () => {
+    const input = [p(1000, 42.5)];
+    const result = toLinePoints(input);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(p(960, 42.5)); // floor(1000 / 60) * 60
+  });
+
+  it('aggregates points in the same bucket to the last observation', () => {
+    // All points fall within the same 60s bucket (t=0)
+    const input = [p(1, 10), p(15, 25), p(30, 5), p(45, 20)];
+    const result = toLinePoints(input);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(p(0, 20)); // last observation in the bucket
+  });
+
+  it('groups points into buckets of the requested interval', () => {
+    // 5-minute interval = 300 seconds
+    const input = [
+      p(100, 10),   // bucket 0
+      p(400, 20),   // bucket 300
+      p(200, 30),   // bucket 0 (t=200 → floor(200/300)*300 = 0)
+    ];
+    const result = toLinePoints(input, 300);
+
+    expect(result).toEqual([
+      p(0, 30),   // last observation in bucket 0
+      p(300, 20),
+    ]);
+  });
+
+  it('preserves chronological ordering', () => {
+    const input = [p(90, 15), p(10, 5), p(150, 25)];
+    const result = toLinePoints(input);
+
+    expect(result.map((point) => point.time)).toEqual([0, 60, 120]);
+  });
+
+  it('does not fabricate finer granularity when the source is coarser than the interval', () => {
+    // Every point lands in its own bucket, so the series is preserved as-is.
+    const input = [p(0, 10), p(300, 20), p(600, 30)];
+    const result = toLinePoints(input, 300);
+
+    expect(result).toEqual(input);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = [p(1, 10), p(2, 20)];
+    const copy = [...input];
+    toLinePoints(input);
+    expect(input).toEqual(copy);
   });
 });

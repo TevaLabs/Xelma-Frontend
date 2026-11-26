@@ -107,20 +107,34 @@ const Leaderboard = () => {
   );
 
   // ── Data fetch ─────────────────────────────────────────────────────────────
+  // Monotonic sequence so responses from an older filter are discarded when
+  // users switch filters quickly (prevents stale results overwriting newer ones).
+  const requestSeqRef = useRef(0);
+  // Tracks whether the board already has entries to display so refetches on
+  // filter changes don't tear down the UI with a full-page loading state.
+  const hasDataRef = useRef(false);
+
   const fetchLeaderboard = useCallback(async () => {
-    setLoading(true);
+    const seq = ++requestSeqRef.current;
+    setLoading(!hasDataRef.current);
     setError(null);
     try {
-      const data = await leaderboardApi.getLeaderboard('UP_DOWN');
+      const data = await leaderboardApi.getLeaderboard('UP_DOWN', activeFilter);
+      if (seq !== requestSeqRef.current) return; // Stale response — discard
       const mapped = (Array.isArray(data) ? data : []).map(mapEntryToUser);
       setUsers(mapped);
+      hasDataRef.current = mapped.length > 0;
     } catch (err) {
+      if (seq !== requestSeqRef.current) return; // Stale response — discard
+      hasDataRef.current = false;
       setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
       setUsers([]);
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [activeFilter]);
 
   useEffect(() => {
     void fetchLeaderboard();

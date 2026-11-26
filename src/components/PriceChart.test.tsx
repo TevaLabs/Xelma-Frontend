@@ -228,6 +228,96 @@ describe('PriceChart', () => {
     });
   });
 
+  describe('Timeframe selector', () => {
+    it('renders the three timeframe chips with 1m active by default', () => {
+      render(<PriceChart height={300} />);
+
+      const oneMin = screen.getByRole('button', { name: '1m' });
+      const fiveMin = screen.getByRole('button', { name: '5m' });
+      const fifteenMin = screen.getByRole('button', { name: '15m' });
+
+      expect(oneMin).toBeInTheDocument();
+      expect(fiveMin).toBeInTheDocument();
+      expect(fifteenMin).toBeInTheDocument();
+      expect(oneMin).toHaveAttribute('aria-pressed', 'true');
+      expect(fiveMin).toHaveAttribute('aria-pressed', 'false');
+      expect(fifteenMin).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('aggregates the price series into the selected timeframe, redraws the chart, and persists the choice', async () => {
+      const mockData = [
+        { time: 1000, value: 10 },
+        { time: 1060, value: 20 },
+        { time: 1120, value: 30 },
+        { time: 1300, value: 40 },
+        { time: 1600, value: 50 },
+      ];
+      (priceApi.getPriceSeries as any).mockResolvedValue(mockData);
+
+      render(<PriceChart height={300} asset={'SOL' as Asset} />);
+
+      // Wait for the series to be drawn from the resolved price data.
+      await vi.waitFor(() => {
+        const last = mockSeriesApi.setData.mock.calls.at(-1)?.[0] as Array<{ time: number }>;
+        expect(last).toHaveLength(5);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: '5m' }));
+
+      expect(localStorage.getItem('xelma-price-chart-timeframe')).toBe('300');
+      expect(screen.getByRole('button', { name: '5m' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '1m' })).toHaveAttribute('aria-pressed', 'false');
+
+      // Buckets are aligned to the selected 5-minute interval and chronological.
+      const last = mockSeriesApi.setData.mock.calls.at(-1)?.[0] as Array<{ time: number }>;
+      expect(last.map((point) => point.time)).toEqual([900, 1200, 1500]);
+      expect(last.every((point) => point.time % 300 === 0)).toBe(true);
+    });
+
+    it('aggregates OHLC candles with the selected timeframe in candlestick mode', async () => {
+      const mockData = [
+        { time: 1000, value: 10 },
+        { time: 1060, value: 20 },
+        { time: 1120, value: 5 },
+        { time: 1300, value: 40 },
+      ];
+      (priceApi.getPriceSeries as any).mockResolvedValue(mockData);
+
+      render(<PriceChart height={300} asset={'SOL' as Asset} />);
+
+      await vi.waitFor(() => {
+        const last = mockSeriesApi.setData.mock.calls.at(-1)?.[0] as Array<{ time: number }>;
+        expect(last).toHaveLength(4);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /switch to candlestick chart/i }));
+      fireEvent.click(screen.getByRole('button', { name: '5m' }));
+
+      const last = mockSeriesApi.setData.mock.calls.at(-1)?.[0] as Array<{ time: number }>;
+      // All bucket starts are aligned to the 5-minute interval.
+      expect(last.every((point) => point.time % 300 === 0)).toBe(true);
+    });
+
+    it('restores the persisted timeframe preference on mount', () => {
+      localStorage.setItem('xelma-price-chart-timeframe', '900');
+
+      render(<PriceChart height={300} />);
+
+      expect(screen.getByRole('button', { name: '15m' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '1m' })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('falls back to the default timeframe when the stored value is invalid', () => {
+      localStorage.setItem('xelma-price-chart-timeframe', '45');
+
+      render(<PriceChart height={300} />);
+
+      expect(screen.getByRole('button', { name: '1m' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: '5m' })).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: '15m' })).toHaveAttribute('aria-pressed', 'false');
+    });
+  });
+
   describe('Subscribe/Unsubscribe Behavior', () => {
     it('should subscribe to socket price updates on mount', () => {
       render(<PriceChart height={300} />);
