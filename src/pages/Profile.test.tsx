@@ -87,10 +87,12 @@ describe('Profile Page', () => {
   });
 
   describe('loading state', () => {
-    it('shows loading spinner when isLoading is true and profile is null', () => {
+    it('shows LoadingState when isLoading is true and profile is null', () => {
       mockStoreState({ isLoading: true, profile: null });
       renderWithRouter(<Profile />);
 
+      const status = screen.getByRole('status');
+      expect(status).toHaveAttribute('aria-busy', 'true');
       expect(screen.getByText(/Loading profile/i)).toBeInTheDocument();
     });
 
@@ -101,7 +103,7 @@ describe('Profile Page', () => {
       // The Edit profile button is in the page header, rendered before the
       // conditional loading block, so it still appears.
       expect(screen.getByRole('button', { name: /Edit profile/i })).toBeInTheDocument();
-      // But the main profile content (name/avatar) should show the loading spinner
+      // But the main profile content (name/avatar) should show the loading state
       expect(screen.getByText(/Loading profile/i)).toBeInTheDocument();
       expect(screen.queryByText('Anonymous Player')).toBeNull();
     });
@@ -151,7 +153,7 @@ describe('Profile Page', () => {
   });
 
   describe('error state', () => {
-    it('displays error message with retry button when error exists', () => {
+    it('displays ErrorState with retry button when error exists and profile is null', () => {
       mockStoreState({
         profile: null,
         isLoading: false,
@@ -160,7 +162,21 @@ describe('Profile Page', () => {
       renderWithRouter(<Profile />);
 
       expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+      expect(screen.queryByText('Anonymous Player')).toBeNull();
+    });
+
+    it('displays ErrorState alongside cached profile when error exists with profile data', () => {
+      mockStoreState({
+        profile: { avatarUrl: null, name: 'CachedUser', bio: 'Cached bio', twitterLink: '', streamerMode: false },
+        isLoading: false,
+        error: 'Failed to refresh profile',
+      });
+      renderWithRouter(<Profile />);
+
+      expect(screen.getByText('Failed to refresh profile')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+      expect(screen.getByText('CachedUser')).toBeInTheDocument();
     });
 
     it('calls loadProfile on retry button click', () => {
@@ -171,7 +187,7 @@ describe('Profile Page', () => {
       });
       renderWithRouter(<Profile />);
 
-      fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Try Again/i }));
       expect(mockLoadProfile).toHaveBeenCalled();
     });
   });
