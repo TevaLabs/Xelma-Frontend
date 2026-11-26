@@ -28,6 +28,18 @@ const COLOR_CLASSES = {
   testnet: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
 } as const;
 
+/**
+ * Static badge metadata keyed by network.
+ *
+ * `Footer` colors an explicitly overridden settlement-network pill (TESTNET or
+ * PUBLIC) and cannot rely on the build-time env, so keep this map alongside the
+ * env-driven `resolveNetworkBadge()` helper. Both use `COLOR_CLASSES` above.
+ */
+export const networkBadgeMeta = {
+  TESTNET: { badgeClass: COLOR_CLASSES.testnet },
+  PUBLIC: { badgeClass: COLOR_CLASSES.mainnet },
+} as const;
+
 export function resolveNetworkBadge(): NetworkBadgeMeta {
   const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
   return {

@@ -1,29 +1,39 @@
-/* News Ribbon - Sticky banner below header */
+/* News Ribbon - dark glass ticker below the fixed header */
 .news-ribbon {
   position: fixed;
   top: 80px; /* Below header (h-20 = 5rem = 80px) */
   left: 0;
   right: 0;
   z-index: 15; /* Between header and content; sidebar starts below ribbon */
-  background: linear-gradient(90deg, #2c4bfd 0%, #6366f1 100%);
-  color: white;
+  overflow: hidden;
   padding: 10px 16px;
+  color: #e5e7eb;
   font-family: "DM Sans", sans-serif;
   font-size: 14px;
   line-height: 1.4;
-  box-shadow: 0 2px 8px rgba(44, 75, 253, 0.2);
-  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(10, 15, 26, 0.97) 0%, rgba(17, 24, 39, 0.97) 50%, rgba(10, 15, 26, 0.97) 100%);
+  border-bottom: 1px solid rgba(190, 199, 254, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: slideDown var(--duration-slow) var(--ease-out);
+}
+
+/* Brand accent line across the top of the ticker */
+.news-ribbon::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(44, 75, 253, 0.7), rgba(34, 211, 238, 0.5), transparent);
+  pointer-events: none;
 }
 
 @media (min-width: 1024px) {
   .news-ribbon {
     top: 112px; /* lg:h-28 = 7rem = 112px */
   }
-}
-
-.dark .news-ribbon {
-  background: linear-gradient(90deg, #1e3a8a 0%, #4338ca 100%);
-  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
 }
 
 .news-ribbon__container {
@@ -33,8 +43,10 @@
 }
 
 .news-ribbon__icon {
+  display: flex;
   flex-shrink: 0;
-  font-size: 18px;
+  align-items: center;
+  color: #22d3ee;
 }
 
 /* Track container - clips the scrolling content */
@@ -61,30 +73,35 @@
 .news-ribbon__scroll {
   display: flex;
   align-items: center;
+  width: max-content;
   white-space: nowrap;
   animation: marquee 30s linear infinite;
 }
 
-.news-ribbon__scroll--paused {
+.news-ribbon:hover .news-ribbon__scroll,
+.news-ribbon__scroll:focus-within {
   animation-play-state: paused;
 }
 
-.news-ribbon:hover .news-ribbon__scroll {
-  animation-play-state: paused;
+/* Each group is one full pass of the headlines; the duplicate makes the loop seamless. */
+.news-ribbon__group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
 }
 
 /* Individual message */
 .news-ribbon__message {
   display: inline-flex;
   align-items: center;
-  padding-right: 0;
 }
 
 /* Separator between messages */
 .news-ribbon__separator {
   display: inline-block;
   margin: 0 24px;
-  opacity: 0.6;
+  color: #22d3ee;
+  opacity: 0.7;
   font-size: 12px;
 }
 
@@ -101,22 +118,32 @@
 /* Close button */
 .news-ribbon__close {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
-  cursor: pointer;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  flex-shrink: 0;
-  transition: background var(--duration-fast) var(--ease-out);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: #d1d5db;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
 }
 
 .news-ribbon__close:hover {
-  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.12);
+  color: #fff;
+}
+
+.news-ribbon__close:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
 }
 
 /* Animation for ribbon appearing */
@@ -131,10 +158,6 @@
   }
 }
 
-.news-ribbon {
-  animation: slideDown var(--duration-slow) var(--ease-out);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .news-ribbon,
   .news-ribbon__scroll {
@@ -145,6 +168,11 @@
   .news-ribbon__scroll {
     transform: translateX(0) !important;
   }
+
+  /* One static pass of headlines is enough without motion. */
+  .news-ribbon__group--duplicate {
+    display: none;
+  }
 }
 
 /* Mobile adjustments */
@@ -154,12 +182,7 @@
     font-size: 13px;
   }
 
-  .news-ribbon__icon {
-    font-size: 16px;
-  }
-
   .news-ribbon__separator {
     margin: 0 16px;
   }
 }
-

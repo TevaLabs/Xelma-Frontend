@@ -266,7 +266,9 @@ dynamically without requiring a frontend redeployment.
 
 - `LearnPage` — main container fetching and managing state for education content.
 - `GuideCard` — premium card component for displaying individual guides.
-- `TipCard` — high-impact card component for the daily tip.
+- `TipCard` — teal glass card for the daily tip. Renders its own skeleton while
+  `isLoading` and a friendly empty state when the API returns no tip, so callers
+  can render it unconditionally without changing the `Tip` data contract.
 - `StatusStates` — reusable Loading, Error, and Empty state components (under `src/components/ui/`).
 
 ---

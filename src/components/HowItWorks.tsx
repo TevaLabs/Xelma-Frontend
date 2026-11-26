@@ -67,8 +67,14 @@ const ACCENT_STYLES = {
 } as const;
 
 /**
- * Polished 3-step onboarding section for the Landing page.
- * Displays Connect Freighter → Practice vXLM → Submit Prediction.
+ * "How It Works" section for the Landing page.
+ *
+ * Presents the onboarding flow as a three-step glass grid:
+ * Connect Freighter → Practice vXLM → Submit Prediction.
+ *
+ * Each step renders a lucide icon, a numbered badge, and translated copy. The
+ * steps are an ordered list so assistive technology announces their sequence,
+ * and a decorative connector line joins the cards on desktop.
  */
 export default function HowItWorks() {
   const { t } = useTranslation();
@@ -86,55 +92,60 @@ export default function HowItWorks() {
           <p className="mx-auto mt-3 max-w-2xl text-base text-gray-400 sm:text-lg">
             {t(
               'landing.howItWorksSection.subtitle',
-              'Start predicting market trends on Stellar in three simple steps.'
+              'Start predicting market trends on Stellar in three simple steps.',
             )}
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 grid-cols-1 md:grid-cols-3">
+        {/* The decorative `before:` connector ties the three glass cards together on desktop. */}
+        <ol
+          role="list"
+          aria-label={t('landing.howItWorksSection.title', 'How It Works')}
+          className="relative mt-12 grid list-none grid-cols-1 gap-6 p-0 before:pointer-events-none before:absolute before:left-[16%] before:right-[16%] before:top-8 before:hidden before:h-px before:bg-gradient-to-r before:from-xelma-blue/40 before:via-white/20 before:to-xelma-teal/40 before:content-[''] md:grid-cols-3 md:before:block"
+        >
           {STEPS.map((step) => {
             const Icon = step.icon;
             const styles = ACCENT_STYLES[step.accent];
 
             return (
-              <GlassCard
-                as="article"
-                key={step.id}
-                className={`group relative flex flex-col rounded-2xl p-6 transition-all duration-300 sm:p-8 ${styles.borderGlow} ${styles.glow}`}
-              >
-                {/* Accent top gradient line */}
-                <div
-                  aria-hidden="true"
-                  className={`absolute -inset-x-px -top-px h-1 rounded-t-2xl bg-gradient-to-r ${styles.topBar}`}
-                />
-
-                {/* Header row with icon and step badge */}
-                <div className="flex items-center justify-between">
+              <li key={step.id} className="relative list-none">
+                <GlassCard
+                  as="article"
+                  className={`group relative flex h-full flex-col rounded-2xl p-6 transition-all duration-300 hover:-translate-y-0.5 sm:p-8 ${styles.borderGlow} ${styles.glow}`}
+                >
+                  {/* Accent top gradient line */}
                   <div
-                    className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${styles.iconBg} transition-transform duration-300 group-hover:scale-110`}
-                  >
-                    <Icon className="size-6" aria-hidden="true" />
-                  </div>
-                  <span
-                    className={`inline-block rounded-full border px-3 py-1 text-xs font-bold tracking-wider ${styles.badge}`}
-                  >
-                    {step.stepNumber}
-                  </span>
-                </div>
+                    aria-hidden="true"
+                    className={`absolute -inset-x-px -top-px h-1 rounded-t-2xl bg-gradient-to-r ${styles.topBar}`}
+                  />
 
-                {/* Step content */}
-                <h3 className="mt-6 text-xl font-bold text-white">
-                  {t(step.titleKey, step.titleDefault)}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                  {t(step.descriptionKey, step.descriptionDefault)}
-                </p>
-              </GlassCard>
+                  {/* Header row with icon and step badge */}
+                  <div className="flex items-center justify-between">
+                    <div
+                      className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${styles.iconBg} transition-transform duration-300 group-hover:scale-110`}
+                    >
+                      <Icon className="size-6" aria-hidden="true" />
+                    </div>
+                    <span
+                      className={`inline-block rounded-full border px-3 py-1 text-xs font-bold tracking-wider ${styles.badge}`}
+                    >
+                      {step.stepNumber}
+                    </span>
+                  </div>
+
+                  {/* Step content */}
+                  <h3 className="mt-6 text-xl font-bold text-white">
+                    {t(step.titleKey, step.titleDefault)}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-400">
+                    {t(step.descriptionKey, step.descriptionDefault)}
+                  </p>
+                </GlassCard>
+              </li>
             );
           })}
-        </div>
+        </ol>
       </div>
     </section>
   );
 }
-
