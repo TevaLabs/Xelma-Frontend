@@ -1,22 +1,61 @@
 import { cn } from "../../lib/utils";
 import type { ReactNode } from "react";
 
-interface PanelHeaderStatus {
+/**
+ * Canonical panel header for dashboard modules.
+ *
+ * This is the ONLY PanelHeader implementation in the codebase — import it from
+ * `src/components/ui/PanelHeader`. A legacy root-level
+ * `src/components/PanelHeader.tsx` (with an `actions` prop) used to exist; its
+ * API is folded in here (`actions` is accepted as a deprecated alias of
+ * `action`) so there is a single API to maintain.
+ *
+ * Variants:
+ * - `default`: icon + title (+ optional status pill) + subtitle on the left,
+ *   action slot on the right.
+ * - `hero`: centered page-level headline with optional subtitle and action.
+ */
+
+export type PanelHeaderStatusVariant =
+  | "success"
+  | "warning"
+  | "error"
+  | "info"
+  | "default";
+
+export interface PanelHeaderStatus {
   label: string;
-  variant?: "success" | "warning" | "error" | "info" | "default";
+  variant?: PanelHeaderStatusVariant;
 }
 
-interface PanelHeaderProps {
+export type PanelHeaderHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface PanelHeaderProps {
+  /** Main title displayed prominently. */
   title: string;
+  /** Optional secondary line rendered beneath the title. */
   subtitle?: string;
+  /** Optional leading visual (asset badge, icon, …). Ignored by `hero`. */
   icon?: ReactNode;
+  /** Optional trailing slot for buttons, menus, filters, … */
   action?: ReactNode;
+  /**
+   * @deprecated Use `action`. Kept for compatibility with the removed
+   * root-level PanelHeader API. `action` wins when both are provided.
+   */
+  actions?: ReactNode;
+  /** Optional status pill rendered next to the title. Ignored by `hero`. */
   status?: PanelHeaderStatus;
   className?: string;
   variant?: "default" | "hero";
+  /**
+   * Heading level used for the title. Defaults to `3` for `default` and `1`
+   * for `hero`, preserving existing document outlines.
+   */
+  headingLevel?: PanelHeaderHeadingLevel;
 }
 
-const statusStyles: Record<string, string> = {
+const statusStyles: Record<PanelHeaderStatusVariant, string> = {
   success: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-emerald-500/30",
   warning: "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-amber-500/30",
   error: "bg-rose-500/15 text-rose-700 dark:text-rose-300 ring-rose-500/30",
@@ -24,7 +63,7 @@ const statusStyles: Record<string, string> = {
   default: "bg-gray-500/15 text-gray-700 dark:text-gray-300 ring-gray-500/30",
 };
 
-const statusDotStyles: Record<string, string> = {
+const statusDotStyles: Record<PanelHeaderStatusVariant, string> = {
   success: "bg-emerald-500",
   warning: "bg-amber-400 animate-pulse",
   error: "bg-rose-500",
@@ -37,26 +76,31 @@ export function PanelHeader({
   subtitle,
   icon,
   action,
+  actions,
   status,
   className,
   variant = "default",
+  headingLevel,
 }: PanelHeaderProps) {
+  const actionSlot = action ?? actions;
+
   if (variant === "hero") {
+    const Heading = `h${headingLevel ?? 1}` as const;
     return (
       <div className={cn("flex flex-col items-center gap-8", className)}>
-        <h1 className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center tracking-tight">
+        <Heading className="hero-headline text-3xl sm:text-4xl font-extrabold text-white text-center tracking-tight">
           {title}
-        </h1>
+        </Heading>
         {subtitle && (
           <p className="text-sm text-gray-400 text-center">{subtitle}</p>
         )}
-        {action && <div>{action}</div>}
+        {actionSlot && <div>{actionSlot}</div>}
       </div>
     );
   }
 
-  const statusClass = status ? statusStyles[status.variant ?? "default"] : "";
-  const dotClass = status ? statusDotStyles[status.variant ?? "default"] : "";
+  const Heading = `h${headingLevel ?? 3}` as const;
+  const statusVariant = status?.variant ?? "default";
 
   return (
     <div className={cn("flex items-center justify-between", className)}>
@@ -64,17 +108,21 @@ export function PanelHeader({
         {icon && <div className="shrink-0">{icon}</div>}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-bold text-gray-900 dark:text-white text-lg truncate">
+            <Heading className="font-bold text-gray-900 dark:text-white text-lg truncate">
               {title}
-            </h3>
+            </Heading>
             {status && (
               <span
+                data-testid="panel-header-status"
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 whitespace-nowrap",
-                  statusClass,
+                  statusStyles[statusVariant],
                 )}
               >
-                <span className={cn("h-1.5 w-1.5 rounded-full", dotClass)} />
+                <span
+                  aria-hidden="true"
+                  className={cn("h-1.5 w-1.5 rounded-full", statusDotStyles[statusVariant])}
+                />
                 {status.label}
               </span>
             )}
@@ -86,8 +134,8 @@ export function PanelHeader({
           )}
         </div>
       </div>
-      {action && (
-        <div className="flex items-center gap-2 shrink-0">{action}</div>
+      {actionSlot && (
+        <div className="flex items-center gap-2 shrink-0">{actionSlot}</div>
       )}
     </div>
   );
