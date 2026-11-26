@@ -90,6 +90,7 @@ export default function ModeCards() {
             return (
               <article
                 key={mode.id}
+                aria-labelledby={`mode-${mode.id}-title`}
                 className={`glass-card group relative flex flex-col rounded-2xl p-6 transition-all duration-300 sm:p-8 ${styles.borderGlow} ${styles.glow}`}
               >
                 {/* Accent line at top */}
@@ -110,7 +111,10 @@ export default function ModeCards() {
                     <Icon className="size-6" aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-xl font-bold text-white">
+                    <h3
+                      id={`mode-${mode.id}-title`}
+                      className="text-xl font-bold text-white"
+                    >
                       {mode.title}
                     </h3>
                     <span
@@ -145,6 +149,7 @@ export default function ModeCards() {
                 {/* CTA */}
                 <Link
                   to="/dashboard"
+                  aria-label={`Start predicting in ${mode.title} mode`}
                   className={`mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-xelma-bg ${styles.button}`}
                 >
                   Start Predicting
