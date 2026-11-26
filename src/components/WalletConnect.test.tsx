@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WalletConnect from './WalletConnect';
 import { useWalletStore } from '../store/useWalletStore';
@@ -64,6 +65,16 @@ const mockAuthStore = {
   isAuthenticated: false,
 };
 
+// WalletConnect renders NetworkMismatchCard, whose in-app deep links need a
+// router context. The real app always provides one; supply it in tests too.
+function renderWalletConnect() {
+  return render(
+    <MemoryRouter>
+      <WalletConnect />
+    </MemoryRouter>,
+  );
+}
+
 describe('WalletConnect', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -85,14 +96,14 @@ describe('WalletConnect', () => {
 
   describe('initialization', () => {
     it('checks connection on mount', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
       expect(mockWalletStore.checkConnection).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('disconnected state', () => {
     it('shows connect button when wallet is not connected', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
       expect(connectButton).toBeInTheDocument();
@@ -100,7 +111,7 @@ describe('WalletConnect', () => {
     });
 
     it('opens the wallet picker when the connect button is clicked', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.queryByRole('dialog', { name: /connect a wallet/i })).not.toBeInTheDocument();
 
@@ -113,7 +124,7 @@ describe('WalletConnect', () => {
 
     it('calls connect once Freighter is chosen in the picker', async () => {
       mockWalletStore.connect.mockResolvedValue(undefined);
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       fireEvent.click(screen.getByRole('button', { name: /connect wallet/i }));
 
@@ -125,7 +136,7 @@ describe('WalletConnect', () => {
     });
 
     it('has correct styling for connect button', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const connectButton = screen.getByRole('button', { name: /connect wallet/i });
       expect(connectButton).toHaveClass('bg-[#2C4BFD]', 'hover:bg-[#1a3bf0]', 'text-white');
@@ -141,14 +152,14 @@ describe('WalletConnect', () => {
     });
 
     it('shows connecting state', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.getByText('Connecting…')).toBeInTheDocument();
       expect(screen.getByTestId('loader-icon')).toHaveClass('animate-spin');
     });
 
     it('disables button during connecting', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const button = screen.getByRole('button');
       expect(button).toBeDisabled();
@@ -165,14 +176,14 @@ describe('WalletConnect', () => {
     });
 
     it('shows checking state', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.getByText('Checking wallet…')).toBeInTheDocument();
       expect(screen.getByTestId('loader-icon')).toHaveClass('animate-spin');
     });
 
     it('disables button during checking', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const button = screen.getByRole('button');
       expect(button).toBeDisabled();
@@ -194,7 +205,7 @@ describe('WalletConnect', () => {
     });
 
     it('shows connected wallet information', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.getByText('GTES...WXYZ')).toBeInTheDocument(); // Shortened address
       expect(screen.getByText('100.50 XLM')).toBeInTheDocument();
@@ -202,7 +213,7 @@ describe('WalletConnect', () => {
     });
 
     it('shows disconnect button', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const disconnectButton = screen.getByRole('button', { name: 'Disconnect wallet' });
       expect(disconnectButton).toBeInTheDocument();
@@ -210,7 +221,7 @@ describe('WalletConnect', () => {
     });
 
     it('calls disconnect when disconnect button is clicked', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const disconnectButton = screen.getByRole('button', { name: 'Disconnect wallet' });
       fireEvent.click(disconnectButton);
@@ -224,7 +235,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const shieldIcon = screen.getByTestId('shield-icon');
       expect(shieldIcon).toBeInTheDocument();
@@ -243,7 +254,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.getByText('—')).toBeInTheDocument();
       expect(screen.getByText('Balance unavailable')).toBeInTheDocument();
@@ -260,7 +271,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const warning = screen.getByRole('status');
       expect(warning).toHaveTextContent('Switch to Testnet in Freighter');
@@ -283,7 +294,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.getByTestId('freighter-missing-card')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: /freighter extension required/i })).toBeInTheDocument();
@@ -306,7 +317,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const errorAlert = screen.getByRole('alert');
       expect(errorAlert).toHaveTextContent('User denied access');
@@ -334,21 +345,21 @@ describe('WalletConnect', () => {
     });
 
     it('hides network warning on mobile', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const warning = screen.getByRole('status');
       expect(warning).toHaveClass('hidden', 'md:flex');
     });
 
     it('hides balance on mobile', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const balanceContainer = screen.getByText('100.50 XLM').closest('div');
       expect(balanceContainer).toHaveClass('hidden', 'md:flex');
     });
 
     it('applies responsive spacing classes', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const container = screen.getByText('GTES...WXYZ').closest('.flex');
       expect(container).toHaveClass('gap-1', 'sm:gap-2');
@@ -357,7 +368,7 @@ describe('WalletConnect', () => {
 
   describe('accessibility', () => {
     it('has proper ARIA attributes for buttons', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const connectButton = screen.getByRole('button');
       expect(connectButton).toHaveAttribute('type', 'button');
@@ -374,7 +385,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const disconnectButton = screen.getByRole('button', { name: 'Disconnect wallet' });
       expect(disconnectButton).toHaveAttribute('aria-label', 'Disconnect wallet');
@@ -391,7 +402,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.getByText('Balance:')).toHaveClass('sr-only');
     });
@@ -407,7 +418,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       expect(screen.getByText('Balance unavailable')).toHaveClass('sr-only');
     });
@@ -418,7 +429,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const button = screen.getByRole('button');
       expect(button).toHaveAttribute('aria-busy', 'true');
@@ -427,7 +438,7 @@ describe('WalletConnect', () => {
 
   describe('focus management', () => {
     it('has proper focus ring classes', () => {
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const button = screen.getByRole('button');
       expect(button).toHaveClass('focus-visible:outline-none', 'focus-visible:ring-2');
@@ -443,7 +454,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const disconnectButton = screen.getByRole('button', { name: 'Disconnect wallet' });
       expect(disconnectButton).toHaveClass('focus-visible:outline-none', 'focus-visible:ring-2');
@@ -462,7 +473,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const balanceContainer = screen.getByText('100.50 XLM').closest('div');
       expect(balanceContainer).toHaveClass('bg-white', 'dark:bg-gray-800');
@@ -480,7 +491,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       const warning = screen.getByRole('status');
       expect(warning).toHaveClass('text-red-600', 'dark:text-red-400');
@@ -499,7 +510,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       // Should still show shortened version
       expect(screen.getByText('GVER...7890')).toBeInTheDocument();
@@ -515,7 +526,7 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       // Should show connect button instead of connected state
       expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
@@ -531,21 +542,21 @@ describe('WalletConnect', () => {
         return typeof selector === 'function' ? selector(store) : store;
       });
 
-      render(<WalletConnect />);
+      renderWalletConnect();
 
       // Should show connect button instead of error state
       expect(screen.getByRole('button', { name: /connect wallet/i })).toBeInTheDocument();
     });
 
     it('handles rapid state changes', () => {
-      const { rerender } = render(<WalletConnect />);
+      const { rerender } = renderWalletConnect();
 
       // Change to connecting
       vi.mocked(useWalletStore).mockImplementation((selector: any) => {
         const store = { ...mockWalletStore, status: 'connecting' };
         return typeof selector === 'function' ? selector(store) : store;
       });
-      rerender(<WalletConnect />);
+      rerender(<MemoryRouter><WalletConnect /></MemoryRouter>);
       expect(screen.getByText('Connecting…')).toBeInTheDocument();
 
       // Change to connected
@@ -557,7 +568,7 @@ describe('WalletConnect', () => {
         };
         return typeof selector === 'function' ? selector(store) : store;
       });
-      rerender(<WalletConnect />);
+      rerender(<MemoryRouter><WalletConnect /></MemoryRouter>);
       expect(screen.getByText('GTES...T123')).toBeInTheDocument();
 
       // Change to error
@@ -569,7 +580,7 @@ describe('WalletConnect', () => {
         };
         return typeof selector === 'function' ? selector(store) : store;
       });
-      rerender(<WalletConnect />);
+      rerender(<MemoryRouter><WalletConnect /></MemoryRouter>);
       expect(screen.getByText('Connection failed')).toBeInTheDocument();
     });
   });

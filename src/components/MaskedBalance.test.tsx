@@ -17,10 +17,13 @@ describe('<MaskedBalance />', () => {
 
   afterEach(() => cleanup());
 
-  it('shows the raw value when neither source enables streamer mode', () => {
+  it('shows the raw value with an exact accessible name and title when streamer mode is off', () => {
     render(<MaskedBalance value="1,234.56" label="Balance" />);
 
-    expect(screen.getByLabelText('Balance: 1,234.56')).toBeInTheDocument();
+    const wrapper = screen.getByLabelText('Balance: 1,234.56');
+    expect(wrapper).toHaveAttribute('aria-label', 'Balance: 1,234.56');
+    expect(wrapper).toHaveAttribute('title', '1,234.56');
+    expect(screen.getByText('1,234.56')).not.toHaveClass('blur-sm');
     expect(screen.queryByText('••••••')).not.toBeInTheDocument();
   });
 
@@ -29,10 +32,13 @@ describe('<MaskedBalance />', () => {
 
     render(<MaskedBalance value="1,234.56" label="Balance" />);
 
-    expect(
-      screen.getByLabelText('Balance hidden because streamer mode is enabled'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('••••••')).toBeInTheDocument();
+    const wrapper = screen.getByLabelText('Balance hidden because streamer mode is enabled');
+    expect(wrapper).toHaveAttribute(
+      'aria-label',
+      'Balance hidden because streamer mode is enabled',
+    );
+    expect(wrapper).toHaveAttribute('title', 'Hidden by streamer mode');
+    expect(screen.getByText('••••••')).toHaveClass('blur-sm');
   });
 
   it('hides the value when only the persisted profile flag is enabled', () => {
@@ -48,10 +54,13 @@ describe('<MaskedBalance />', () => {
 
     render(<MaskedBalance value="1,234.56" label="Balance" />);
 
-    expect(
-      screen.getByLabelText('Balance hidden because streamer mode is enabled'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('••••••')).toBeInTheDocument();
+    const wrapper = screen.getByLabelText('Balance hidden because streamer mode is enabled');
+    expect(wrapper).toHaveAttribute(
+      'aria-label',
+      'Balance hidden because streamer mode is enabled',
+    );
+    expect(wrapper).toHaveAttribute('title', 'Hidden by streamer mode');
+    expect(screen.getByText('••••••')).toHaveClass('blur-sm');
   });
 
   it('hides the value when both the settings toggle and profile flag are enabled', () => {
@@ -68,10 +77,13 @@ describe('<MaskedBalance />', () => {
 
     render(<MaskedBalance value="1,234.56" label="Balance" />);
 
-    expect(
-      screen.getByLabelText('Balance hidden because streamer mode is enabled'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('••••••')).toBeInTheDocument();
+    const wrapper = screen.getByLabelText('Balance hidden because streamer mode is enabled');
+    expect(wrapper).toHaveAttribute(
+      'aria-label',
+      'Balance hidden because streamer mode is enabled',
+    );
+    expect(wrapper).toHaveAttribute('title', 'Hidden by streamer mode');
+    expect(screen.getByText('••••••')).toHaveClass('blur-sm');
   });
 
   it('uses a custom masked placeholder when provided', () => {
