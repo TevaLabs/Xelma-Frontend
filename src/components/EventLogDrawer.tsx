@@ -7,7 +7,9 @@ import {
   type PredictionEventKind,
 } from '../lib/prediction-events';
 import { txUrl } from '../lib/explorer';
+import type { Round } from '../lib/api-client';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useRoundStore } from '../store/useRoundStore';
 import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 
 interface EventLogDrawerProps {
@@ -87,16 +89,34 @@ function EventRow({ event }: { event: PredictionEvent }) {
   );
 }
 
+function getRoundFilterSeed(activeRound: Round | null | undefined): string {
+  if (activeRound?.id === undefined || activeRound?.id === null) return '';
+  return String(activeRound.id).trim();
+}
+
 /**
  * Slide-over drawer listing recent on-chain prediction and settlement events,
- * with a round-id filter and explorer links for events that carry a tx hash.
+ * prefilled with the active round id on open when one is active, with manual
+ * round-id filtering and explorer links for events that carry a tx hash.
  */
 export default function EventLogDrawer({ isOpen, onClose }: EventLogDrawerProps) {
+  const activeRound = useRoundStore((state) => state.activeRound);
+  const activeRoundFilterSeed = getRoundFilterSeed(activeRound);
+
   const [events, setEvents] = useState<PredictionEvent[]>([]);
   const [state, setState] = useState<LoadState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [roundFilter, setRoundFilter] = useState('');
+  const [roundFilter, setRoundFilter] = useState(() => (isOpen ? activeRoundFilterSeed : ''));
+  const [wasOpen, setWasOpen] = useState(isOpen);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Seed the filter when the drawer opens without clobbering manual edits while open.
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      setRoundFilter(activeRoundFilterSeed);
+    }
+  }
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
