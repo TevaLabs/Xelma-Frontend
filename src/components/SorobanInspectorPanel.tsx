@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { PanelHeader } from './ui/PanelHeader';
 import type { SorobanInspectorSnapshot } from '../lib/xelma-contract';
@@ -34,6 +34,21 @@ function buildRows(inspector: SorobanInspectorSnapshot | null): InspectorRow[] {
   const inspectedAt = formatInspectedAt(inspector.inspectedAt);
   if (inspectedAt) rows.push({ label: 'Last inspected', value: inspectedAt });
 
+  // Metadata only makes sense alongside a decoded position/round payload.
+  if (rows.length === 0) return rows;
+
+  rows.push({
+    label: 'Data source',
+    value: inspector.source === 'rpc' ? 'Stellar RPC' : 'Mock fallback',
+  });
+
+  if (inspector.status) {
+    rows.push({
+      label: 'Contract status',
+      value: inspector.status === 'ok' ? 'OK' : 'Error',
+    });
+  }
+
   return rows;
 }
 
@@ -45,6 +60,7 @@ function buildRows(inspector: SorobanInspectorSnapshot | null): InspectorRow[] {
  */
 export default function SorobanInspectorPanel({ inspector, isLoading, onRefresh }: SorobanInspectorPanelProps) {
   const [showRaw, setShowRaw] = useState(false);
+  const rawPanelId = useId();
   const rows = buildRows(inspector);
   const isRpcFallback = Boolean(inspector?.error);
 
@@ -123,14 +139,17 @@ export default function SorobanInspectorPanel({ inspector, isLoading, onRefresh 
       <button
         type="button"
         onClick={() => setShowRaw((v) => !v)}
-        className="mt-3 text-[11px] font-semibold text-cyan-300/80 underline-offset-2 hover:text-cyan-200 hover:underline"
+        className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-300/80 underline-offset-2 hover:text-cyan-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
         aria-expanded={showRaw}
+        aria-controls={rawPanelId}
       >
         {showRaw ? 'Hide raw JSON' : 'View raw JSON'}
       </button>
 
       {showRaw && (
         <pre
+          id={rawPanelId}
+          aria-label="Raw Soroban inspector payload"
           className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#020617] p-3 font-mono text-[11px] text-cyan-100"
         >
           {JSON.stringify(inspector ?? { status: isLoading ? 'loading' : 'not connected' }, null, 2)}

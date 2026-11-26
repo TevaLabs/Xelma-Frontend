@@ -51,6 +51,45 @@ describe('SorobanInspectorPanel', () => {
     expect(screen.queryByText(/"source": "rpc"/)).not.toBeInTheDocument();
   });
 
+  it('renders labeled data source and contract status rows', () => {
+    render(<SorobanInspectorPanel inspector={snapshot()} isLoading={false} onRefresh={vi.fn()} />);
+
+    expect(screen.getByText('Data source')).toBeInTheDocument();
+    expect(screen.getByText('Stellar RPC')).toBeInTheDocument();
+    expect(screen.getByText('Contract status')).toBeInTheDocument();
+    expect(screen.getByText('OK')).toBeInTheDocument();
+  });
+
+  it('labels a mock fallback source when the snapshot comes from the mock path', () => {
+    render(
+      <SorobanInspectorPanel
+        inspector={snapshot({ source: 'mock', status: 'error', error: 'RPC unavailable' })}
+        isLoading={false}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Mock fallback')).toBeInTheDocument();
+    expect(screen.getByText('Error')).toBeInTheDocument();
+  });
+
+  it('wires the raw JSON disclosure to the payload it controls', () => {
+    render(<SorobanInspectorPanel inspector={snapshot()} isLoading={false} onRefresh={vi.fn()} />);
+
+    const toggle = screen.getByRole('button', { name: /view raw json/i });
+    const controlsId = toggle.getAttribute('aria-controls');
+    expect(controlsId).toBeTruthy();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText(/raw soroban inspector payload/i)).toHaveAttribute(
+      'id',
+      controlsId,
+    );
+  });
+
   it('shows the RPC fallback banner and preserves the error message when inspector.error is set', () => {
     render(
       <SorobanInspectorPanel
