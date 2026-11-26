@@ -1,12 +1,14 @@
 import type { MockUserStats } from '../types';
 import type { UserStats } from '../lib/api-client';
+import { toast } from 'sonner';
 import { useWalletStore, selectIsWalletConnected } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
+import { txUrl } from '../lib/explorer';
 import { formatVXLM } from '../lib/utils';
 import RankProgressBar from './RankProgressBar';
 import PanelHeader from './ui/PanelHeader';
 import GlassCard from './ui/GlassCard';
-import TxStatusTimeline, { useTxStatusMachine } from './TxStatusTimeline';
+import TxStatusTimeline, { formatTxHash, useTxStatusMachine } from './TxStatusTimeline';
 import MaskedBalance from './MaskedBalance';
 
 interface StatsCardProps {
@@ -34,6 +36,18 @@ export default function StatsCard({ stats, isLoading, error, onRetry }: StatsCar
     try {
       const result = await claim_winnings(publicKey, tx.updateStatus);
       tx.succeed(result.txHash);
+
+      // Success notification with a StellarExpert explorer link for the
+      // transaction. Shown only after the claim completes on-chain.
+      toast.success('Rewards claimed!', {
+        description: `Transaction ${formatTxHash(result.txHash)} confirmed.`,
+        action: {
+          label: 'View on StellarExpert',
+          onClick: () => {
+            window.open(txUrl(result.txHash), '_blank', 'noopener,noreferrer');
+          },
+        },
+      });
 
       // Refresh wallet balance/state
       await checkConnection();

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StatsCard from './StatsCard';
 import { useWalletStore } from '../store/useWalletStore';
 import { claim_winnings } from '../lib/xelma-contract';
+import { toast } from 'sonner';
 import type { MockUserStats } from '../types';
 
 // Keep the real selectors (selectIsWalletConnected derives from state) and only
@@ -281,6 +282,104 @@ describe('StatsCard', () => {
       });
       expect(screen.getByText('Freighter signing rejected')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('claim success toast', () => {
+    it('shows a success toast with the transaction hash once the claim completes', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockResolvedValue({
+        txHash: '0123456789abcdef0123456789abcdef',
+        ledger: 1,
+      });
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledTimes(1);
+      });
+      expect(toast.success).toHaveBeenCalledWith('Rewards claimed!', expect.objectContaining({
+        description: 'Transaction 012345…abcdef confirmed.',
+      }));
+    });
+
+    it('does not show a success toast when the claim fails', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockRejectedValue(new Error('Freighter signing rejected'));
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/transaction failed/i)).toBeInTheDocument();
+      });
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('does not show a success toast while the claim is still pending', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      let resolveClaim!: (value: { txHash: string; ledger: number }) => void;
+      vi.mocked(claim_winnings).mockImplementation(
+        () =>
+          new Promise<{ txHash: string; ledger: number }>((resolve) => {
+            resolveClaim = resolve;
+          }),
+      );
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+      await waitFor(() => {
+        expect(screen.getByText('Preparing Claim...')).toBeInTheDocument();
+      });
+
+      expect(toast.success).not.toHaveBeenCalled();
+
+      resolveClaim({ txHash: '0123456789abcdef0123456789abcdef', ledger: 1 });
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('shows a single success toast per successful claim', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockResolvedValue({
+        txHash: '0123456789abcdef0123456789abcdef',
+        ledger: 1,
+      });
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('builds the StellarExpert explorer link from the active network', async () => {
+      setWalletState({ status: 'connected', publicKey: 'GTEST' });
+      vi.mocked(claim_winnings).mockResolvedValue({
+        txHash: '0123456789abcdef0123456789abcdef',
+        ledger: 1,
+      });
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+      renderCard({ pendingWinnings: 1000 });
+
+      fireEvent.click(screen.getByRole('button', { name: /claim rewards/i }));
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledTimes(1);
+      });
+
+      const options = vi.mocked(toast.success).mock.calls[0][1] as { action?: { onClick?: () => void } };
+      options.action?.onClick?.();
+
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://stellar.expert/explorer/testnet/tx/0123456789abcdef0123456789abcdef',
+        '_blank',
+        'noopener,noreferrer',
+      );
+      openSpy.mockRestore();
     });
   });
 });
