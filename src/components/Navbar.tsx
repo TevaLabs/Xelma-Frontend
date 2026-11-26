@@ -15,6 +15,7 @@ import { MODAL_OVERLAY, PANEL_SLIDE_RIGHT } from '../utils/motion';
 import { availableLanguages } from '../i18n';
 
 import MaskedBalance from './MaskedBalance';
+import SharedNetworkBadge from './NetworkBadge';
 import { accountUrl, EXPLORER_NETWORK } from '../lib/explorer';
 
 
@@ -40,21 +41,20 @@ function truncateAddress(key: string): string {
 
 const NETWORK = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase();
 
+/**
+ * Thin translated wrapper around the shared NetworkBadge. The shared component
+ * owns the pill styling and colors; Navbar only supplies localized copy so the
+ * desktop bar and mobile drawer keep their translated label/accessible name.
+ */
 function NetworkBadge() {
   const { t } = useTranslation();
   const isMainnet = NETWORK === 'PUBLIC' || NETWORK === 'MAINNET';
 
   return (
-    <span
-      className={`rounded-full border px-2.5 py-0.5 text-xs font-bold tracking-wide ${
-        isMainnet
-          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-          : 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-      }`}
-      aria-label={t('navbar.stellarNetwork', { network: NETWORK })}
-    >
-      {t(isMainnet ? 'navbar.networkMainnet' : 'navbar.networkTestnet')}
-    </span>
+    <SharedNetworkBadge
+      label={t(isMainnet ? 'navbar.networkMainnet' : 'navbar.networkTestnet')}
+      ariaLabel={t('navbar.stellarNetwork', { network: NETWORK })}
+    />
   );
 }
 

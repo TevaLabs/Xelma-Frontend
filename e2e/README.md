@@ -13,3 +13,5 @@ pnpm exec playwright test e2e/accessibility.spec.ts
 ```
 
 The axe scan covers `/` and `/dashboard` in Chromium and fails when axe reports `serious` or `critical` accessibility violations.
+
+The suite also includes smoke coverage across critical routes (`/`, `/dashboard`, `/leaderboard`) and unknown-route 404 error recovery.

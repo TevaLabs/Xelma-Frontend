@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import {
   EXPECTED_NETWORK_LABEL,
@@ -81,6 +82,19 @@ export default function NetworkMismatchCard({ className }: { className?: string 
               <RefreshCw className="h-3.5 w-3.5" aria-hidden />
               Re-check network
             </button>
+
+            <Link
+              to="/settings"
+              className="text-xs font-semibold text-red-200 underline underline-offset-2 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+            >
+              Network settings
+            </Link>
+            <Link
+              to="/learn"
+              className="text-xs font-semibold text-red-200 underline underline-offset-2 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+            >
+              Learn about networks
+            </Link>
 
             <a
               href={FREIGHTER_NETWORK_DOCS}

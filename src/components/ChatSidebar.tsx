@@ -161,6 +161,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
   useFocusTrap(sidebarRef, {
     active: isMobileOpen,
     onEscape: () => setIsMobileOpen(false),
+    initialFocusRef: textareaRef,
     restoreFocusRef: mobileToggleRef,
   });
 
@@ -284,7 +285,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
       <aside
         ref={sidebarRef}
         role={isMobileOpen ? "dialog" : "complementary"}
-        aria-modal={isMobileOpen || undefined}
+        aria-modal={isMobileOpen ? "true" : undefined}
         aria-label="Live chat"
         className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
         bg-[#0A0F1A] border-[#BEC7FE]/10

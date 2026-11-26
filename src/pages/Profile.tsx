@@ -16,6 +16,7 @@ import { useProfileStore } from '../store/useProfileStore';
 import { useWalletStore } from '../store/useWalletStore';
 import type { ProfileSettingsValues } from '../lib/profileApi';
 import { ErrorState, LoadingState } from '../components/ui/StatusStates';
+import { avatarAltText } from '../utils/avatarAlt';
 
 const defaultProfile: ProfileSettingsValues = {
   avatarUrl: null,
@@ -53,8 +54,13 @@ function displayHandle(url: string) {
   }
 }
 
-function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
-  const displayName = profile.name.trim() || 'Player';
+function ProfileAvatar({
+  profile,
+  displayName,
+}: {
+  profile: ProfileSettingsValues;
+  displayName: string;
+}) {
   const walletAddress = useWalletStore((s) => s.publicKey);
 
   return (
@@ -62,7 +68,7 @@ function ProfileAvatar({ profile }: { profile: ProfileSettingsValues }) {
       {profile.avatarUrl ? (
         <img
           src={profile.avatarUrl}
-          alt=""
+          alt={avatarAltText(displayName)}
           className="h-full w-full object-cover"
           draggable={false}
         />
@@ -165,7 +171,7 @@ export default function Profile() {
                 )}
 
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                  <ProfileAvatar profile={resolvedProfile} />
+                  <ProfileAvatar profile={resolvedProfile} displayName={displayName} />
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

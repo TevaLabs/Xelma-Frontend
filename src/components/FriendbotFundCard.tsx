@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Droplets, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -23,20 +23,30 @@ export default function FriendbotFundCard({ className }: { className?: string })
   const needsFunding = useWalletStore(selectNeedsFunding);
   const refreshBalance = useWalletStore((s) => s.refreshBalance);
   const [isFunding, setIsFunding] = useState(false);
+  // Synchronous guard: React does not flush the disabled state between two
+  // clicks in the same tick, so the ref stops a double-submit before setState.
+  const fundingRef = useRef(false);
 
   if (!FRIENDBOT_ENABLED || !needsFunding || !publicKey) return null;
 
   const xlm = parseXlmBalance(balance) ?? 0;
 
   const handleFund = async () => {
+    if (fundingRef.current) return;
+    fundingRef.current = true;
     setIsFunding(true);
     try {
       await fundWithFriendbot(publicKey);
       toast.success('Testnet account funded. Friendbot topped up your XLM balance.');
       await refreshBalance();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Friendbot funding failed. Try again.');
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Friendbot funding failed. Check your connection and try again in a moment.',
+      );
     } finally {
+      fundingRef.current = false;
       setIsFunding(false);
     }
   };
