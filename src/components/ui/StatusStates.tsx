@@ -51,7 +51,9 @@ interface ErrorProps {
 
 export const ErrorState = ({ message, onRetry, className, title = "Oops! Something went wrong" }: ErrorProps) => {
     return (
-        <div className={cn(
+        <div
+            role="alert"
+            className={cn(
             "flex flex-col items-center justify-center p-12 text-center rounded-2xl min-h-[200px] border border-red-500/20 bg-red-950/10 backdrop-blur-sm shadow-[0_0_24px_rgba(239,68,68,0.05)]",
             className
         )}>
@@ -60,6 +62,7 @@ export const ErrorState = ({ message, onRetry, className, title = "Oops! Somethi
             <p className="mb-6 max-w-md text-red-200/80 text-sm">{message}</p>
             {onRetry && (
                 <button
+                    type="button"
                     onClick={onRetry}
                     className="inline-flex items-center gap-2 rounded-xl bg-white text-gray-950 px-6 py-2.5 text-sm font-bold transition-all hover:scale-[1.02] hover:bg-gray-100 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0F1A]"
                 >
