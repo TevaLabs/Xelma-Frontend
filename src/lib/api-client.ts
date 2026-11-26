@@ -206,6 +206,10 @@ export const priceApi = {
 export interface LeaderboardEntry {
     id?: string | number;
     userId?: string;
+    /** Wallet identifiers; entries whose `id` is an opaque value may carry the wallet here. */
+    publicKey?: string;
+    address?: string;
+    walletAddress?: string;
     username?: string;
     name?: string;
     avatar?: string | null;

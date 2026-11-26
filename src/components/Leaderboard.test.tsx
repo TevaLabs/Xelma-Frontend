@@ -349,4 +349,55 @@ describe('Leaderboard wallet sticky row', () => {
     await waitFor(() => expect(screen.getByRole('tablist')).toBeInTheDocument());
     expect(screen.queryByText('Current wallet summary')).not.toBeInTheDocument();
   });
+
+  describe('when leaderboard ids are not the wallet', () => {
+    const WALLET = 'GABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTUVW';
+    const opaque = (extra: Partial<LeaderboardEntry>): LeaderboardEntry[] => [
+      ...LEADERBOARD_FIXTURE.slice(0, 3),
+      { id: 'opaque-uuid-4', username: 'Dave', xlm: 2400, ...extra },
+      ...LEADERBOARD_FIXTURE.slice(4),
+    ];
+
+    it.each([['publicKey'], ['address'], ['walletAddress']])(
+      'matches the wallet through the %s field',
+      async (field) => {
+        vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(opaque({ [field]: WALLET }));
+        setWalletState({ publicKey: WALLET, status: 'connected' });
+        mockVirtualizerWithAllRows();
+        renderLeaderboard();
+
+        const summary = (await screen.findByText('Current wallet summary')).closest('.lg\\:sticky')!;
+        expect(within(summary).getByText('Dave')).toBeInTheDocument();
+        expect(within(summary).getByText('Rank #4')).toBeInTheDocument();
+        expect(within(summary).getByText('2.40K vXLM')).toBeInTheDocument();
+      },
+    );
+
+    it('still matches by id when the id is the wallet', async () => {
+      vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(opaque({ id: WALLET }));
+      setWalletState({ publicKey: WALLET, status: 'connected' });
+      renderLeaderboard();
+
+      const summary = (await screen.findByText('Current wallet summary')).closest('.lg\\:sticky')!;
+      expect(within(summary).getByText('Rank #4')).toBeInTheDocument();
+    });
+
+    it('stays unranked when neither the id nor the wallet fields match', async () => {
+      vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(
+        opaque({ publicKey: 'GSOMEONEELSE' }),
+      );
+      setWalletState({ publicKey: WALLET, status: 'connected' });
+      renderLeaderboard();
+
+      expect(await screen.findByText('Unranked')).toBeInTheDocument();
+    });
+
+    it('ignores an empty wallet field instead of matching it', async () => {
+      vi.mocked(leaderboardApi.getLeaderboard).mockResolvedValue(opaque({ publicKey: '   ' }));
+      setWalletState({ publicKey: WALLET, status: 'connected' });
+      renderLeaderboard();
+
+      expect(await screen.findByText('Unranked')).toBeInTheDocument();
+    });
+  });
 });

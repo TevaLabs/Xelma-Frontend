@@ -31,6 +31,16 @@ interface LeaderboardUser {
   name: string;
   avatar: string;
   xlm: number;
+  /** Every identifier that can identify this entry's wallet: `id` plus any wallet fields. */
+  walletKeys: string[];
+}
+
+function walletKeysOf(entry: LeaderboardEntry, id: string): string[] {
+  const keys = [id, entry.publicKey, entry.address, entry.walletAddress]
+    .filter((value): value is string => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return Array.from(new Set(keys));
 }
 
 function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser {
@@ -38,7 +48,7 @@ function mapEntryToUser(entry: LeaderboardEntry, index: number): LeaderboardUser
   const name = entry.username ?? entry.name ?? 'Anonymous';
   const xlm = Number(entry.xlm ?? entry.score ?? 0);
   const avatar = entry.avatar && typeof entry.avatar === 'string' ? entry.avatar : '';
-  return { id, name, avatar, xlm };
+  return { id, name, avatar, xlm, walletKeys: walletKeysOf(entry, id) };
 }
 
 // ---------------------------------------------------------------------------
@@ -135,11 +145,13 @@ const Leaderboard = () => {
 
   const currentUser = useMemo(() => {
     if (!walletPublicKey) return null;
-    return sortedUsers.find((u) => u.id === walletPublicKey) ?? null;
+    // Leaderboard ids can be opaque (not the wallet), so also match the
+    // publicKey/address fields the API may send.
+    return sortedUsers.find((u) => u.walletKeys.includes(walletPublicKey)) ?? null;
   }, [sortedUsers, walletPublicKey]);
 
   const currentUserRank = currentUser
-    ? sortedUsers.findIndex((u) => u.id === currentUser.id) + 1
+    ? sortedUsers.indexOf(currentUser) + 1
     : null;
 
   const walletShortAddress = walletPublicKey
@@ -325,7 +337,7 @@ const Leaderboard = () => {
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const user = restUsers[virtualRow.index];
-                const isCurrent = currentUser?.id === user.id;
+                const isCurrent = currentUser === user;
 
                 return (
                   <li
