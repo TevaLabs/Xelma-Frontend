@@ -1,7 +1,17 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import EndRoundModal from './EndRoundModal';
+import * as card from '../lib/round-result-card';
+
+vi.mock('../lib/round-result-card', async (importActual) => {
+  const actual = await importActual<typeof import('../lib/round-result-card')>();
+  return {
+    ...actual,
+    renderRoundResultCardPng: vi.fn(),
+    shareRoundResultCard: vi.fn(),
+  };
+});
 
 const result = {
   isWin: true,
@@ -127,5 +137,103 @@ describe('EndRoundModal sharing functionality', () => {
     render(<EndRoundModal isOpen onClose={vi.fn()} result={{ ...result, asset: 'ETH', direction: 'DOWN' }} />);
     expect(screen.getByText('+$42.00')).toBeInTheDocument();
     expect(screen.getByText(result.tip)).toBeInTheDocument();
+  });
+});
+
+describe('EndRoundModal share card', () => {
+  const png = new Blob(['png'], { type: 'image/png' });
+
+  beforeEach(() => {
+    vi.mocked(card.renderRoundResultCardPng).mockReset().mockResolvedValue(png);
+    vi.mocked(card.shareRoundResultCard).mockReset().mockResolvedValue('downloaded');
+  });
+
+  it('offers a share button with an accessible name', () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+    expect(screen.getByRole('button', { name: 'Share result card' })).toBeEnabled();
+  });
+
+  it('renders the card from the round result and saves it when sharing is unavailable', async () => {
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Share result card' }));
+
+    expect(await screen.findByText('Result card saved as a PNG.')).toBeInTheDocument();
+    expect(card.renderRoundResultCardPng).toHaveBeenCalledWith({
+      isWin: true,
+      amount: 42,
+      tip: result.tip,
+    });
+    expect(card.shareRoundResultCard).toHaveBeenCalledWith(
+      png,
+      'xelma-round-win-42.00.png',
+      expect.stringContaining('I won +$42.00 on Xelma.'),
+    );
+  });
+
+  it('reports a shared card when the Web Share API is used', async () => {
+    vi.mocked(card.shareRoundResultCard).mockResolvedValue('shared');
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Share result card' }));
+    expect(await screen.findByText('Result card shared.')).toBeInTheDocument();
+  });
+
+  it('builds a loss card with the loss filename', async () => {
+    render(
+      <EndRoundModal
+        isOpen
+        onClose={vi.fn()}
+        result={{ isWin: false, amount: 15, tip: 'Better luck next round.' }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Share result card' }));
+    await screen.findByText('Result card saved as a PNG.');
+    expect(card.shareRoundResultCard).toHaveBeenCalledWith(
+      png,
+      'xelma-round-loss-15.00.png',
+      expect.stringContaining('I lost -$15.00 on Xelma.'),
+    );
+  });
+
+  it('disables the button while the card is being created', async () => {
+    let finish: (blob: Blob) => void = () => {};
+    vi.mocked(card.renderRoundResultCardPng).mockReturnValue(
+      new Promise<Blob>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Share result card' }));
+
+    const busy = await screen.findByRole('button', { name: 'Creating result card…' });
+    expect(busy).toBeDisabled();
+    fireEvent.click(busy);
+    expect(card.renderRoundResultCardPng).toHaveBeenCalledTimes(1);
+
+    finish(png);
+    expect(await screen.findByRole('button', { name: 'Share result card' })).toBeEnabled();
+  });
+
+  it('announces a failure and stays usable', async () => {
+    vi.mocked(card.renderRoundResultCardPng).mockRejectedValueOnce(new Error('no canvas'));
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Share result card' }));
+
+    expect(
+      await screen.findByText('Could not create the result card. Please try again.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share result card' })).toBeEnabled();
+  });
+
+  it('shows no error when the share sheet is dismissed', async () => {
+    vi.mocked(card.shareRoundResultCard).mockRejectedValueOnce(
+      new DOMException('cancelled', 'AbortError'),
+    );
+    render(<EndRoundModal isOpen onClose={vi.fn()} result={result} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Share result card' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Share result card' })).toBeEnabled(),
+    );
+    expect(screen.queryByText(/could not create/i)).not.toBeInTheDocument();
   });
 });
