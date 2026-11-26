@@ -89,6 +89,7 @@ function ProfileSettingsForm({
   const [twitterLink, setTwitterLink] = useState(resolved.twitterLink);
   const [streamerMode, setStreamerMode] = useState(resolved.streamerMode);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -99,12 +100,53 @@ function ProfileSettingsForm({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const keepEditingRef = useRef<HTMLButtonElement | null>(null);
+
+  const isDirty =
+    avatarPreviewUrl !== resolved.avatarUrl ||
+    name !== resolved.name ||
+    bio !== resolved.bio ||
+    twitterLink !== resolved.twitterLink ||
+    streamerMode !== resolved.streamerMode;
+
+  // Every dismissal path (close button, Escape, backdrop) goes through here so
+  // unsaved edits are never dropped without the user confirming first.
+  const requestClose = () => {
+    if (isSaving) return;
+    if (isDirty) {
+      setConfirmDiscardOpen(true);
+      return;
+    }
+    onClose();
+  };
+
+  const handleKeepEditing = () => {
+    setConfirmDiscardOpen(false);
+    nameRef.current?.focus();
+  };
+
+  const handleDiscard = () => {
+    // Reset the autosaved draft so discarded edits don't reappear next time.
+    writeDraft(resolved);
+    setConfirmDiscardOpen(false);
+    onClose();
+  };
 
   useFocusTrap(modalRef, {
     active: true,
     initialFocusRef: nameRef,
-    onEscape: onClose,
+    onEscape: () => {
+      if (confirmDiscardOpen) {
+        handleKeepEditing();
+        return;
+      }
+      requestClose();
+    },
   });
+
+  useEffect(() => {
+    if (confirmDiscardOpen) keepEditingRef.current?.focus();
+  }, [confirmDiscardOpen]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -224,7 +266,7 @@ function ProfileSettingsForm({
 
   const handleBackdropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!modalRef.current) return;
-    if (!modalRef.current.contains(e.target as Node)) onClose();
+    if (!modalRef.current.contains(e.target as Node)) requestClose();
   };
 
   return (
@@ -250,7 +292,10 @@ function ProfileSettingsForm({
             MODAL_CONTENT
           )}
         >
-          <div className="relative px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+          <div
+            className="relative px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800"
+            inert={confirmDiscardOpen || undefined}
+          >
             <h2
               id="profile-settings-title"
               className="text-sm font-bold tracking-wide text-gray-800 dark:text-gray-100 pr-12"
@@ -261,7 +306,7 @@ function ProfileSettingsForm({
             <button
               type="button"
               aria-label="Close profile settings"
-              onClick={onClose}
+              onClick={requestClose}
               className="absolute right-4 top-4 sm:right-6 sm:top-5 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -270,7 +315,47 @@ function ProfileSettingsForm({
             </button>
           </div>
 
-          <div className="px-6 sm:px-8 py-6 overflow-y-auto max-h-[calc(85vh-72px)]">
+          {confirmDiscardOpen && (
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="profile-discard-title"
+              aria-describedby="profile-discard-description"
+              className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+            >
+              <div className="w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+                <h3 id="profile-discard-title" className="text-sm font-bold text-gray-800 dark:text-gray-100">
+                  Discard unsaved changes?
+                </h3>
+                <p id="profile-discard-description" className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  You have edits that haven't been saved. If you close now they will be lost.
+                </p>
+                <div className="mt-6 flex flex-wrap justify-end gap-3">
+                  <button
+                    ref={keepEditingRef}
+                    type="button"
+                    onClick={handleKeepEditing}
+                    className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2C4BFD] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                  >
+                    Keep editing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDiscard}
+                    className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+                  >
+                    Discard changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="px-6 sm:px-8 py-6 overflow-y-auto max-h-[calc(85vh-72px)]"
+            aria-hidden={confirmDiscardOpen || undefined}
+            inert={confirmDiscardOpen || undefined}
+          >
             <p id="profile-settings-description" className="sr-only">
               Update your profile name, avatar, bio, links, and streamer mode.
             </p>

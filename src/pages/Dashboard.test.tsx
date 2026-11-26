@@ -537,6 +537,16 @@ describe('Dashboard', () => {
       expect(screen.getByLabelText('Your profile')).toBeInTheDocument();
     });
 
+    it('renders the profile summary directly above the stats card', () => {
+      const { container } = render(<Dashboard />);
+
+      const profileCard = screen.getByTestId('profile-summary-card');
+      const statsCard = container.querySelector('[aria-labelledby="your-stats-title"]');
+      expect(statsCard).not.toBeNull();
+
+      expect(profileCard.nextElementSibling).toBe(statsCard);
+    });
+
     it('omits the profile summary panel when the wallet is disconnected', () => {
       vi.mocked(useWalletStore).mockImplementation(((selector: unknown) => {
         const store = { ...mockWalletStore, status: 'idle', publicKey: null };
