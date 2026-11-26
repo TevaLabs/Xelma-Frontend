@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { NETWORK_COLOR_CLASSES } from '../../lib/networkBadgeMeta';
 import Footer from '../Footer';
 
 function renderFooter(props: React.ComponentProps<typeof Footer> = {}) {
@@ -50,6 +51,17 @@ describe('Footer', () => {
   it('falls back to Stellar Mainnet when overridden', () => {
     renderFooter({ network: 'PUBLIC' });
     expect(screen.getByText(/stellar mainnet/i)).toBeInTheDocument();
+  });
+
+  it('sources network pill colors from networkBadgeMeta', () => {
+    const { unmount } = renderFooter();
+    const testnetPill = screen.getByText(/stellar testnet/i).closest('p');
+    expect(testnetPill).toHaveClass(...NETWORK_COLOR_CLASSES.testnet.split(' '));
+
+    unmount();
+    renderFooter({ network: 'PUBLIC' });
+    const mainnetPill = screen.getByText(/stellar mainnet/i).closest('p');
+    expect(mainnetPill).toHaveClass(...NETWORK_COLOR_CLASSES.mainnet.split(' '));
   });
 
   it('groups related links inside a labeled nav region', () => {

@@ -9,7 +9,7 @@
  *   - Mainnet -> emerald (border/bg/text)
  *   - Testnet -> amber (border/bg/text)
  * All network pills (Navbar `NetworkBadge`, Footer, local pills) must
- * derive their colors from `here` to avoid one-off hex drift.
+ * derive their colors from here to avoid one-off hex drift.
  */
 export interface NetworkBadgeMeta {
   label: string;
@@ -22,8 +22,12 @@ export interface NetworkBadgeMeta {
 
 const NETWORK = (import.meta.env.VITE_STELLAR_NETWORK ?? 'TESTNET').toUpperCase();
 
-/** Color classes for each network — the single source of truth. */
-const COLOR_CLASSES = {
+/**
+ * Color classes for each network — the single source of truth.
+ * Exported for surfaces that resolve the network themselves (e.g. the Footer,
+ * which honours a `network` override) so pill classes stay in sync.
+ */
+export const NETWORK_COLOR_CLASSES = {
   mainnet: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
   testnet: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
 } as const;
@@ -33,7 +37,9 @@ export function resolveNetworkBadge(): NetworkBadgeMeta {
   return {
     label: isMainnet ? 'Mainnet' : 'Testnet',
     isMainnet,
-    colorClasses: isMainnet ? COLOR_CLASSES.mainnet : COLOR_CLASSES.testnet,
+    colorClasses: isMainnet
+      ? NETWORK_COLOR_CLASSES.mainnet
+      : NETWORK_COLOR_CLASSES.testnet,
     networkId: isMainnet ? 'mainnet' : 'testnet',
   };
 }
