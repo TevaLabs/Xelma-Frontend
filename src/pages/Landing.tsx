@@ -50,7 +50,7 @@ export default function Landing() {
   const players = useCountUp(stats.activePlayers);
 
   return (
-    <main id="main-content" className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
+    <main id="main-content" tabIndex={-1} className="xelma-grid-bg min-h-screen text-[#F3F4F6]">
       <section className="relative overflow-hidden px-4 pb-16 pt-16 sm:px-6 lg:px-8 lg:pt-24">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(44,75,253,0.18),_transparent_60%)]" />
         <div className="pointer-events-none absolute -left-24 top-32 h-80 w-80 rounded-full bg-cyan-500/8 blur-3xl" />
