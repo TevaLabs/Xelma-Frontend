@@ -181,6 +181,64 @@
   line-height: 1;
 }
 
+/* Colorblind-safe direction cues: shape + pattern, never color alone.
+   UP = upward triangle + "/" stripes, DOWN = downward triangle + "\" stripes.
+   Selection adds a check mark and a thicker border. */
+.prediction-card__button {
+  position: relative;
+  overflow: hidden;
+}
+
+.prediction-card__button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+}
+
+.prediction-card__button--up::before {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    currentColor 0,
+    currentColor 2px,
+    transparent 2px,
+    transparent 10px
+  );
+}
+
+.prediction-card__button--down::before {
+  background-image: repeating-linear-gradient(
+    45deg,
+    currentColor 0,
+    currentColor 2px,
+    transparent 2px,
+    transparent 10px
+  );
+}
+
+.prediction-card__button-shape {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.prediction-card__button-text {
+  position: relative;
+}
+
+.prediction-card__button--active {
+  border-width: 4px;
+  padding: 22px 14px;
+}
+
+.prediction-card__button-check {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 16px;
+  line-height: 1;
+}
+
 .prediction-card__button-text {
   font-size: 14px;
   font-weight: 600;

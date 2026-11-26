@@ -207,9 +207,23 @@ export function PredictionControls({
           onClick={() => handlePrediction("UP")}
           disabled={isDisabled || !canSubmit}
           aria-label="Predict price goes UP"
+          aria-pressed={selectedDirection === "UP"}
         >
-          <span className="prediction-card__button-arrow">↑</span>
+          <svg
+            className="prediction-card__button-shape"
+            viewBox="0 0 24 24"
+            width="28"
+            height="28"
+            aria-hidden="true"
+            focusable="false"
+            data-shape="up"
+          >
+            <polygon points="12,3 22,21 2,21" fill="currentColor" />
+          </svg>
           <span className="prediction-card__button-text">UP</span>
+          {selectedDirection === "UP" && (
+            <span className="prediction-card__button-check" aria-hidden="true">✓</span>
+          )}
         </button>
 
         <button
@@ -220,9 +234,23 @@ export function PredictionControls({
           onClick={() => handlePrediction("DOWN")}
           disabled={isDisabled || !canSubmit}
           aria-label="Predict price goes DOWN"
+          aria-pressed={selectedDirection === "DOWN"}
         >
-          <span className="prediction-card__button-arrow">↓</span>
+          <svg
+            className="prediction-card__button-shape"
+            viewBox="0 0 24 24"
+            width="28"
+            height="28"
+            aria-hidden="true"
+            focusable="false"
+            data-shape="down"
+          >
+            <polygon points="12,21 22,3 2,3" fill="currentColor" />
+          </svg>
           <span className="prediction-card__button-text">DOWN</span>
+          {selectedDirection === "DOWN" && (
+            <span className="prediction-card__button-check" aria-hidden="true">✓</span>
+          )}
         </button>
       </div>
 
