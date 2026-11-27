@@ -6,42 +6,22 @@ export type ProfileSettingsValues = {
   streamerMode: boolean;
 };
 
-import { getApiBaseUrl } from './apiConfig';
-
-const API_BASE = getApiBaseUrl();
+import { apiFetch } from './api';
 
 export async function fetchProfile(jwt: string): Promise<ProfileSettingsValues> {
-  const res = await fetch(`${API_BASE}/api/user/profile`, {
+  return apiFetch<ProfileSettingsValues>('/api/user/profile', {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${jwt}`,
-    },
+    headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined,
   });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch profile: ${res.status}`);
-  }
-
-  return res.json() as Promise<ProfileSettingsValues>;
 }
 
 export async function updateProfile(
   jwt: string,
   data: ProfileSettingsValues,
 ): Promise<ProfileSettingsValues> {
-  const res = await fetch(`${API_BASE}/api/user/profile`, {
+  return apiFetch<ProfileSettingsValues>('/api/user/profile', {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${jwt}`,
-    },
+    headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined,
     body: JSON.stringify(data),
   });
-
-  if (!res.ok) {
-    throw new Error(`Failed to update profile: ${res.status}`);
-  }
-
-  return res.json() as Promise<ProfileSettingsValues>;
 }
