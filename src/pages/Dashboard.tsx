@@ -16,6 +16,7 @@ import BetModal from "../components/BetModal";
 import EndRoundModal from "../components/EndRoundModal";
 import RoundTimeline from "../components/RoundTimeline";
 import EventLogDrawer from "../components/EventLogDrawer";
+import { OPEN_EVENT_LOG_EVENT } from "../components/CommandPalette";
 import { Eye, Radio, Rows3 } from "lucide-react";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ConnectionStatus } from "../components/ConnectionStatus";
@@ -233,6 +234,13 @@ const Dashboard = () => {
   // Community chat is opt-in so the default terminal stays uncluttered.
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isEventLogOpen, setIsEventLogOpen] = useState(false);
+  // Opened from the command palette ("Open event log" action), which is
+  // mounted at the app root outside this tree, so it asks via a window event.
+  useEffect(() => {
+    const openEventLog = () => setIsEventLogOpen(true);
+    window.addEventListener(OPEN_EVENT_LOG_EVENT, openEventLog);
+    return () => window.removeEventListener(OPEN_EVENT_LOG_EVENT, openEventLog);
+  }, []);
   const timeoutRef = useRef<number | null>(null);
 
   const [dashboardMode, setDashboardMode] = useState<DashboardMode>(() => {
