@@ -71,9 +71,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps
+      # Browser binaries are cached, but the OS packages they link against are
+      # not part of that cache. Running this unconditionally keeps system
+      # dependencies present on cache-hit runs (the browser download itself is
+      # a no-op when the cached revision already matches).
+      - name: Install Playwright browsers and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Build project
         run: pnpm build
