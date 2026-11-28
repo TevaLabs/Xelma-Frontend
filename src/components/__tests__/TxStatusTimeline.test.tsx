@@ -173,3 +173,52 @@ describe('TxStatusTimeline', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('TxStatusTimeline live announcements', () => {
+  it('announces progress steps through a polite live region', () => {
+    const { rerender, container } = render(<TxStatusTimeline step="preparing" />);
+    let liveRegion = container.querySelector('[aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion).toHaveAttribute('aria-atomic', 'true');
+    expect(liveRegion).toHaveTextContent(/preparing transaction/i);
+
+    rerender(<TxStatusTimeline step="signing" />);
+    liveRegion = container.querySelector('[aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion).toHaveTextContent(/waiting for freighter signature/i);
+
+    rerender(<TxStatusTimeline step="submitting" />);
+    liveRegion = container.querySelector('[aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion).toHaveTextContent(/submitting transaction/i);
+  });
+
+  it('announces the success step through a polite live region', () => {
+    const { container } = render(
+      <TxStatusTimeline step="success" txHash="abc" successTitle="Prediction Submitted!" />,
+    );
+    const liveRegion = container.querySelector('[aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion).toHaveAttribute('aria-atomic', 'true');
+    expect(liveRegion).toHaveTextContent('Prediction Submitted!');
+  });
+
+  it('keeps the polite live region when advancing from progress to success', () => {
+    const { rerender, container } = render(<TxStatusTimeline step="submitting" />);
+    expect(container.querySelector('[aria-live="polite"]')).not.toBeNull();
+
+    rerender(<TxStatusTimeline step="success" txHash="abc" />);
+    const liveRegion = container.querySelector('[aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion).toHaveTextContent(/transaction complete/i);
+  });
+
+  it('announces errors assertively through the alert region', () => {
+    const { container } = render(
+      <TxStatusTimeline step="error" errorMessage="User rejected" />,
+    );
+    const alertRegion = container.querySelector('[role="alert"]');
+    expect(alertRegion).not.toBeNull();
+    expect(alertRegion).toHaveTextContent('User rejected');
+  });
+});

@@ -221,7 +221,7 @@ export default function TxStatusTimeline({
     const href = explorerUrl ?? `https://stellarexpert.org/tx/${txHash ?? ''}`;
 
     return (
-      <div role="status" className="text-center py-6">
+      <div role="status" aria-live="polite" aria-atomic="true" className="text-center py-6">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20 text-2xl font-bold text-green-500">
           ✓
         </div>
