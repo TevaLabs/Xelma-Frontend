@@ -3,7 +3,7 @@ import BalancesPanel from '../components/BalancesPanel';
 import { useWalletStore } from '../store/useWalletStore';
 
 /**
- * BalancesPanel — mocked wallet/Horizon state stories.
+ * BalancesPanel: mocked wallet/Horizon state stories.
  *
  * The panel's only external inputs are:
  * - `useWalletStore` (which wallet address is connected) — configured through
@@ -111,5 +111,27 @@ export const Error = () => {
   // The rejection is created lazily so the browser never logs an unhandled
   // rejection for a promise that is never awaited.
   mockHorizon(() => Promise.reject(new Error('Horizon is unreachable')));
+  return <BalancesPanel />;
+};
+
+export const Unfunded = () => {
+  connectWallet();
+  // An unfunded account returns 404 from Horizon
+  mockHorizon(Promise.resolve({ ok: false, status: 404, json: async () => ({}) }));
+  return <BalancesPanel />;
+};
+
+export const NoTrustlines = () => {
+  connectWallet();
+  // Account holding native XLM only with no trustlines
+  mockHorizon(
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        balances: [{ asset_type: 'native', balance: '100.0000000' }],
+      }),
+    }),
+  );
   return <BalancesPanel />;
 };

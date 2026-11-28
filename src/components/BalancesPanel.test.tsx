@@ -77,6 +77,8 @@ describe('BalancesPanel', () => {
     render(<BalancesPanel />);
 
     expect(await screen.findByText(/account not funded/i)).toBeInTheDocument();
+    expect(screen.getByText(/at least 1 XLM/i)).toBeInTheDocument();
+    expect(screen.getByText(/Stellar Testnet Friendbot/i)).toBeInTheDocument();
   });
 
   it('shows an error state with a retry button when the fetch fails', async () => {
