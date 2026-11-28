@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock useStellarAddressValidation
 vi.mock('../hooks/useStellarAddressValidation', () => ({
@@ -39,12 +39,14 @@ vi.mock('sonner', () => ({
 
 import Connect from './Connect';
 import { useWalletStore } from '../store/useWalletStore';
+import { useStellarAddressValidation } from '../hooks/useStellarAddressValidation';
 
 const mockUseWalletStore = vi.mocked(useWalletStore);
+const mockUseStellarAddressValidation = vi.mocked(useStellarAddressValidation);
 
 function mockWalletState(status: string, publicKey: string | null, isWatchOnly = false) {
   mockUseWalletStore.mockImplementation((selector: any) => {
-    const store = { status, publicKey, isWatchOnly, disconnect: vi.fn() };
+    const store = { status, publicKey, isWatchOnly, disconnect: vi.fn(), setWatchOnly: vi.fn() };
     if (typeof selector === 'function') return selector(store);
     return store;
   });
@@ -200,6 +202,60 @@ describe('Connect Page', () => {
       // Verify no unmocked fetch was triggered
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();
+    });
+  });
+});
+
+describe('watch-only connect flow', () => {
+  afterEach(() => {
+    mockUseStellarAddressValidation.mockReturnValue({
+      state: 'idle',
+      isValid: false,
+      isValidating: false,
+      errorMessage: null,
+    });
+  });
+
+  it('shows a Connecting state and disables the View button while setWatchOnly is in flight', async () => {
+    mockUseStellarAddressValidation.mockReturnValue({
+      state: 'valid',
+      isValid: true,
+      isValidating: false,
+      errorMessage: '',
+    });
+
+    let resolveSetup!: () => void;
+    const setupPromise = new Promise<void>((resolve) => {
+      resolveSetup = resolve;
+    });
+    const setWatchOnly = vi.fn(() => setupPromise);
+
+    mockUseWalletStore.mockImplementation((selector: any) => {
+      const store = {
+        status: 'idle',
+        publicKey: null,
+        isWatchOnly: false,
+        disconnect: vi.fn(),
+        setWatchOnly,
+      };
+      return typeof selector === 'function' ? selector(store) : store;
+    });
+
+    render(<Connect />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Watch-only: view an address without signing/i }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /View in Watch-Only Mode/i }));
+
+    const connectingBtn = await screen.findByRole('button', { name: /Connecting\.\.\./i });
+    expect(connectingBtn).toBeDisabled();
+    expect(screen.getByText(/Activating watch-only mode/i)).toBeInTheDocument();
+    expect(setWatchOnly).toHaveBeenCalledTimes(1);
+
+    resolveSetup();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /View in Watch-Only Mode/i })).toBeEnabled();
     });
   });
 });

@@ -20,6 +20,10 @@ vi.mock('sonner', () => ({
   },
 }));
 
+vi.mock('../utils/validateStellarAddress', () => ({
+  validateStellarAddressFormat: vi.fn(),
+}));
+
 vi.mock('@stellar/freighter-api', () => ({
   isConnected: vi.fn(),
   requestAccess: vi.fn(),
@@ -36,6 +40,8 @@ import {
   signMessage,
 } from '@stellar/freighter-api';
 import { useWalletStore, selectIsWalletConnected } from './useWalletStore';
+import { validateStellarAddressFormat } from '../utils/validateStellarAddress';
+import { toast } from 'sonner';
 
 function resetWalletState() {
   useWalletStore.setState({
@@ -283,5 +289,98 @@ describe('useWalletStore', () => {
     expect(clearAuth).toHaveBeenCalled();
     expect(s.errorCode).toBe('AUTH_FAILED');
     expect(s.errorMessage).toMatch(/sign-in/i);
+  });
+
+  describe('setWatchOnly', () => {
+    const VALID_ADDRESS = 'GBZUCH67MSLCTGVCIEZ4OX24Y6OOAWNXKFNZAVTSLDSML2ZVMCIP6ATT';
+
+    beforeEach(() => {
+      vi.mocked(validateStellarAddressFormat).mockReturnValue(true);
+    });
+
+    it('connects in watch-only mode only for a valid, funded address', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ balances: [{ asset_type: 'native', balance: '12.5' }] }),
+      }) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(VALID_ADDRESS);
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('connected');
+      expect(s.isWatchOnly).toBe(true);
+      expect(s.publicKey).toBe(VALID_ADDRESS);
+      expect(s.network).toBe('testnet');
+      expect(s.balance).toBe('12.50 XLM');
+      expect(s.errorMessage).toBeNull();
+      expect(toast.success).toHaveBeenCalledWith(
+        'Watch-only mode activated. Viewing address without signing capability.',
+      );
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed address without reaching Horizon or faking Connected', async () => {
+      const fetchSpy = vi.fn();
+      globalThis.fetch = fetchSpy as unknown as typeof fetch;
+      vi.mocked(validateStellarAddressFormat).mockReturnValue(false);
+
+      await useWalletStore.getState().setWatchOnly('NOT-A-STELLAR-ADDRESS');
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('error');
+      expect(s.publicKey).toBeNull();
+      expect(s.isWatchOnly).toBe(false);
+      expect(s.errorMessage).toMatch(/invalid stellar address/i);
+      expect(toast.error).toHaveBeenCalledWith(s.errorMessage);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('rejects an address that does not exist on the network instead of faking Connected', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({}),
+      }) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(VALID_ADDRESS);
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('error');
+      expect(s.publicKey).toBeNull();
+      expect(s.isWatchOnly).toBe(false);
+      expect(s.errorMessage).toBe('Account not found on Testnet.');
+      expect(toast.error).toHaveBeenCalledWith('Account not found on Testnet.');
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('rejects when Horizon is unreachable instead of faking Connected', async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(VALID_ADDRESS);
+
+      const s = useWalletStore.getState();
+      expect(s.status).toBe('error');
+      expect(s.publicKey).toBeNull();
+      expect(s.isWatchOnly).toBe(false);
+      expect(s.errorMessage).toMatch(/horizon/i);
+      expect(toast.error).toHaveBeenCalled();
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('normalizes the stored address to trimmed uppercase', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ balances: [{ asset_type: 'native', balance: '0' }] }),
+      }) as unknown as typeof fetch;
+
+      await useWalletStore.getState().setWatchOnly(`  ${VALID_ADDRESS.toLowerCase()}  `);
+
+      expect(useWalletStore.getState().publicKey).toBe(VALID_ADDRESS);
+    });
   });
 });
