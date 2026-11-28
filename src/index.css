@@ -74,6 +74,14 @@ body {
   border-color: rgba(44, 75, 253, 0.25);
 }
 
+.border-glass {
+  border-color: rgba(190, 199, 254, 0.2);
+}
+
+.border-glass/20 {
+  border-color: rgba(190, 199, 254, 0.1);
+}
+
 .accent-border-teal {
   box-shadow: 0 0 24px rgba(6, 182, 212, 0.12);
   border-color: rgba(6, 182, 212, 0.35) !important;

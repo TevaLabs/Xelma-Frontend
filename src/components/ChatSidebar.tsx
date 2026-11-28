@@ -288,7 +288,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         aria-modal={isMobileOpen ? "true" : undefined}
         aria-label="Live chat"
         className={`chat-sidebar fixed flex flex-col z-60 border-r ${TRANSFORM_TRANSITION}
-        bg-[#0A0F1A] border-[#BEC7FE]/10
+        bg-[#0A0F1A] border-t border-b border-glass/20 rounded-none
         
         /* Desktop: Side Drawer */
         md:left-0 md:w-80 md:translate-x-0 md:transition-none
@@ -317,7 +317,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         {/* Messages */}
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-2.5 flex flex-col gap-3 glass-card mx-2.5 mt-2.5 p-3.5 rounded-xl overscroll-contain"
+          className="flex-1 overflow-y-auto px-2.5 flex flex-col gap-3 glass-card mx-2.5 mt-2.5 p-3.5 rounded-xl border-glass overscroll-contain"
         >
           {messages.length === 0 && (
             <EmptyState
@@ -364,7 +364,7 @@ export function ChatSidebar({ showNewsRibbon = true }: ChatSidebarProps) {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] glass-card border-t border-x-0 border-b-0 rounded-none shrink-0">
+        <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] glass-card border-t border-x-0 border-b-0 rounded-none shrink-0 border-glass">
           {!isConnected && (
             <div
               className="mb-2 flex items-center justify-center gap-1.5 text-xs text-red-400"
